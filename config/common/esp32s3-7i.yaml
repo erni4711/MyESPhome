@@ -72,10 +72,6 @@ image:
     resize: 200x200
     type: RGB565
     transparency: alpha_channel
-  - file: "image/capture.jpg"
-    type: RGB565
-    id: capture
-    resize: 512x384
 
 
 # Allow Over-The-Air updates

@@ -2,7 +2,8 @@
 
 
 ## Purpose
-Provide an panel display for Home-Assistant based on [ESPHome](https://esphome.io/)
+Provide an panel display for Home-Assistant based on [ESPHome](https://esphome.io/).
+
 Instructions for building, flashing and testing the ESPHome configuration file named `7i-sample.yaml`.
 
 included is a component that provides screenshots from the device via http.

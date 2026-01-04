@@ -9,37 +9,37 @@ packages:
   - !include
       file: packages/pgclimate_sensor.yaml
       vars:
-        title: "Büro"
+        title: "Office"
         id: buro
         entity: climate.buro
   - !include
       file: packages/pgclimate_sensor.yaml
       vars:
-        title: "Wohnzimmer"
+        title: "Living Room"
         id: wohn
         entity: climate.wohnzimmer
   - !include
       file: packages/pgclimate_sensor.yaml
       vars:
-        title: "Links"
+        title: "Left"
         id: wohnl
         entity: climate.wohn_l
   - !include
       file: packages/pgclimate_sensor.yaml
       vars:
-        title: "Mitte"
+        title: "Center"
         id: wohnc
         entity: climate.wohn_c
   - !include
       file: packages/pgclimate_sensor.yaml
       vars:
-        title: "Keller"
+        title: "Basement"
         id: keller
         entity: climate.keller
   - !include
       file: packages/pgclimate_sensor.yaml
       vars:
-        title: "Schlafzimmer"
+        title: "Bedroom"
         id: schlafzimmer
         entity: climate.schlafzimmer
 
@@ -85,7 +85,7 @@ lvgl:
                     vars: 
                       id: buro
                       entity: climate.buro
-                      title: "Büro"
+                      title: "Office"
               - obj:
                   grid_cell_row_pos : 1
                   grid_cell_column_pos : 1
@@ -94,7 +94,7 @@ lvgl:
                     vars: 
                       id: keller
                       entity: climate.keller
-                      title: "Keller"
+                      title: "Basement"
               - obj:
                   grid_cell_row_pos : 1
                   grid_cell_column_pos : 2
@@ -103,7 +103,7 @@ lvgl:
                     vars: 
                       id: schlafzimmer
                       entity: climate.schlafzimmer
-                      title: "Schlafzimmer"
+                      title: "Bedroom"
               - obj:
                   grid_cell_row_pos : 0
                   grid_cell_column_pos : 0
@@ -112,7 +112,7 @@ lvgl:
                     vars: 
                       id: wohn
                       entity: climate.wohnzimmer
-                      title: "Wohnzimmer"
+                      title: "Living Room"
               - obj:
                   grid_cell_row_pos : 0
                   grid_cell_column_pos : 1
@@ -121,7 +121,7 @@ lvgl:
                     vars: 
                       id: wohnl
                       entity: climate.wohn_l
-                      title: "Links"
+                      title: "Left"
               - obj:
                   grid_cell_row_pos : 0
                   grid_cell_column_pos : 2
@@ -130,5 +130,5 @@ lvgl:
                     vars: 
                       id: wohnc
                       entity: climate.wohn_c
-                      title: "Mitte"
+                      title: "Center"
 

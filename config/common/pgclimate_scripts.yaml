@@ -15,7 +15,7 @@
           - lvgl.label.update:
               id: mode_label
               text: !lambda |-
-                if (mode == "off") return "AUS";
+                if (mode == "off") return "OFF";
                 return "OFFLINE";
           - lvgl.label.update:
               id: power_button_label
@@ -38,7 +38,7 @@
         then:
           - lvgl.label.update:
               id: mode_label
-              text: "HEIZEN"
+              text: "HEAT"
           - lvgl.label.update:
               id: heat_button_label
               text_color: ${color_heat}
