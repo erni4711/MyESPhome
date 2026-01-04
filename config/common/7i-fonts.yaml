@@ -1,0 +1,78 @@
+font:
+  - file: 'fonts/RobotoMono-SemiBold.ttf'    # Monospace font file
+    id: font_mono
+    size: 20
+  - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
+    id: font_norm
+    bpp: 4
+    size: 24
+    glyphsets:
+    - GF_Latin_Core
+    extras:
+      - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+        glyphs: 
+          - ${mdi_humidity_percentage} 
+          - ${mdi_thermometer}
+    ignore_missing_glyphs: true
+
+  - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+    id: icons_100
+    size: 100
+    bpp: 4
+    glyphs: [
+      ]
+    
+  - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+    id: battery_icons_20
+    size: 20
+    bpp: 4
+    glyphs: 
+      - ${mdi_battery_10}
+      - ${mdi_battery_20}
+      - ${mdi_battery_30}
+      - ${mdi_battery_40}
+      - ${mdi_battery_50}
+      - ${mdi_battery_60}
+      - ${mdi_battery_70}
+      - ${mdi_battery_80}
+      - ${mdi_battery_90}
+      - ${mdi_battery}
+      - ${mdi_battery_outline}
+      - ${mdi_battery_unknown}
+  - file: 'fonts/RobotoCondensed-Regular.ttf'
+    glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
+    id: roboto_reg
+    size: 18
+    bpp: 4
+    ignore_missing_glyphs: true
+    extras:
+      - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+        glyphs: 
+          - ${mdi_wifi}
+          - ${mdi_wifi_off}
+          - ${mdi_info}
+          - ${mdi_power}
+          - ${mdi_sleep}
+          - ${mdi_restart}
+          - ${mdi_mode_heat}
+
+  - file: 'fonts/RobotoCondensed-Regular.ttf'
+    id: roboto_med
+    glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
+    size: 24
+    bpp: 4
+    extras:
+      - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+        glyphs:
+          - ${mdi_info}
+          - ${mdi_power}
+          - ${mdi_plus}
+          - ${mdi_minus}
+          - ${mdi_mode_heat}
+    ignore_missing_glyphs: true
+
+  - file: 'fonts/RobotoCondensed-Regular.ttf'
+    glyphs: ' -0123456789.°C'
+    id: roboto_huge
+    size: 50
+    bpp: 4 

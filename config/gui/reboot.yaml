@@ -1,0 +1,19 @@
+styles: entity_widget
+width: 60
+layout:
+  type: flex
+  flex_flow: row
+  pad_column: 4
+  flex_align_main: center
+  flex_align_cross: center
+widgets:
+  - button:
+      id: reboot_button
+      align: CENTER
+      style: style_circle_button
+      label:
+        text: "\u21BB"  # clockwise open circle arrow (reboot)
+        style: style_circle_label
+      on_press:
+        then:
+          - esphome.restart: []

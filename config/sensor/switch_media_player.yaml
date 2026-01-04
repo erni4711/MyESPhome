@@ -1,0 +1,10 @@
+- platform: homeassistant
+  id: sensor_switch_${entity}
+  entity_id: media_player.${entity}
+  trigger_on_initial_state: true
+  on_state:
+    then:
+      lvgl.widget.update:
+        id: switch_${entity}
+        state:
+          checked: !lambda return x;

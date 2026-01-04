@@ -1,0 +1,134 @@
+substitutions:
+  node_name: "7i-sample"
+
+packages:
+  - !include common/subst.yaml
+  - !include common/wifi.yaml
+  - !include common/esp32s3-7i.yaml
+  # - !include packages/pglivingroom_sensors.yaml
+  - !include
+      file: packages/pgclimate_sensor.yaml
+      vars:
+        title: "Büro"
+        id: buro
+        entity: climate.buro
+  - !include
+      file: packages/pgclimate_sensor.yaml
+      vars:
+        title: "Wohnzimmer"
+        id: wohn
+        entity: climate.wohnzimmer
+  - !include
+      file: packages/pgclimate_sensor.yaml
+      vars:
+        title: "Links"
+        id: wohnl
+        entity: climate.wohn_l
+  - !include
+      file: packages/pgclimate_sensor.yaml
+      vars:
+        title: "Mitte"
+        id: wohnc
+        entity: climate.wohn_c
+  - !include
+      file: packages/pgclimate_sensor.yaml
+      vars:
+        title: "Keller"
+        id: keller
+        entity: climate.keller
+  - !include
+      file: packages/pgclimate_sensor.yaml
+      vars:
+        title: "Schlafzimmer"
+        id: schlafzimmer
+        entity: climate.schlafzimmer
+
+
+
+
+lvgl:
+  pages:
+#    - <<: !include common/pglivingroom.yaml
+    - id: main_page
+      widgets:
+        - obj:
+            id: climate_header
+            align: TOP_MID
+            styles: header_footer
+            widgets:
+              - label:
+                  text: "Heating Control"
+                  align: CENTER
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+        - obj:
+            id: climate_body
+            align: top_left
+            y: 30
+            width: 800
+            height: 420
+            border_width: 0
+            outline_width: 0
+            pad_all: 0
+            layout:
+              type: grid
+              grid_rows: [ 210px, 210px ]
+              grid_columns: [ content, content, content ]
+              pad_row: 0
+              pad_column: 0
+            widgets:
+              - obj:
+                  grid_cell_row_pos : 1
+                  grid_cell_column_pos : 0
+                  <<: !include 
+                    file: gui/climate.yaml
+                    vars: 
+                      id: buro
+                      entity: climate.buro
+                      title: "Büro"
+              - obj:
+                  grid_cell_row_pos : 1
+                  grid_cell_column_pos : 1
+                  <<: !include 
+                    file: gui/climate.yaml
+                    vars: 
+                      id: keller
+                      entity: climate.keller
+                      title: "Keller"
+              - obj:
+                  grid_cell_row_pos : 1
+                  grid_cell_column_pos : 2
+                  <<: !include 
+                    file: gui/climate.yaml
+                    vars: 
+                      id: schlafzimmer
+                      entity: climate.schlafzimmer
+                      title: "Schlafzimmer"
+              - obj:
+                  grid_cell_row_pos : 0
+                  grid_cell_column_pos : 0
+                  <<: !include 
+                    file: gui/climate.yaml
+                    vars: 
+                      id: wohn
+                      entity: climate.wohnzimmer
+                      title: "Wohnzimmer"
+              - obj:
+                  grid_cell_row_pos : 0
+                  grid_cell_column_pos : 1
+                  <<: !include 
+                    file: gui/climate.yaml
+                    vars: 
+                      id: wohnl
+                      entity: climate.wohn_l
+                      title: "Links"
+              - obj:
+                  grid_cell_row_pos : 0
+                  grid_cell_column_pos : 2
+                  <<: !include 
+                    file: gui/climate.yaml
+                    vars: 
+                      id: wohnc
+                      entity: climate.wohn_c
+                      title: "Mitte"
+

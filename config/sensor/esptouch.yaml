@@ -1,0 +1,5 @@
+- platform: esp32_touch
+    id: ${id}
+    name: "ESP32 Touch Pad"
+    pin: GPIO04
+    threshold: 1000

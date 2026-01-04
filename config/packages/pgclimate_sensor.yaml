@@ -1,0 +1,167 @@
+sensor:
+  # HA Climate temperature sensor
+  - platform: homeassistant
+    id: ${id}_set_temperature
+    entity_id: ${entity}
+    attribute: temperature
+    internal: true
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return isnan(x);'
+            then:
+              # - lvgl.widget.hide: ${id}_hvac_temp_ticks
+              # - lvgl.widget.hide: ${id}_hvac_temp_knob
+              - lvgl.widget.hide: ${id}_hvac_temp_label
+            else:
+              - lvgl.indicator.update:
+                  id: ${id}_hvac_temp_ticks
+                  end_value: !lambda return x * 10;
+              - lvgl.arc.update:
+                  id: ${id}_hvac_temp_knob
+                  value: !lambda return x * 10;
+              - lvgl.label.update:
+                  id: ${id}_hvac_temp_label
+                  text:
+                    format: "%.1f"
+                    args: [ 'round(x * 10) / 10' ]
+  #      - script.execute: turn_on_screen_light
+  # HA Climate current temperature sensor
+  - platform: homeassistant
+    id: ${id}_current_temperature
+    entity_id: ${entity}
+    attribute: current_temperature
+    internal: true
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return isnan(x);'
+            then:
+              - lambda: |-
+                  auto indic = id(${id}_current_temp_needle);
+                  if (indic) {
+                    indic->opa = LV_OPA_TRANSP;
+                    lv_obj_invalidate(id(${id}_meter_ticks));
+                  }
+              - lvgl.widget.hide: ${id}_current_temp_label
+            else:
+              - lambda: |-
+                  auto indic = id(${id}_current_temp_needle);
+                  if (indic) {
+                    indic->opa = LV_OPA_COVER;
+                    lv_obj_invalidate(id(${id}_meter_ticks));
+                  }
+              - lvgl.indicator.update:
+                  id: ${id}_current_temp_needle
+                  value: !lambda return x * 10;
+              - lvgl.label.update:
+                  id: ${id}_current_temp_label
+                  text:
+                    format: "%.1f°C"
+                    args: [ 'round(x * 10) / 10' ]
+text_sensor:
+  # HA Climate HVAC mode sensor
+  - platform: homeassistant
+    entity_id: ${entity}
+    id: ${id}_hvac_mode
+    internal: true
+    on_value:
+      then:
+        - script.execute:
+            id: ${id}_set_hvac_mode
+            mode: !lambda return x;
+
+script:
+  # HVAC Modes UI scripts
+  - id: ${id}_set_hvac_mode
+    parameters:
+      mode: string
+    then:
+      # Reset other buttons to inactive color
+      - lvgl.label.update:
+          id: ${id}_heat_button_label
+          text_color: ${color_grey}
+      # Mode Label update
+      - if:
+          condition:
+            lambda: 'return (mode == "off" || mode == "unavailable" || mode == "unknown");'
+          then:
+            - lvgl.label.update:
+                id: ${id}_mode_label
+                text: !lambda |-
+                  if (mode == "off") return "AUS";
+                  return "OFFLINE";
+            - lvgl.label.update:
+                id: ${id}_power_button_label
+                text_color: ${color_grey}
+            - lvgl.widget.hide: ${id}_temp_inc_button
+            - lvgl.widget.hide: ${id}_temp_dec_button
+            - lvgl.widget.hide: ${id}_temp_comfort_button
+            - lvgl.widget.hide: ${id}_temp_lowering_button
+            - lvgl.widget.hide: ${id}_meter_ticks
+            - lvgl.widget.hide: ${id}_hvac_temp_knob
+            - lvgl.label.update:
+                id: ${id}_hvac_temp_label
+                text_color: ${color_grey}
+          else:
+            - lvgl.label.update:
+                id: ${id}_power_button_label
+                text_color: ${color_success}
+            - lvgl.widget.show: ${id}_temp_inc_button
+            - lvgl.widget.show: ${id}_temp_dec_button
+            - lvgl.widget.show: ${id}_temp_comfort_button
+            - lvgl.widget.show: ${id}_temp_lowering_button
+            - lvgl.widget.show: ${id}_meter_ticks
+            - lvgl.widget.show: ${id}_hvac_temp_knob
+            - lvgl.label.update:
+                id: ${id}_hvac_temp_label
+                text_color: ${color_white}
+      - if:
+          condition:
+            lambda: 'return mode == "auto";'
+          then:
+            - lvgl.label.update:
+                id: ${id}_mode_label
+                text: "AUTO"
+      - if:
+          condition:
+            lambda: 'return mode == "cool";'
+          then:
+            - lvgl.label.update:
+                id: ${id}_mode_label
+                text: "COOL"
+      - if:
+          condition:
+            lambda: 'return mode == "heat";'
+          then:
+            - lvgl.label.update:
+                id: ${id}_mode_label
+                text: "HEIZEN"
+            - lvgl.label.update:
+                id: ${id}_heat_button_label
+                text_color: ${color_heat}
+      - if:
+          condition:
+            lambda: 'return mode == "dry";'
+          then:
+            - lvgl.label.update:
+                id: ${id}_mode_label
+                text: "DRY"
+  # Set HVAC Temperature UI scripts
+  - id: ${id}_set_hvac_temp
+    parameters:
+      direction: string
+    then:
+      - homeassistant.action:
+          action: climate.set_temperature
+          data:
+            entity_id: ${entity}
+            temperature: !lambda |-
+              float current_temp = id(${id}_set_temperature).state;
+              if (direction == "up") {
+                return current_temp + 0.5;
+              } else {
+                return current_temp - 0.5;
+              }

@@ -1,0 +1,10 @@
+- platform: homeassistant
+    id: sensor_${entity}
+    entity_id: sensor.${entity}
+    on_value:
+        then:
+            lvgl.label.update:
+                id: lbl_${id}
+                text:
+                    format: "%.1f°C"
+                    args: [ 'x' ]

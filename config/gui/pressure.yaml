@@ -1,0 +1,27 @@
+styles: entity_widget
+width: 400
+layout:
+  type: flex
+  flex_flow: row
+  # pad_row: 4
+  pad_column: 4
+  flex_align_main: start
+  flex_align_cross: start
+  flex_align_track: end
+widgets:
+  - label:
+      text: "${mdi_thermometer}"
+      text_align: LEFT
+      width: 25
+  - label:
+      id: lbl_${id}
+      text: "-.-"
+      text_align: RIGHT
+      width: 80
+  - label:
+      text: "hPa"
+      text_align: LEFT
+      width: 55
+  - label:
+      text: ${text}
+      text_align: LEFT

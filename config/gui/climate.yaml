@@ -1,0 +1,292 @@
+border_width: 0
+outline_width: 0
+width: 250
+height: 210
+pad_all: 0
+widgets:
+  # Arc Outer Ring only for visual effect
+  - arc:
+      id: ${id}_arc_ring_outer
+      height: 180
+      width: 180
+      y: 10
+      align: CENTER
+      arc_color: ${color_light_grey}
+      arc_opa: COVER
+      arc_width: 10
+      arc_rounded: false
+      start_angle: 140
+      end_angle: 40
+      knob:
+        bg_color: ${color_white}
+  # Arc Inner Ring only for visual effect
+  - obj:
+      id: ${id}_arc_ring_inner
+      height: 178
+      width: 178
+      y: 10
+      radius: 90
+      align: CENTER
+      border_width: 40
+      border_color: ${color_dark_grey}
+      bg_color: ${color_darker_grey}
+      # start_angle: 135
+      # end_angle: 45
+  # Meter ticks and needle
+  - meter:
+      id: ${id}_meter_ticks
+      hidden: true
+      height: 188
+      width: 188
+      y: 10
+      align: CENTER
+      bg_opa: TRANSP
+      border_width: 0
+      scales:
+        range_from: 160   # 16°C
+        range_to: 340     # 34°C
+        #  Set temperature ticks background
+        ticks:
+          count: 60
+          length: 15
+          width: 2
+          color: ${color_temp_ticks}
+        indicators:
+          # Current temperature needle
+          - line:
+              id: ${id}_current_temp_needle
+              color: ${color_temp_current}
+              width: 3
+              r_mod: 10
+              value: 340 # 34°C Should be the same as the current temperature label
+          # Set temperature ticks
+          - tick_style:
+              id: ${id}_hvac_temp_ticks
+              start_value: 160
+              end_value: 240 # 24°C Should be the same as the set temperature label
+              color_start: ${color_temp_set}
+              color_end: ${color_temp_set}
+              width: 2
+    # Meter inner Ring only for visual effect
+  - obj:
+      id: ${id}_meter_ring_inner
+      height: 120
+      width: 120
+      y: 0
+      radius: 80
+      align: CENTER
+      border_width: 12
+      border_color: ${color_dark_grey}
+      bg_color: ${color_darker_grey}
+      # start_angle: 135
+      # end_angle: 45
+  # background for mode buttons
+  - obj:
+      x: 0
+      y: 80
+      align: CENTER
+      bg_color: ${color_darker_grey}
+      width: 130
+      height: 40
+      border_width: 0
+      outline_width: 0
+  # Set temperature knob, should change with the set temperature ticks
+  - arc:
+      id: ${id}_hvac_temp_knob
+      hidden: true
+      align: CENTER
+      arc_opa: TRANSP
+      adjustable: true
+      value: 240 # 24°C (24x10) Should be the same as the set temperature needle
+      min_value: 160
+      max_value: 340
+      width: 155
+      height: 155
+      start_angle: 140
+      end_angle: 40
+      y: 10
+      arc_width: 10
+      change_rate: 30
+      indicator:
+        arc_opa: TRANSP
+        arc_width: 16
+      knob:
+        bg_color: ${color_temp_set}
+        border_width: 4
+        border_color: ${color_white}
+      on_change:
+        then:
+          - homeassistant.action:
+              action: climate.set_temperature
+              data:
+                entity_id: ${entity}
+                temperature: !lambda |-
+                  float temp = x / 10.0;
+                  return roundf(temp * 2) / 2;
+  # HVAC Modes: OFF, AUTO, HEAT, COOL
+  - label:
+      id: ${id}_mode_label
+      align: CENTER
+      y: -30
+      text: "KPR" # HVAC mode to be updated from Home Assistant climate entity
+      text_font: roboto_reg
+      text_color: ${color_grey}
+  # Set Temperature label, should change with the set temperature knob
+  - label:
+      id: ${id}_hvac_temp_label
+      hidden: false
+      align: CENTER
+      y: 10
+      text_font: roboto_huge
+      text: "---" # Set temperature to be updated from Home Assistant climate entity
+  # Celsius label only to show °C
+  - label:
+      id: ${id}_celsius_label
+      align: CENTER
+      x: 60
+      y: 45
+      text: "°C"
+  # Current Temperature label, should change with the current temperature needle
+  - label:
+      id: ${id}_current_temp_label
+      hidden: false
+      align: CENTER
+      y: 45 
+      text: "---" # Current temperature to be updated from Home Assistant climate entity
+      text_color: ${color_temp_current}
+  # Temperature buttons
+  # HVAC increase temperature
+  - button:
+      id: ${id}_temp_inc_button
+      hidden: true
+      x: 90
+      y: -65
+      align: CENTER
+      styles: style_circle_button
+      bg_color: ${color_red}
+      widgets:
+        - label:
+            styles: style_circle_label
+            text: ${mdi_plus}
+            text_color: ${color_white}
+      on_press:
+        - script.execute:
+            id: ${id}_set_hvac_temp
+            direction: "up"
+  # HVAC decrease temperature
+  - button:
+      id: ${id}_temp_dec_button
+      hidden: true
+      x: 90
+      y: 85
+      align: CENTER
+      styles: style_circle_button
+      bg_color: ${color_blue}
+      widgets:
+        - label:
+            styles: style_circle_label
+            text: ${mdi_minus}
+            text_color: ${color_white}
+      on_press:
+        - script.execute:
+            id: ${id}_set_hvac_temp
+            direction: "down"
+  # comfort temperature
+  - button:
+      id: ${id}_temp_comfort_button
+      hidden: true
+      x: -90
+      y: -65
+      align: CENTER
+      styles: style_menu_button
+      bg_color: ${color_red}
+      widgets:
+        - label:
+            styles: style_menu_button_label
+            text: ${temperature_comfort}
+            text_color: ${color_white}
+      on_press:
+        - homeassistant.action:
+            action: climate.set_temperature
+            data:
+              entity_id: ${entity}
+              temperature: ${temperature_comfort}
+  # absenk temperature
+  - button:
+      id: ${id}_temp_lowering_button
+      hidden: true
+      x: -90
+      y: 85
+      align: CENTER
+      styles: style_menu_button
+      bg_color: ${color_blue}
+      widgets:
+        - label:
+            styles: style_menu_button_label
+            text: ${temperature_lowering}
+            text_color: ${color_white}
+      on_press:
+        - homeassistant.action:
+            action: climate.set_temperature
+            data:
+              entity_id: ${entity}
+              temperature: ${temperature_lowering}
+  # HVAC Mode buttons
+  # POWER
+  - button:
+      id: ${id}_power_button
+      x: -30  # Leftmost position
+      y: 80
+      align: CENTER
+      bg_opa: TRANSP
+      styles: style_mode_button
+      widgets:
+        - label:
+            id: ${id}_power_button_label
+            styles: style_menu_button_label
+            text: ${mdi_power} 
+            text_color: ${color_grey}
+      on_press:
+        - if:
+            condition:
+              lambda: 'return id(${id}_hvac_mode).state == "off";'
+            then:
+              - homeassistant.action:
+                  action: climate.set_hvac_mode
+                  data:
+                    entity_id: ${entity}
+                    hvac_mode: "cool"
+            else:
+              - homeassistant.action:
+                  action: climate.set_hvac_mode
+                  data:
+                    entity_id: ${entity}
+                    hvac_mode: "off"
+  # HEAT
+  - button:
+      id: ${id}_heat_button
+      x: 30
+      y: 80
+      align: CENTER
+      bg_opa: TRANSP
+      styles: style_mode_button
+      widgets:
+        - label:
+            id: ${id}_heat_button_label
+            styles: style_menu_button_label
+            text: ${mdi_mode_heat}
+            text_color: ${color_grey}
+      on_press:
+        - homeassistant.action:
+            action: climate.set_hvac_mode
+            data:
+              entity_id: ${entity}
+              hvac_mode: "heat"
+  - label:
+      x: 0
+      y: -90
+      text: ${title}
+      align: CENTER
+      text_align: CENTER
+      text_color: ${color_black}
+      bg_color: ${color_grey}

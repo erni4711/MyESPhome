@@ -1,0 +1,14 @@
+name: "screenshot"
+version: "0.1"
+
+files:
+  - screenshot.cpp
+  - lv_screenshot.cpp
+  - lv_mem_wrappers.cpp
+  - screenshot.h
+includes:
+  - screenshot.h
+
+dependencies:
+  - lvgl
+  - api

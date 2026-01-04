@@ -1,0 +1,114 @@
+packages:
+    - !include { file: switch.yaml, vars: { id: pglivingroom_wohn, entity: switch.st_wohn } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_autolicht, entity: automation.wohnzimmer } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_tv, entity: media_player.tv_wohnzimmer } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_in2, entity: switch.antela_in2_socket_1 } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_in4, entity: switch.antela_in4_socket_1 } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_socket_1, entity: switch.steckdosenleiste_socket_1 } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_socket_2, entity: switch.steckdosenleiste_socket_2 } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_socket_3, entity: switch.steckdosenleiste_socket_3 } } 
+    - !include { file: switch.yaml, vars: { id: pglivingroom_carport, entity: input_boolean.carport } } 
+
+sensor:
+  - platform: homeassistant
+    id: sensor_7i_wohn_bme280_temperature
+    entity_id: sensor.7i_wohn_bme280_temperature
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: lbl_7i_wohn_bme280_temperature
+            text:
+              format: "%.1f"
+              args: [ x ]
+  - platform: homeassistant
+    id: sensor_7i_wohn_bme280_humidity
+    entity_id: sensor.7i_wohn_bme280_humidity
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: lbl_7i_wohn_bme280_humidity
+            text:
+              format: "%.1f"
+              args: [ x ]
+  - platform: homeassistant
+    id: sensor_7i_wohn_bme280_pressure
+    entity_id: sensor.7i_wohn_bme280_pressure
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: lbl_7i_wohn_bme280_pressure
+            text:
+              format: "%.1f"
+              args: [ x ]
+  - platform: homeassistant
+    id: pglivingroom_outside_temperature
+    entity_id: sensor.outside_temperatur_2
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: lbl_pglivingroom_outside_temperature
+            text:
+              format: "%.1f"
+              args: [ x ]
+  - platform: homeassistant
+    id: pglivingroom_outside_humidity
+    entity_id: sensor.outside_humidity_2
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: lbl_pglivingroom_outside_humidity
+            text:
+              format: "%.1f"
+              args: [ x ]
+  - platform: homeassistant
+    id: pglivingroom_outside_pressure
+    entity_id: sensor.outside_pressure_2
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: lbl_pglivingroom_outside_pressure
+            text:
+              format: "%.1f"
+              args: [ x ]
+
+  # - platform: homeassistant
+  #   id: pglivingroom_dect_210_temperature
+  #   entity_id: sensor.dect_210_temperature
+  #   on_value:
+  #     then:
+  #       - lvgl.label.update:
+  #           id: lbl_pglivingroom_dect210
+  #           text:
+  #             format: "%.1f"
+  #             args: [ x ]
+  # - platform: homeassistant
+  #   id: sensor_pglivingroom_temperature_pool_lower
+  #   entity_id: sensor.pool_lower
+  #   on_value:
+  #     then:
+  #       - lvgl.label.update:
+  #           id: lbl_pglivingroom_pool_lower
+  #           text:
+  #             format: "%.1f"
+  #             args: [ x ]
+  # - platform: homeassistant
+  #   id: sensor_pglivingroom_sensor_temperature_pool_upper
+  #   entity_id: sensor.pool_upper
+  #   on_value:
+  #     then:
+  #       - lvgl.label.update:
+  #           id: lbl_pglivingroom_pool_upper
+  #           text:
+  #             format: "%.1f"
+  #             args: [ x ]
+  - platform: homeassistant
+    id: sensor_pglivingroom_thermostat
+    entity_id: climate.wohnzimmer
+    attribute: temperature
+    on_value:
+      then:
+        - lvgl.spinbox.update:
+            id: pglivingroom_thermostat_spinbox
+            value: !lambda return x;
+
+

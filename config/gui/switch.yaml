@@ -1,0 +1,42 @@
+styles: entity_widget
+width: 400
+layout:
+    type: flex
+    flex_flow: row
+    # pad_row: 4
+    pad_column: 4
+    flex_align_main: start
+    flex_align_cross: start
+    flex_align_track: end
+widgets:
+    - switch:
+        id: switch_${id}
+        align: CENTER
+        on_value:
+            then:
+                if: 
+                    condition:
+                        lambda: return x;
+                    then:
+                        - homeassistant.action:
+                            action: switch.turn_on
+                            data:
+                                entity_id: ${entity}
+                    else:
+                        - homeassistant.action:
+                            action: switch.turn_off
+                            data:
+                                entity_id: ${entity}
+#        on_boot:
+#            #priority: -10
+#            then:
+#                #delay: 1s
+#                if:
+#                    condition: state
+#                      entity_id: {entity}
+#                    then:
+#                      switch.turn_on: switch_${id}
+#                    else:
+#                      switch.turn_off: switch_${id}
+    - label:
+        text: ${text} 

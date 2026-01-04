@@ -1,0 +1,60 @@
+# HVAC Modes UI scripts
+- id: set_hvac_mode
+  parameters:
+    mode: string
+  then:
+    # Reset other buttons to inactive color
+    - lvgl.label.update:
+        id: heat_button_label
+        text_color: ${color_grey}
+    # Mode Label update
+    - if:
+        condition:
+          lambda: 'return (mode == "off" || mode == "unavailable" || mode == "unknown");'
+        then:
+          - lvgl.label.update:
+              id: mode_label
+              text: !lambda |-
+                if (mode == "off") return "AUS";
+                return "OFFLINE";
+          - lvgl.label.update:
+              id: power_button_label
+              text_color: ${color_red}
+          - lvgl.widget.hide: temp_inc_button
+          - lvgl.widget.hide: temp_dec_button
+          - lvgl.widget.hide: meter_ticks
+          - lvgl.widget.hide: hvac_temp_knob
+        else:
+          - lvgl.label.update:
+              id: power_button_label
+              text_color: ${color_success}
+          - lvgl.widget.show: temp_inc_button
+          - lvgl.widget.show: temp_dec_button
+          - lvgl.widget.show: meter_ticks
+          - lvgl.widget.show: hvac_temp_knob
+    - if:
+        condition:
+          lambda: 'return mode == "heat";'
+        then:
+          - lvgl.label.update:
+              id: mode_label
+              text: "HEIZEN"
+          - lvgl.label.update:
+              id: heat_button_label
+              text_color: ${color_heat}
+# Set HVAC Temperature UI scripts
+- id: set_hvac_temp
+  parameters:
+    direction: string
+  then:
+    - homeassistant.action:
+        action: climate.set_temperature
+        data:
+          entity_id: ${climate_entity}
+          temperature: !lambda |-
+            float current_temp = id(set_temperature).state;
+            if (direction == "up") {
+              return current_temp + 0.5;
+            } else {
+              return current_temp - 0.5;
+            }

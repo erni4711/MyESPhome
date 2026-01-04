@@ -1,0 +1,10 @@
+- platform: homeassistant
+    id: sensor_${id}
+    entity_id: ${entity}
+    trigger_on_initial_state: true
+    on_state:
+      then:
+        lvgl.widget.update:
+          id: switch_${id}
+          state:
+            checked: !lambda return x;
