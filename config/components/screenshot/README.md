@@ -15,7 +15,7 @@ Captures a screenshot on http://<ipadress>/screenshot.png
 - LVGL 
 
 ## Installation
-Place the component folder in your ESPHome config directory under `custom_components/screenshot/` (source files, headers and this README).
+Place the component folder in your ESPHome config directory under `components/screenshot/` (source files, headers and this README).
 
 ## Configuration example
 Add the component to your device YAML and adjust options as needed:
@@ -23,7 +23,7 @@ Add the component to your device YAML and adjust options as needed:
 
 # Example display this YAML
 
-see 7inch.yaml
+see 7i-sample.yaml
 
 ## License
 Apache — see LICENSE file for details.

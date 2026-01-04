@@ -1,7 +1,15 @@
 # 7i-sample.yaml — Build & Usage
 
+
 ## Purpose
+Provide an panel display for Home-Assistant based on [ESPHome](https://esphome.io/)
 Instructions for building, flashing and testing the ESPHome configuration file named `7i-sample.yaml`.
+
+included is a component that provides screenshots from the device via http.
+See [ScreenShot](config/components/screenshot/README.md)
+
+## Hardware
+[ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) from [WAVESHARE](https://www.waveshare.com/)
 
 ## Prerequisites
 - Python 3 and pip OR Docker, or Home Assistant ESPHome add-on.
@@ -71,4 +79,3 @@ Add `7i-sample.yaml` to the ESPHome add-on / dashboard and use the web UI to com
 
 ![About](images/about.png)
 ![Heating-Control](images/heating-control.png)
-  
