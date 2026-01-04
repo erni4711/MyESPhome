@@ -71,5 +71,4 @@ Add `7i-sample.yaml` to the ESPHome add-on / dashboard and use the web UI to com
 
 ![About](images/about.png)
 ![Heating-Control](images/heating-control.png)
-
-cd con  
+  
