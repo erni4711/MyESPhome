@@ -2,24 +2,70 @@
 # Usage: Add the full OneCall URL (including API key, lat, lon, exclude, units)
 # to your Home Assistant secrets.yaml as:
 # openweathermap_onecall_url: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&exclude=minutely,alerts&units=metric&appid=YOUR_API_KEY"
+
 sensor:
   - platform: rest
-    name: "owm_onecall"
-    resource: !secret openweathermap_onecall_url
+    name: "owm_onecall_daily"
+    resource: !secret openweathermap_onecall_url_daily
     method: GET
     timeout: 10
     value_template: "{{ value_json.current.temp if value_json.current is defined else '' }}"
     json_attributes:
       - daily
+      - current
+      - alerts
+    scan_interval: 1800
+  - platform: rest
+    name: "owm_onecall_hourly"
+    resource: !secret openweathermap_onecall_url_hourly
+    method: GET
+    timeout: 10
+    value_template: "{{ value_json.current.temp if value_json.current is defined else '' }}"
+    json_attributes:
       - hourly
     scan_interval: 1800
 
 # Template sensors mapping daily[0..3] to sensor.forecast_*
 template:
   - sensor:
+      - name: "owm_daily_0"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 0 %}{"dt": {{ d[0].dt | int(0) }}, "temp": {"max": {{ d[0].temp.max | default(d[0].temp.day | default(0)) }}, "min": {{ d[0].temp.min | default(0) }}}, "weather": [{"description": {{ d[0].weather[0].description | tojson }}, "icon": {{ d[0].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_1"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 1 %}{"dt": {{ d[1].dt | int(0) }}, "temp": {"max": {{ d[1].temp.max | default(d[1].temp.day | default(0)) }}, "min": {{ d[1].temp.min | default(0) }}}, "weather": [{"description": {{ d[1].weather[0].description | tojson }}, "icon": {{ d[1].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_2"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 2 %}{"dt": {{ d[2].dt | int(0) }}, "temp": {"max": {{ d[2].temp.max | default(d[2].temp.day | default(0)) }}, "min": {{ d[2].temp.min | default(0) }}}, "weather": [{"description": {{ d[2].weather[0].description | tojson }}, "icon": {{ d[2].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_3"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 3 %}{"dt": {{ d[3].dt | int(0) }}, "temp": {"max": {{ d[3].temp.max | default(d[3].temp.day | default(0)) }}, "min": {{ d[3].temp.min | default(0) }}}, "weather": [{"description": {{ d[3].weather[0].description | tojson }}, "icon": {{ d[3].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_4"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 4 %}{"dt": {{ d[4].dt | int(0) }}, "temp": {"max": {{ d[4].temp.max | default(d[4].temp.day | default(0)) }}, "min": {{ d[4].temp.min | default(0) }}}, "weather": [{"description": {{ d[4].weather[0].description | tojson }}, "icon": {{ d[4].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_5"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 5 %}{"dt": {{ d[5].dt | int(0) }}, "temp": {"max": {{ d[5].temp.max | default(d[5].temp.day | default(0)) }}, "min": {{ d[5].temp.min | default(0) }}}, "weather": [{"description": {{ d[5].weather[0].description | tojson }}, "icon": {{ d[5].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_6"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 6 %}{"dt": {{ d[6].dt | int(0) }}, "temp": {"max": {{ d[6].temp.max | default(d[6].temp.day | default(0)) }}, "min": {{ d[6].temp.min | default(0) }}}, "weather": [{"description": {{ d[6].weather[0].description | tojson }}, "icon": {{ d[6].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+      - name: "owm_daily_7"
+        state: >-
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 7 %}{"dt": {{ d[7].dt | int(0) }}, "temp": {"max": {{ d[7].temp.max | default(d[7].temp.day | default(0)) }}, "min": {{ d[7].temp.min | default(0) }}}, "weather": [{"description": {{ d[7].weather[0].description | tojson }}, "icon": {{ d[7].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+
+# compatibility sensors mapping daily[0..3] to sensor.forecast_*
+  - sensor:
       - name: "forecast_0_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].weather and d[0].weather|length > 0 %}
             {{ d[0].weather[0].main }}
           {% else %}
@@ -28,7 +74,7 @@ template:
 
       - name: "forecast_0_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].temp and d[0].temp.max is defined %}
             {{ (d[0].temp.max)|round(1) }}
           {% else %}
@@ -38,7 +84,7 @@ template:
 
       - name: "forecast_0_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].temp and d[0].temp.min is defined %}
             {{ (d[0].temp.min)|round(1) }}
           {% else %}
@@ -48,7 +94,7 @@ template:
 
       - name: "forecast_0_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[0].dt|int(0)) if d|length > 0 and d[0].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -59,7 +105,7 @@ template:
 
       - name: "forecast_0_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].weather and d[0].weather|length > 0 and d[0].weather[0].icon is defined %}
             {{ d[0].weather[0].icon }}
           {% else %}
@@ -68,7 +114,7 @@ template:
 
       - name: "forecast_0_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].weather and d[0].weather|length > 0 and d[0].weather[0].description is defined %}
             {{ d[0].weather[0].description }}
           {% else %}
@@ -77,7 +123,7 @@ template:
 
       - name: "forecast_0_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].wind_speed is defined %}
             {{ (d[0].wind_speed)|round(1) }}
           {% else %}
@@ -87,7 +133,7 @@ template:
 
       - name: "forecast_0_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].wind_deg is defined %}
             {{ (d[0].wind_deg)|int }}
           {% else %}
@@ -97,7 +143,7 @@ template:
 
       - name: "forecast_0_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].rain is defined %}
             {{ (d[0].rain)|round(2) }}
           {% else %}
@@ -107,7 +153,7 @@ template:
 
       - name: "forecast_0_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 0 and d[0].snow is defined %}
             {{ (d[0].snow)|round(2) }}
           {% else %}
@@ -117,7 +163,7 @@ template:
 
       - name: "forecast_1_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].weather and d[1].weather|length > 0 %}
             {{ d[1].weather[0].main }}
           {% else %}
@@ -126,7 +172,7 @@ template:
 
       - name: "forecast_1_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].temp and d[1].temp.max is defined %}
             {{ (d[1].temp.max)|round(1) }}
           {% else %}
@@ -136,7 +182,7 @@ template:
 
       - name: "forecast_1_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].temp and d[1].temp.min is defined %}
             {{ (d[1].temp.min)|round(1) }}
           {% else %}
@@ -146,7 +192,7 @@ template:
 
       - name: "forecast_1_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[1].dt|int(0)) if d|length > 1 and d[1].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -157,7 +203,7 @@ template:
 
       - name: "forecast_1_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].weather and d[1].weather|length > 0 and d[1].weather[0].icon is defined %}
             {{ d[1].weather[0].icon }}
           {% else %}
@@ -166,7 +212,7 @@ template:
 
       - name: "forecast_1_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].weather and d[1].weather|length > 0 and d[1].weather[0].description is defined %}
             {{ d[1].weather[0].description }}
           {% else %}
@@ -175,7 +221,7 @@ template:
 
       - name: "forecast_1_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].wind_speed is defined %}
             {{ (d[1].wind_speed)|round(1) }}
           {% else %}
@@ -185,7 +231,7 @@ template:
 
       - name: "forecast_1_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].wind_deg is defined %}
             {{ (d[1].wind_deg)|int }}
           {% else %}
@@ -195,7 +241,7 @@ template:
 
       - name: "forecast_1_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].rain is defined %}
             {{ (d[1].rain)|round(2) }}
           {% else %}
@@ -205,7 +251,7 @@ template:
 
       - name: "forecast_1_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 1 and d[1].snow is defined %}
             {{ (d[1].snow)|round(2) }}
           {% else %}
@@ -215,7 +261,7 @@ template:
 
       - name: "forecast_2_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].weather and d[2].weather|length > 0 %}
             {{ d[2].weather[0].main }}
           {% else %}
@@ -224,7 +270,7 @@ template:
 
       - name: "forecast_2_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].temp and d[2].temp.max is defined %}
             {{ (d[2].temp.max)|round(1) }}
           {% else %}
@@ -234,7 +280,7 @@ template:
 
       - name: "forecast_2_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].temp and d[2].temp.min is defined %}
             {{ (d[2].temp.min)|round(1) }}
           {% else %}
@@ -244,7 +290,7 @@ template:
 
       - name: "forecast_2_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[2].dt|int(0)) if d|length > 2 and d[2].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -255,7 +301,7 @@ template:
 
       - name: "forecast_2_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].weather and d[2].weather|length > 0 and d[2].weather[0].icon is defined %}
             {{ d[2].weather[0].icon }}
           {% else %}
@@ -264,7 +310,7 @@ template:
 
       - name: "forecast_2_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].weather and d[2].weather|length > 0 and d[2].weather[0].description is defined %}
             {{ d[2].weather[0].description }}
           {% else %}
@@ -273,7 +319,7 @@ template:
 
       - name: "forecast_2_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].wind_speed is defined %}
             {{ (d[2].wind_speed)|round(1) }}
           {% else %}
@@ -283,7 +329,7 @@ template:
 
       - name: "forecast_2_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].wind_deg is defined %}
             {{ (d[2].wind_deg)|int }}
           {% else %}
@@ -293,7 +339,7 @@ template:
 
       - name: "forecast_2_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].rain is defined %}
             {{ (d[2].rain)|round(2) }}
           {% else %}
@@ -303,7 +349,7 @@ template:
 
       - name: "forecast_2_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 2 and d[2].snow is defined %}
             {{ (d[2].snow)|round(2) }}
           {% else %}
@@ -313,7 +359,7 @@ template:
 
       - name: "forecast_3_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].weather and d[3].weather|length > 0 %}
             {{ d[3].weather[0].main }}
           {% else %}
@@ -322,7 +368,7 @@ template:
 
       - name: "forecast_3_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].temp and d[3].temp.max is defined %}
             {{ (d[3].temp.max)|round(1) }}
           {% else %}
@@ -332,7 +378,7 @@ template:
 
       - name: "forecast_3_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].temp and d[3].temp.min is defined %}
             {{ (d[3].temp.min)|round(1) }}
           {% else %}
@@ -342,7 +388,7 @@ template:
 
       - name: "forecast_3_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[3].dt|int(0)) if d|length > 3 and d[3].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -353,7 +399,7 @@ template:
 
       - name: "forecast_3_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].weather and d[3].weather|length > 0 and d[3].weather[0].icon is defined %}
             {{ d[3].weather[0].icon }}
           {% else %}
@@ -362,7 +408,7 @@ template:
 
       - name: "forecast_3_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].weather and d[3].weather|length > 0 and d[3].weather[0].description is defined %}
             {{ d[3].weather[0].description }}
           {% else %}
@@ -371,7 +417,7 @@ template:
 
       - name: "forecast_3_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].wind_speed is defined %}
             {{ (d[3].wind_speed)|round(1) }}
           {% else %}
@@ -381,7 +427,7 @@ template:
 
       - name: "forecast_3_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].wind_deg is defined %}
             {{ (d[3].wind_deg)|int }}
           {% else %}
@@ -391,7 +437,7 @@ template:
 
       - name: "forecast_3_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].rain is defined %}
             {{ (d[3].rain)|round(2) }}
           {% else %}
@@ -401,7 +447,7 @@ template:
 
       - name: "forecast_3_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 3 and d[3].snow is defined %}
             {{ (d[3].snow)|round(2) }}
           {% else %}
@@ -411,7 +457,7 @@ template:
 
       - name: "forecast_4_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].weather and d[4].weather|length > 0 %}
             {{ d[4].weather[0].main }}
           {% else %}
@@ -420,7 +466,7 @@ template:
 
       - name: "forecast_4_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].temp and d[4].temp.max is defined %}
             {{ (d[4].temp.max)|round(1) }}
           {% else %}
@@ -430,7 +476,7 @@ template:
 
       - name: "forecast_4_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].temp and d[4].temp.min is defined %}
             {{ (d[4].temp.min)|round(1) }}
           {% else %}
@@ -440,7 +486,7 @@ template:
 
       - name: "forecast_4_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[4].dt|int(0)) if d|length > 4 and d[4].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -451,7 +497,7 @@ template:
 
       - name: "forecast_4_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].weather and d[4].weather|length > 0 and d[4].weather[0].icon is defined %}
             {{ d[4].weather[0].icon }}
           {% else %}
@@ -460,7 +506,7 @@ template:
 
       - name: "forecast_4_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].weather and d[4].weather|length > 0 and d[4].weather[0].description is defined %}
             {{ d[4].weather[0].description }}
           {% else %}
@@ -469,7 +515,7 @@ template:
 
       - name: "forecast_4_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].wind_speed is defined %}
             {{ (d[4].wind_speed)|round(1) }}
           {% else %}
@@ -479,7 +525,7 @@ template:
 
       - name: "forecast_4_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].wind_deg is defined %}
             {{ (d[4].wind_deg)|int }}
           {% else %}
@@ -489,7 +535,7 @@ template:
 
       - name: "forecast_4_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].rain is defined %}
             {{ (d[4].rain)|round(2) }}
           {% else %}
@@ -499,7 +545,7 @@ template:
 
       - name: "forecast_4_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 4 and d[4].snow is defined %}
             {{ (d[4].snow)|round(2) }}
           {% else %}
@@ -509,7 +555,7 @@ template:
 
       - name: "forecast_5_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].weather and d[5].weather|length > 0 %}
             {{ d[5].weather[0].main }}
           {% else %}
@@ -518,7 +564,7 @@ template:
 
       - name: "forecast_5_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].temp and d[5].temp.max is defined %}
             {{ (d[5].temp.max)|round(1) }}
           {% else %}
@@ -528,7 +574,7 @@ template:
 
       - name: "forecast_5_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].temp and d[5].temp.min is defined %}
             {{ (d[5].temp.min)|round(1) }}
           {% else %}
@@ -538,7 +584,7 @@ template:
 
       - name: "forecast_5_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[5].dt|int(0)) if d|length > 5 and d[5].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -549,7 +595,7 @@ template:
 
       - name: "forecast_5_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].weather and d[5].weather|length > 0 and d[5].weather[0].icon is defined %}
             {{ d[5].weather[0].icon }}
           {% else %}
@@ -558,7 +604,7 @@ template:
 
       - name: "forecast_5_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].weather and d[5].weather|length > 0 and d[5].weather[0].description is defined %}
             {{ d[5].weather[0].description }}
           {% else %}
@@ -567,7 +613,7 @@ template:
 
       - name: "forecast_5_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].wind_speed is defined %}
             {{ (d[5].wind_speed)|round(1) }}
           {% else %}
@@ -577,7 +623,7 @@ template:
 
       - name: "forecast_5_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].wind_deg is defined %}
             {{ (d[5].wind_deg)|int }}
           {% else %}
@@ -587,7 +633,7 @@ template:
 
       - name: "forecast_5_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].rain is defined %}
             {{ (d[5].rain)|round(2) }}
           {% else %}
@@ -597,7 +643,7 @@ template:
 
       - name: "forecast_5_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 5 and d[5].snow is defined %}
             {{ (d[5].snow)|round(2) }}
           {% else %}
@@ -607,7 +653,7 @@ template:
 
       - name: "forecast_6_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].weather and d[6].weather|length > 0 %}
             {{ d[6].weather[0].main }}
           {% else %}
@@ -616,7 +662,7 @@ template:
 
       - name: "forecast_6_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].temp and d[6].temp.max is defined %}
             {{ (d[6].temp.max)|round(1) }}
           {% else %}
@@ -626,7 +672,7 @@ template:
 
       - name: "forecast_6_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].temp and d[6].temp.min is defined %}
             {{ (d[6].temp.min)|round(1) }}
           {% else %}
@@ -636,7 +682,7 @@ template:
 
       - name: "forecast_6_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[6].dt|int(0)) if d|length > 6 and d[6].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -647,7 +693,7 @@ template:
 
       - name: "forecast_6_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].weather and d[6].weather|length > 0 and d[6].weather[0].icon is defined %}
             {{ d[6].weather[0].icon }}
           {% else %}
@@ -656,7 +702,7 @@ template:
 
       - name: "forecast_6_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].weather and d[6].weather|length > 0 and d[6].weather[0].description is defined %}
             {{ d[6].weather[0].description }}
           {% else %}
@@ -665,7 +711,7 @@ template:
 
       - name: "forecast_6_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].wind_speed is defined %}
             {{ (d[6].wind_speed)|round(1) }}
           {% else %}
@@ -675,7 +721,7 @@ template:
 
       - name: "forecast_6_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].wind_deg is defined %}
             {{ (d[6].wind_deg)|int }}
           {% else %}
@@ -685,7 +731,7 @@ template:
 
       - name: "forecast_6_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].rain is defined %}
             {{ (d[6].rain)|round(2) }}
           {% else %}
@@ -695,7 +741,7 @@ template:
 
       - name: "forecast_6_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 6 and d[6].snow is defined %}
             {{ (d[6].snow)|round(2) }}
           {% else %}
@@ -705,7 +751,7 @@ template:
 
       - name: "forecast_7_condition"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].weather and d[7].weather|length > 0 %}
             {{ d[7].weather[0].main }}
           {% else %}
@@ -714,7 +760,7 @@ template:
 
       - name: "forecast_7_temp_hi"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].temp and d[7].temp.max is defined %}
             {{ (d[7].temp.max)|round(1) }}
           {% else %}
@@ -724,7 +770,7 @@ template:
 
       - name: "forecast_7_temp_lo"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].temp and d[7].temp.min is defined %}
             {{ (d[7].temp.min)|round(1) }}
           {% else %}
@@ -734,7 +780,7 @@ template:
 
       - name: "forecast_7_day"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily')|default([]) %}
           {% set ts = (d[7].dt|int(0)) if d|length > 7 and d[7].dt is defined else 0 %}
           {% if ts > 0 %}
             {% set days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'] %}
@@ -745,7 +791,7 @@ template:
 
       - name: "forecast_7_icon"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].weather and d[7].weather|length > 0 and d[7].weather[0].icon is defined %}
             {{ d[7].weather[0].icon }}
           {% else %}
@@ -754,7 +800,7 @@ template:
 
       - name: "forecast_7_description"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].weather and d[7].weather|length > 0 and d[7].weather[0].description is defined %}
             {{ d[7].weather[0].description }}
           {% else %}
@@ -763,7 +809,7 @@ template:
 
       - name: "forecast_7_wind_speed"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].wind_speed is defined %}
             {{ (d[7].wind_speed)|round(1) }}
           {% else %}
@@ -773,7 +819,7 @@ template:
 
       - name: "forecast_7_wind_deg"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].wind_deg is defined %}
             {{ (d[7].wind_deg)|int }}
           {% else %}
@@ -783,7 +829,7 @@ template:
 
       - name: "forecast_7_rain"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].rain is defined %}
             {{ (d[7].rain)|round(2) }}
           {% else %}
@@ -793,649 +839,10 @@ template:
 
       - name: "forecast_7_snow"
         state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily') %}
+          {% set d = state_attr('sensor.owm_onecall_daily','daily') %}
           {% if d and d|length > 7 and d[7].snow is defined %}
             {{ (d[7].snow)|round(2) }}
           {% else %}
             0
           {% endif %}
         unit_of_measurement: "mm"
-
-# Hourly-per-day summary sensors for daily 0..7
-  - sensor:
-      - name: "forecast_0_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 0) %}0{% else %}
-          {% set day = as_datetime(d[0].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 0) %}''{% else %}
-            {% set day = as_datetime(d[0].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 0) %}''{% else %}
-            {% set day = as_datetime(d[0].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 0) %}''{% else %}
-            {% set day = as_datetime(d[0].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 0) %}''{% else %}
-            {% set day = as_datetime(d[0].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_1_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 1) %}0{% else %}
-          {% set day = as_datetime(d[1].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 1) %}''{% else %}
-            {% set day = as_datetime(d[1].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 1) %}''{% else %}
-            {% set day = as_datetime(d[1].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 1) %}''{% else %}
-            {% set day = as_datetime(d[1].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 1) %}''{% else %}
-            {% set day = as_datetime(d[1].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_2_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 2) %}0{% else %}
-          {% set day = as_datetime(d[2].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 2) %}''{% else %}
-            {% set day = as_datetime(d[2].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 2) %}''{% else %}
-            {% set day = as_datetime(d[2].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 2) %}''{% else %}
-            {% set day = as_datetime(d[2].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 2) %}''{% else %}
-            {% set day = as_datetime(d[2].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_3_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 3) %}0{% else %}
-          {% set day = as_datetime(d[3].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 3) %}''{% else %}
-            {% set day = as_datetime(d[3].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 3) %}''{% else %}
-            {% set day = as_datetime(d[3].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 3) %}''{% else %}
-            {% set day = as_datetime(d[3].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 3) %}''{% else %}
-            {% set day = as_datetime(d[3].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_4_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 4) %}0{% else %}
-          {% set day = as_datetime(d[4].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 4) %}''{% else %}
-            {% set day = as_datetime(d[4].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 4) %}''{% else %}
-            {% set day = as_datetime(d[4].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 4) %}''{% else %}
-            {% set day = as_datetime(d[4].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 4) %}''{% else %}
-            {% set day = as_datetime(d[4].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_5_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 5) %}0{% else %}
-          {% set day = as_datetime(d[5].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 5) %}''{% else %}
-            {% set day = as_datetime(d[5].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 5) %}''{% else %}
-            {% set day = as_datetime(d[5].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 5) %}''{% else %}
-            {% set day = as_datetime(d[5].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 5) %}''{% else %}
-            {% set day = as_datetime(d[5].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_6_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 6) %}0{% else %}
-          {% set day = as_datetime(d[6].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 6) %}''{% else %}
-            {% set day = as_datetime(d[6].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 6) %}''{% else %}
-            {% set day = as_datetime(d[6].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 6) %}''{% else %}
-            {% set day = as_datetime(d[6].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 6) %}''{% else %}
-            {% set day = as_datetime(d[6].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-      - name: "forecast_7_hourly_summary"
-        state: >-
-          {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-          {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-          {% if not (d and d|length > 7) %}0{% else %}
-          {% set day = as_datetime(d[7].dt).date() %}
-          {% set ns = namespace(cnt=0) %}
-          {% for it in h %}
-            {% if as_datetime(it.dt).date() == day %}
-              {% set ns.cnt = ns.cnt + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.cnt }}
-          {% endif %}
-        attributes:
-          times: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 7) %}''{% else %}
-            {% set day = as_datetime(d[7].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day %}
-                {% set ns.list = ns.list + [ as_datetime(it.dt).strftime('%H:%M') ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          temps: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 7) %}''{% else %}
-            {% set day = as_datetime(d[7].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.temp is defined %}
-                {% set ns.list = ns.list + [ (it.temp|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          pops: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 7) %}''{% else %}
-            {% set day = as_datetime(d[7].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.pop is defined %}
-                {% set ns.list = ns.list + [ ((it.pop * 100)|round(0)|string) ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-          icons: >-
-            {% set d = state_attr('sensor.owm_onecall','daily')|default([]) %}
-            {% set h = state_attr('sensor.owm_onecall','hourly')|default([]) %}
-            {% if not (d and d|length > 7) %}''{% else %}
-            {% set day = as_datetime(d[7].dt).date() %}
-            {% set ns = namespace(list=[]) %}
-            {% for it in h %}
-              {% if as_datetime(it.dt).date() == day and it.weather and it.weather|length > 0 and it.weather[0].icon is defined %}
-                {% set ns.list = ns.list + [ it.weather[0].icon ] %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.list|join(',') }}
-            {% endif %}
-
-# Expose hourly-summary attributes as separate template sensors for ESPHome to read
-  - sensor:
-      - name: "forecast_0_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_0_hourly_summary','times') | default('') }}
-      - name: "forecast_0_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_0_hourly_summary','temps') | default('') }}
-      - name: "forecast_0_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_0_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_1_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_1_hourly_summary','times') | default('') }}
-      - name: "forecast_1_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_1_hourly_summary','temps') | default('') }}
-      - name: "forecast_1_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_1_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_2_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_2_hourly_summary','times') | default('') }}
-      - name: "forecast_2_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_2_hourly_summary','temps') | default('') }}
-      - name: "forecast_2_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_2_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_3_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_3_hourly_summary','times') | default('') }}
-      - name: "forecast_3_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_3_hourly_summary','temps') | default('') }}
-      - name: "forecast_3_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_3_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_4_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_4_hourly_summary','times') | default('') }}
-      - name: "forecast_4_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_4_hourly_summary','temps') | default('') }}
-      - name: "forecast_4_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_4_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_5_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_5_hourly_summary','times') | default('') }}
-      - name: "forecast_5_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_5_hourly_summary','temps') | default('') }}
-      - name: "forecast_5_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_5_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_6_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_6_hourly_summary','times') | default('') }}
-      - name: "forecast_6_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_6_hourly_summary','temps') | default('') }}
-      - name: "forecast_6_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_6_hourly_summary','icons') | default('') }}
-
-      - name: "forecast_7_hourly_times"
-        state: >-
-          {{ state_attr('sensor.forecast_7_hourly_summary','times') | default('') }}
-      - name: "forecast_7_hourly_temps"
-        state: >-
-          {{ state_attr('sensor.forecast_7_hourly_summary','temps') | default('') }}
-      - name: "forecast_7_hourly_icons"
-        state: >-
-          {{ state_attr('sensor.forecast_7_hourly_summary','icons') | default('') }}
-
-# Consolidated JSON text sensors (daily/hourly) for ESPHome consumption
-# These expose the raw `daily` and `hourly` arrays as JSON strings.
-  - sensor:
-      - name: "owm_daily_text"
-        state: >-
-          {{ state_attr('sensor.owm_onecall','daily') | tojson }}
-
-      - name: "owm_hourly_text"
-        state: >-
-          {{ state_attr('sensor.owm_onecall','hourly') | tojson }}
