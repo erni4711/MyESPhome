@@ -14,14 +14,36 @@ font:
           - ${mdi_humidity_percentage} 
           - ${mdi_thermometer}
     ignore_missing_glyphs: true
-
-  - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
-    id: icons_100
-    size: 100
+  - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
+    id: font_small
     bpp: 4
-    glyphs: [
-      ]
-    
+    size: 16
+    glyphsets:
+    - GF_Latin_Core
+    ignore_missing_glyphs: true
+    extras:
+      - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+        glyphs: 
+          - ${mdi_clear_night}
+          - ${mdi_cloudy}
+          - ${mdi_exceptional}
+          - ${mdi_fog}
+          - ${mdi_rainy}
+          - ${mdi_snowy}
+          - ${mdi_thunderstorm}
+          - ${mdi_windy}
+          - ${mdi_hail}
+          - ${mdi_lightning}
+          - ${mdi_lightning_rainy}
+          - ${mdi_partlycloudy}
+          - ${mdi_rainy_night}
+          - ${mdi_snowy_night}
+          - ${mdi_pouring}
+          - ${mdi_sunny}
+          - ${mdi_sunny_off}
+          - ${mdi_unknown}
+          - ${mdi_unavailable}
+
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: battery_icons_20
     size: 20
@@ -39,6 +61,31 @@ font:
       - ${mdi_battery}
       - ${mdi_battery_outline}
       - ${mdi_battery_unknown}
+  - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+    id: weather_symbols_80
+    size: 80
+    bpp: 4
+    glyphs:
+      - ${mdi_clear_night}
+      - ${mdi_cloudy}
+      - ${mdi_exceptional}
+      - ${mdi_fog}
+      - ${mdi_rainy}
+      - ${mdi_snowy}
+      - ${mdi_thunderstorm}
+      - ${mdi_windy}
+      - ${mdi_hail}
+      - ${mdi_lightning}
+      - ${mdi_lightning_rainy}
+      - ${mdi_partlycloudy}
+      - ${mdi_rainy_night}
+      - ${mdi_snowy_night}
+      - ${mdi_pouring}
+      - ${mdi_sunny}
+      - ${mdi_sunny_off}
+      - ${mdi_unknown}
+      - ${mdi_unavailable}
+    ignore_missing_glyphs: true
   - file: 'fonts/RobotoCondensed-Regular.ttf'
     glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
     id: roboto_reg
@@ -76,3 +123,23 @@ font:
     id: roboto_huge
     size: 50
     bpp: 4 
+  # - file: "fonts/Nunito-SemiBold.ttf"
+  #   id: nunito_24
+  #   size: 24
+  #   bpp: 8
+  # - file: "fonts/Nunito-SemiBold.ttf"
+  #   id: nunito_20
+  #   size: 20
+  #   bpp: 8  
+  # - file: "fonts/Nunito-SemiBold.ttf"
+  #   id: nunito_72
+  #   size: 72
+  #   bpp: 8  
+  # - file: "fonts/Nunito-SemiBold.ttf"
+  #   id: nunito_48
+  #   size: 48
+  #   bpp: 8 
+  # - file: "fonts/Nunito-SemiBold.ttf"
+  #   id: nunito_42
+  #   size: 42
+  #   bpp: 8

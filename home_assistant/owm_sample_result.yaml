@@ -1,0 +1,1157 @@
+daily:
+  - dt: 1768042800
+    sunrise: 1768029909
+    sunset: 1768058829
+    moonrise: 1768000740
+    moonset: 1768039620
+    moon_phase: 0.75
+    summary: Expect a day of partly cloudy with snow
+    temp:
+      day: -3.17
+      min: -10.33
+      max: -2.55
+      night: -10.18
+      eve: -9.4
+      morn: -4.15
+    feels_like:
+      day: -9.15
+      night: -14.07
+      eve: -9.4
+      morn: -11.15
+    pressure: 1012
+    humidity: 78
+    dew_point: -6.08
+    wind_speed: 8.99
+    wind_deg: 76
+    wind_gust: 17.56
+    weather:
+      - id: 600
+        main: Snow
+        description: light snow
+        icon: 13d
+    clouds: 20
+    pop: 1
+    snow: 1.37
+    uvi: 0.57
+  - dt: 1768129200
+    sunrise: 1768116271
+    sunset: 1768145315
+    moonrise: 1768091640
+    moonset: 1768126680
+    moon_phase: 0.77
+    summary: There will be partly cloudy today
+    temp:
+      day: -8.09
+      min: -15.54
+      max: -7.2
+      night: -10.86
+      eve: -13.93
+      morn: -15.13
+    feels_like:
+      day: -11.78
+      night: -16.52
+      eve: -19.34
+      morn: -20.45
+    pressure: 1027
+    humidity: 96
+    dew_point: -9.09
+    wind_speed: 3.01
+    wind_deg: 157
+    wind_gust: 4.41
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04d
+    clouds: 94
+    pop: 0
+    uvi: 0.61
+  - dt: 1768215600
+    sunrise: 1768202629
+    sunset: 1768231804
+    moonrise: 1768182420
+    moonset: 1768213920
+    moon_phase: 0.8
+    summary: >-
+      The day will start with partly cloudy with snow through the late morning
+      hours, transitioning to partly cloudy with rain
+    temp:
+      day: 0.48
+      min: -11.38
+      max: 1.59
+      night: 1.59
+      eve: 1.25
+      morn: -3.73
+    feels_like:
+      day: -4.47
+      night: -2.3
+      eve: -3.08
+      morn: -8.69
+    pressure: 1014
+    humidity: 91
+    dew_point: -0.88
+    wind_speed: 6.51
+    wind_deg: 196
+    wind_gust: 15.04
+    weather:
+      - id: 616
+        main: Snow
+        description: rain and snow
+        icon: 13d
+    clouds: 100
+    pop: 1
+    rain: 1.8
+    snow: 2.16
+    uvi: 0.22
+  - dt: 1768302000
+    sunrise: 1768288984
+    sunset: 1768318294
+    moonrise: 1768273320
+    moonset: 1768301400
+    moon_phase: 0.83
+    summary: Expect a day of partly cloudy with rain
+    temp:
+      day: 2.15
+      min: 1.56
+      max: 2.25
+      night: 1.96
+      eve: 1.56
+      morn: 1.81
+    feels_like:
+      day: -0.86
+      night: -1.12
+      eve: -1.02
+      morn: -0.73
+    pressure: 1013
+    humidity: 100
+    dew_point: 2.08
+    wind_speed: 4.59
+    wind_deg: 207
+    wind_gust: 10.62
+    weather:
+      - id: 501
+        main: Rain
+        description: moderate rain
+        icon: 10d
+    clouds: 100
+    pop: 1
+    rain: 4.33
+    uvi: 0.35
+  - dt: 1768388400
+    sunrise: 1768375336
+    sunset: 1768404787
+    moonrise: 1768364100
+    moonset: 1768389240
+    moon_phase: 0.86
+    summary: Expect a day of partly cloudy with rain
+    temp:
+      day: 4.42
+      min: 1.73
+      max: 4.78
+      night: 1.76
+      eve: 3.16
+      morn: 4.44
+    feels_like:
+      day: -0.65
+      night: -3.49
+      eve: -1.12
+      morn: -0.45
+    pressure: 1010
+    humidity: 81
+    dew_point: 1.46
+    wind_speed: 8.25
+    wind_deg: 226
+    wind_gust: 17.83
+    weather:
+      - id: 500
+        main: Rain
+        description: light rain
+        icon: 10d
+    clouds: 99
+    pop: 0.8
+    rain: 0.13
+    uvi: 0.41
+  - dt: 1768474800
+    sunrise: 1768461685
+    sunset: 1768491281
+    moonrise: 1768454580
+    moonset: 1768477800
+    moon_phase: 0.89
+    summary: Expect a day of partly cloudy with rain
+    temp:
+      day: 2.91
+      min: 1.76
+      max: 3.05
+      night: 2.16
+      eve: 2.31
+      morn: 2.84
+    feels_like:
+      day: -1.84
+      night: -1.64
+      eve: -1.82
+      morn: -2.3
+    pressure: 1011
+    humidity: 97
+    dew_point: 2.43
+    wind_speed: 7.09
+    wind_deg: 208
+    wind_gust: 13.54
+    weather:
+      - id: 500
+        main: Rain
+        description: light rain
+        icon: 10d
+    clouds: 100
+    pop: 1
+    rain: 1.5
+    uvi: 1
+  - dt: 1768561200
+    sunrise: 1768548031
+    sunset: 1768577777
+    moonrise: 1768544520
+    moonset: 1768567200
+    moon_phase: 0.93
+    summary: Expect a day of partly cloudy with rain
+    temp:
+      day: 5.57
+      min: 1.69
+      max: 6.53
+      night: 5.13
+      eve: 5.34
+      morn: 2.81
+    feels_like:
+      day: 2.5
+      night: 2.52
+      eve: 2.6
+      morn: -0.62
+    pressure: 1005
+    humidity: 80
+    dew_point: 2.41
+    wind_speed: 4.36
+    wind_deg: 180
+    wind_gust: 11.72
+    weather:
+      - id: 500
+        main: Rain
+        description: light rain
+        icon: 10d
+    clouds: 100
+    pop: 1
+    rain: 1.74
+    uvi: 1
+  - dt: 1768647600
+    sunrise: 1768634374
+    sunset: 1768664275
+    moonrise: 1768633620
+    moonset: 1768657380
+    moon_phase: 0.96
+    summary: Expect a day of partly cloudy with rain
+    temp:
+      day: 6.46
+      min: 4.74
+      max: 6.46
+      night: 5.2
+      eve: 5.25
+      morn: 4.74
+    feels_like:
+      day: 4.15
+      night: 3.12
+      eve: 3.23
+      morn: 2.38
+    pressure: 1013
+    humidity: 80
+    dew_point: 3.28
+    wind_speed: 3.54
+    wind_deg: 177
+    wind_gust: 6.84
+    weather:
+      - id: 500
+        main: Rain
+        description: light rain
+        icon: 10d
+    clouds: 100
+    pop: 1
+    rain: 2.55
+    uvi: 1
+hourly:
+  - dt: 1768042800
+    temp: -3.17
+    feels_like: -9.15
+    pressure: 1012
+    humidity: 78
+    dew_point: -6.08
+    uvi: 0.57
+    clouds: 20
+    visibility: 10000
+    wind_speed: 5.43
+    wind_deg: 78
+    wind_gust: 15.17
+    weather:
+      - id: 801
+        main: Clouds
+        description: few clouds
+        icon: 02d
+    pop: 0
+  - dt: 1768046400
+    temp: -3.19
+    feels_like: -8.72
+    pressure: 1012
+    humidity: 77
+    dew_point: -6.25
+    uvi: 0.51
+    clouds: 0
+    visibility: 10000
+    wind_speed: 4.71
+    wind_deg: 72
+    wind_gust: 13.83
+    weather:
+      - id: 800
+        main: Clear
+        description: clear sky
+        icon: 01d
+    pop: 0
+  - dt: 1768050000
+    temp: -3.13
+    feels_like: -8.27
+    pressure: 1012
+    humidity: 79
+    dew_point: -5.9
+    uvi: 0.36
+    clouds: 20
+    visibility: 10000
+    wind_speed: 4.18
+    wind_deg: 64
+    wind_gust: 11.27
+    weather:
+      - id: 801
+        main: Clouds
+        description: few clouds
+        icon: 02d
+    pop: 0
+  - dt: 1768053600
+    temp: -3.29
+    feels_like: -7.93
+    pressure: 1013
+    humidity: 81
+    dew_point: -5.76
+    uvi: 0.2
+    clouds: 40
+    visibility: 10000
+    wind_speed: 3.52
+    wind_deg: 58
+    wind_gust: 8.39
+    weather:
+      - id: 802
+        main: Clouds
+        description: scattered clouds
+        icon: 03d
+    pop: 0
+  - dt: 1768057200
+    temp: -4.31
+    feels_like: -7.67
+    pressure: 1014
+    humidity: 85
+    dew_point: -6.21
+    uvi: 0
+    clouds: 55
+    visibility: 10000
+    wind_speed: 2.14
+    wind_deg: 36
+    wind_gust: 2.46
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768060800
+    temp: -6.68
+    feels_like: -9.19
+    pressure: 1016
+    humidity: 90
+    dew_point: -7.89
+    uvi: 0
+    clouds: 60
+    visibility: 10000
+    wind_speed: 1.41
+    wind_deg: 35
+    wind_gust: 1.38
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768064400
+    temp: -9.4
+    feels_like: -9.4
+    pressure: 1018
+    humidity: 98
+    dew_point: -14.16
+    uvi: 0
+    clouds: 74
+    visibility: 7788
+    wind_speed: 0.81
+    wind_deg: 30
+    wind_gust: 1.08
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768068000
+    temp: -9.55
+    feels_like: -9.55
+    pressure: 1019
+    humidity: 99
+    dew_point: -13.83
+    uvi: 0
+    clouds: 77
+    visibility: 3725
+    wind_speed: 0.49
+    wind_deg: 17
+    wind_gust: 1.35
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768071600
+    temp: -9.75
+    feels_like: -9.75
+    pressure: 1020
+    humidity: 98
+    dew_point: -12.54
+    uvi: 0
+    clouds: 89
+    visibility: 5968
+    wind_speed: 0.99
+    wind_deg: 271
+    wind_gust: 1.07
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768075200
+    temp: -10.21
+    feels_like: -10.21
+    pressure: 1021
+    humidity: 99
+    dew_point: -13.85
+    uvi: 0
+    clouds: 90
+    visibility: 5372
+    wind_speed: 1.25
+    wind_deg: 267
+    wind_gust: 1.21
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768078800
+    temp: -10.33
+    feels_like: -13.62
+    pressure: 1022
+    humidity: 100
+    dew_point: -14.4
+    uvi: 0
+    clouds: 92
+    visibility: 5509
+    wind_speed: 1.54
+    wind_deg: 273
+    wind_gust: 1.39
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768082400
+    temp: -10.18
+    feels_like: -14.07
+    pressure: 1023
+    humidity: 100
+    dew_point: -14.78
+    uvi: 0
+    clouds: 94
+    visibility: 6195
+    wind_speed: 1.86
+    wind_deg: 263
+    wind_gust: 1.66
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768086000
+    temp: -9.55
+    feels_like: -13.85
+    pressure: 1024
+    humidity: 100
+    dew_point: -14.63
+    uvi: 0
+    clouds: 95
+    visibility: 6447
+    wind_speed: 2.17
+    wind_deg: 265
+    wind_gust: 1.97
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768089600
+    temp: -9.79
+    feels_like: -13.89
+    pressure: 1025
+    humidity: 100
+    dew_point: -15.32
+    uvi: 0
+    clouds: 95
+    visibility: 6474
+    wind_speed: 2.02
+    wind_deg: 263
+    wind_gust: 1.91
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768093200
+    temp: -13.62
+    feels_like: -18.38
+    pressure: 1025
+    humidity: 100
+    dew_point: -14.76
+    uvi: 0
+    clouds: 100
+    visibility: 6333
+    wind_speed: 2.03
+    wind_deg: 255
+    wind_gust: 1.97
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768096800
+    temp: -13.38
+    feels_like: -18.39
+    pressure: 1025
+    humidity: 100
+    dew_point: -14.5
+    uvi: 0
+    clouds: 100
+    visibility: 6308
+    wind_speed: 2.2
+    wind_deg: 254
+    wind_gust: 2.06
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768100400
+    temp: -13.47
+    feels_like: -18.68
+    pressure: 1026
+    humidity: 100
+    dew_point: -14.68
+    uvi: 0
+    clouds: 100
+    visibility: 6271
+    wind_speed: 2.31
+    wind_deg: 258
+    wind_gust: 2.21
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768104000
+    temp: -14.68
+    feels_like: -19.65
+    pressure: 1026
+    humidity: 100
+    dew_point: -15.98
+    uvi: 0
+    clouds: 99
+    visibility: 5588
+    wind_speed: 2.05
+    wind_deg: 255
+    wind_gust: 1.91
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768107600
+    temp: -15.13
+    feels_like: -20.45
+    pressure: 1026
+    humidity: 100
+    dew_point: -16.51
+    uvi: 0
+    clouds: 99
+    visibility: 5596
+    wind_speed: 2.2
+    wind_deg: 242
+    wind_gust: 2.08
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768111200
+    temp: -15.54
+    feels_like: -20.61
+    pressure: 1027
+    humidity: 100
+    dew_point: -17.03
+    uvi: 0
+    clouds: 99
+    visibility: 5690
+    wind_speed: 2.03
+    wind_deg: 241
+    wind_gust: 1.87
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768114800
+    temp: -14.4
+    feels_like: -20.28
+    pressure: 1027
+    humidity: 100
+    dew_point: -15.72
+    uvi: 0
+    clouds: 99
+    visibility: 5797
+    wind_speed: 2.63
+    wind_deg: 253
+    wind_gust: 3.32
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768118400
+    temp: -15.53
+    feels_like: -20.55
+    pressure: 1027
+    humidity: 100
+    dew_point: -16.96
+    uvi: 0
+    clouds: 99
+    visibility: 6291
+    wind_speed: 2
+    wind_deg: 228
+    wind_gust: 1.93
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768122000
+    temp: -12.4
+    feels_like: -17.28
+    pressure: 1028
+    humidity: 100
+    dew_point: -13.36
+    uvi: 0.27
+    clouds: 99
+    visibility: 6250
+    wind_speed: 2.22
+    wind_deg: 237
+    wind_gust: 2.69
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768125600
+    temp: -9.79
+    feels_like: -13.44
+    pressure: 1028
+    humidity: 98
+    dew_point: -10.74
+    uvi: 0.49
+    clouds: 100
+    visibility: 7738
+    wind_speed: 1.76
+    wind_deg: 255
+    wind_gust: 2.64
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768129200
+    temp: -8.09
+    feels_like: -11.78
+    pressure: 1027
+    humidity: 96
+    dew_point: -9.09
+    uvi: 0.61
+    clouds: 94
+    visibility: 10000
+    wind_speed: 1.94
+    wind_deg: 253
+    wind_gust: 3.08
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768132800
+    temp: -7.2
+    feels_like: -9.95
+    pressure: 1027
+    humidity: 95
+    dew_point: -8.23
+    uvi: 0.58
+    clouds: 88
+    visibility: 10000
+    wind_speed: 1.49
+    wind_deg: 236
+    wind_gust: 2.31
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768136400
+    temp: -7.31
+    feels_like: -9.95
+    pressure: 1026
+    humidity: 96
+    dew_point: -8.28
+    uvi: 0.44
+    clouds: 80
+    visibility: 10000
+    wind_speed: 1.43
+    wind_deg: 232
+    wind_gust: 1.54
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04d
+    pop: 0
+  - dt: 1768140000
+    temp: -8.7
+    feels_like: -8.7
+    pressure: 1026
+    humidity: 96
+    dew_point: -9.72
+    uvi: 0.22
+    clouds: 49
+    visibility: 10000
+    wind_speed: 1.29
+    wind_deg: 208
+    wind_gust: 1.26
+    weather:
+      - id: 802
+        main: Clouds
+        description: scattered clouds
+        icon: 03d
+    pop: 0
+  - dt: 1768143600
+    temp: -10.87
+    feels_like: -14.26
+    pressure: 1027
+    humidity: 96
+    dew_point: -12.08
+    uvi: 0
+    clouds: 41
+    visibility: 10000
+    wind_speed: 1.55
+    wind_deg: 190
+    wind_gust: 1.54
+    weather:
+      - id: 802
+        main: Clouds
+        description: scattered clouds
+        icon: 03d
+    pop: 0
+  - dt: 1768147200
+    temp: -12.8
+    feels_like: -17.07
+    pressure: 1026
+    humidity: 97
+    dew_point: -14.14
+    uvi: 0
+    clouds: 43
+    visibility: 10000
+    wind_speed: 1.84
+    wind_deg: 166
+    wind_gust: 1.77
+    weather:
+      - id: 802
+        main: Clouds
+        description: scattered clouds
+        icon: 03n
+    pop: 0
+  - dt: 1768150800
+    temp: -13.93
+    feels_like: -19.34
+    pressure: 1026
+    humidity: 98
+    dew_point: -15.39
+    uvi: 0
+    clouds: 42
+    visibility: 9869
+    wind_speed: 2.38
+    wind_deg: 156
+    wind_gust: 2.28
+    weather:
+      - id: 802
+        main: Clouds
+        description: scattered clouds
+        icon: 03n
+    pop: 0
+  - dt: 1768154400
+    temp: -13.21
+    feels_like: -18.85
+    pressure: 1026
+    humidity: 96
+    dew_point: -14.75
+    uvi: 0
+    clouds: 45
+    visibility: 10000
+    wind_speed: 2.62
+    wind_deg: 157
+    wind_gust: 2.52
+    weather:
+      - id: 802
+        main: Clouds
+        description: scattered clouds
+        icon: 03n
+    pop: 0
+  - dt: 1768158000
+    temp: -12.24
+    feels_like: -18.15
+    pressure: 1025
+    humidity: 93
+    dew_point: -14.06
+    uvi: 0
+    clouds: 99
+    visibility: 10000
+    wind_speed: 2.96
+    wind_deg: 153
+    wind_gust: 3.58
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768161600
+    temp: -12.11
+    feels_like: -18.06
+    pressure: 1025
+    humidity: 91
+    dew_point: -14.22
+    uvi: 0
+    clouds: 61
+    visibility: 10000
+    wind_speed: 3.01
+    wind_deg: 157
+    wind_gust: 3.61
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768165200
+    temp: -11.51
+    feels_like: -17.34
+    pressure: 1024
+    humidity: 89
+    dew_point: -13.71
+    uvi: 0
+    clouds: 66
+    visibility: 10000
+    wind_speed: 3.01
+    wind_deg: 157
+    wind_gust: 4.36
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768168800
+    temp: -10.86
+    feels_like: -16.52
+    pressure: 1023
+    humidity: 88
+    dew_point: -13.21
+    uvi: 0
+    clouds: 75
+    visibility: 10000
+    wind_speed: 2.98
+    wind_deg: 153
+    wind_gust: 4.41
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768172400
+    temp: -11.38
+    feels_like: -17.03
+    pressure: 1023
+    humidity: 87
+    dew_point: -13.93
+    uvi: 0
+    clouds: 75
+    visibility: 10000
+    wind_speed: 2.89
+    wind_deg: 147
+    wind_gust: 4.16
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768176000
+    temp: -11.02
+    feels_like: -16.54
+    pressure: 1022
+    humidity: 85
+    dew_point: -13.75
+    uvi: 0
+    clouds: 79
+    visibility: 10000
+    wind_speed: 2.84
+    wind_deg: 154
+    wind_gust: 4.08
+    weather:
+      - id: 803
+        main: Clouds
+        description: broken clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768179600
+    temp: -10.43
+    feels_like: -15.94
+    pressure: 1021
+    humidity: 84
+    dew_point: -13.29
+    uvi: 0
+    clouds: 100
+    visibility: 10000
+    wind_speed: 2.93
+    wind_deg: 143
+    wind_gust: 4.23
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768183200
+    temp: -10.5
+    feels_like: -16.22
+    pressure: 1020
+    humidity: 83
+    dew_point: -13.52
+    uvi: 0
+    clouds: 100
+    visibility: 10000
+    wind_speed: 3.09
+    wind_deg: 140
+    wind_gust: 4.28
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768186800
+    temp: -8.8
+    feels_like: -13.77
+    pressure: 1020
+    humidity: 82
+    dew_point: -11.72
+    uvi: 0
+    clouds: 100
+    visibility: 10000
+    wind_speed: 2.75
+    wind_deg: 161
+    wind_gust: 4.39
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768190400
+    temp: -5.92
+    feels_like: -10.85
+    pressure: 1018
+    humidity: 80
+    dew_point: -9.06
+    uvi: 0
+    clouds: 100
+    visibility: 10000
+    wind_speed: 3.23
+    wind_deg: 158
+    wind_gust: 6.53
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768194000
+    temp: -3.73
+    feels_like: -8.69
+    pressure: 1017
+    humidity: 79
+    dew_point: -7
+    uvi: 0
+    clouds: 100
+    visibility: 10000
+    wind_speed: 3.78
+    wind_deg: 171
+    wind_gust: 10.05
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768197600
+    temp: -2.56
+    feels_like: -7.71
+    pressure: 1017
+    humidity: 79
+    dew_point: -5.86
+    uvi: 0
+    clouds: 100
+    visibility: 10000
+    wind_speed: 4.39
+    wind_deg: 191
+    wind_gust: 13.13
+    weather:
+      - id: 804
+        main: Clouds
+        description: overcast clouds
+        icon: 04n
+    pop: 0
+  - dt: 1768201200
+    temp: -2.19
+    feels_like: -8.49
+    pressure: 1016
+    humidity: 86
+    dew_point: -4.2
+    uvi: 0
+    clouds: 100
+    visibility: 7030
+    wind_speed: 6.51
+    wind_deg: 196
+    wind_gust: 15.04
+    weather:
+      - id: 600
+        main: Snow
+        description: light snow
+        icon: 13n
+      - id: 511
+        main: Rain
+        description: freezing rain
+        icon: 13n
+    pop: 0.55
+    snow:
+      1h: 0.1
+  - dt: 1768204800
+    temp: -1.59
+    feels_like: -7.4
+    pressure: 1015
+    humidity: 93
+    dew_point: -2.55
+    uvi: 0
+    clouds: 100
+    visibility: 1053
+    wind_speed: 5.87
+    wind_deg: 181
+    wind_gust: 14.23
+    weather:
+      - id: 600
+        main: Snow
+        description: light snow
+        icon: 13d
+    pop: 1
+    snow:
+      1h: 0.47
+  - dt: 1768208400
+    temp: -0.15
+    feels_like: -5.31
+    pressure: 1015
+    humidity: 94
+    dew_point: -1
+    uvi: 0.07
+    clouds: 100
+    visibility: 10000
+    wind_speed: 5.37
+    wind_deg: 176
+    wind_gust: 13.96
+    weather:
+      - id: 601
+        main: Snow
+        description: snow
+        icon: 13d
+    pop: 1
+    snow:
+      1h: 0.66
+  - dt: 1768212000
+    temp: -0.2
+    feels_like: -5.5
+    pressure: 1014
+    humidity: 95
+    dew_point: -1.03
+    uvi: 0.07
+    clouds: 100
+    visibility: 1661
+    wind_speed: 5.6
+    wind_deg: 184
+    wind_gust: 13.14
+    weather:
+      - id: 601
+        main: Snow
+        description: snow
+        icon: 13d
+      - id: 511
+        main: Rain
+        description: freezing rain
+        icon: 13d
+    pop: 1
+    snow:
+      1h: 0.93
+friendly_name: owm_onecall

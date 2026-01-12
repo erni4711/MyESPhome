@@ -1,0 +1,841 @@
+# Styles for Weather forecast
+.forecast_styles:
+    - &forecast_obj_base
+      height: 240
+      width: SIZE_CONTENT
+      bg_color: gray50
+      radius: 3
+      pad_top: 2
+      pad_bottom : 2
+      layout:
+        type: flex
+        flex_flow: COLUMN
+        flex_align_cross: center
+        flex_align_track: center
+        pad_column: 0
+        pad_row: 2
+
+    - &forecast_label_base
+    #   text_font: nunito_24
+      height: SIZE_CONTENT
+
+    - &forecast_label_base_lo
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: dodgerblue
+
+    - &forecast_image_base
+      height: SIZE_CONTENT
+
+color:
+    - id: burnt_sienna
+      hex: 'CC5E14'
+    - id: very_dark_gray
+      hex: '313131'
+    - id: ep_orange
+      hex: 'F37320'
+    - id: ep_blue
+      hex: '01B4DE'
+    - id: ep_green
+      hex: '7ACf38'
+
+      # The grays in order of darkness
+    - id: gray50
+      hex: 'FAFAFA'
+    - id: gray100
+      hex: 'F5F5F5'
+    - id: gray200
+      hex: 'EEEEEE'
+    - id: gray300
+      hex: 'E0E0E0'
+    - id: gray400
+      hex: 'BDBDBD'
+    - id: gray500
+      hex: '9E9E9E'
+    - id: gray600
+      hex: '757575'
+    - id: gray700
+      hex: '616161'
+    - id: gray800
+      hex: '424242'
+    - id: gray900
+      hex: '212121'
+      
+    - id: sky_blue
+      hex: 3FA7F3
+    - id: slate_blue_gray
+      hex: 343645
+    - id: steel_blue
+      hex: 606682
+    - id: misty_blue
+      hex: 9BA2BC
+    - id: black
+      hex: 0d0d0d
+    - id: dark_gray
+      hex: 333333
+    - id: gray
+      hex: 666666
+    - id: light_gray
+      hex: 999999
+    - id: white
+      hex: f2f0eb
+    - id: red
+      hex: ff0000
+    - id: crimson
+      hex: f5075c
+    - id: light_blue
+      hex: 2fc0ff
+    - id: blue
+      hex: 4C9FFF
+    - id: yellow
+      hex: e7c12c
+    - id: light_yellow
+      hex: f0d45c
+    - id: amber
+      hex: f4a900
+    - id: mint
+      hex: 39d19c
+    - id: light_mint
+      hex: 66dcb3
+    - id: light_green
+      hex: 00ff00
+    - id: green
+      hex: 5CA848
+    - id: orange
+      hex: f07c40
+    - id: deep_orange
+      hex: ff6600
+    - id: violet
+      hex: 926BC7
+    - id: dark_blue
+      hex: 4867aa
+    - id: deep_purple
+      hex: 543D72  
+
+
+      
+lvgl:
+# Main Page
+  pages:
+      - id: weather_page
+        width: 100%
+        bg_color: White
+        widgets:
+          - obj:
+                align: TOP_MID
+                styles: header_footer
+                widgets:
+                    - label:
+                        text: "Wettervorhersage"
+                        align: CENTER
+                        text_align: CENTER
+                        text_color: 0xFFFFFF
+          - obj:
+              align: top_left
+              y: 30
+              width: 100%
+              height: 240
+              border_width: 0
+              outline_width: 0
+              pad_all: 0
+              layout:
+                type: GRID
+                grid_rows: [ 240 ]
+                grid_columns: [ fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1) ]
+                pad_column: 0
+                pad_row: 0
+              widgets:
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 0
+                      widgets:
+                          - label:
+                              id: forecast_day_0
+                              <<: *forecast_label_base
+                              text: ??? 
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_0
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_0
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_0
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_0
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 1
+                      widgets:
+                          - label:
+                              id: forecast_day_1
+                              <<: *forecast_label_base
+                              text: ???
+                              align: CENTER 
+                          - label:
+                              id: forecast_condition_icon_1
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_1
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_1
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_1
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 2
+                      widgets:
+                          - label:
+                              id: forecast_day_2
+                              <<: *forecast_label_base
+                              text: ???
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_2
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_2
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_2
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_2
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 3
+                      widgets:
+                          - label:
+                              id: forecast_day_3
+                              <<: *forecast_label_base
+                              text: ???
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_3
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_3
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_3
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_3
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 4
+                      widgets:
+                          - label:
+                              id: forecast_day_4
+                              <<: *forecast_label_base
+                              text: ???
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_4
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_4
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_4
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_4
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 5
+                      widgets:
+                          - label:
+                              id: forecast_day_5
+                              <<: *forecast_label_base
+                              text: ???
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_5
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_5
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_5
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_5
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 6
+                      widgets:
+                          - label:
+                              id: forecast_day_6
+                              <<: *forecast_label_base
+                              text: ???
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_6
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_6
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_6
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_6
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+                  - obj:
+                      <<: *forecast_obj_base
+                      grid_cell_row_pos: 0
+                      grid_cell_column_pos: 7
+                      widgets:
+                          - label:
+                              id: forecast_day_7
+                              <<: *forecast_label_base
+                              text: ??? 
+                              align: CENTER
+                          - label:
+                              id: forecast_condition_icon_7
+                              <<: *forecast_label_base
+                              text_font: weather_symbols_80
+                              text: ${mdi_unknown}
+                          - label:
+                              id: forecast_description_7
+                              <<: *forecast_label_base_lo
+                              text: ""
+                              align: CENTER
+                              width: 100
+                              height: 40
+                          - label:
+                              id: forecast_temperature_hi_7
+                              <<: *forecast_label_base
+                              text: "---°"
+                          - label:
+                              id: forecast_temperature_lo_7
+                              <<: *forecast_label_base_lo
+                              text: "---°"
+
+
+text_sensor:
+  - platform: homeassistant
+    entity_id: sensor.forecast_0_icon
+    id: condition_0_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_1_icon
+    id: condition_1_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_2_icon
+    id: condition_2_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_3_icon
+    id: condition_3_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_4_icon
+    id: condition_4_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_5_icon
+    id: condition_5_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_6_icon
+    id: condition_6_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_7_icon
+    id: condition_7_icon
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_0_condition
+    id: condition_0
+    on_value:
+        then:  !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_0, input_id: condition_0 }}
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_0_temp_hi
+    id: temperature_hi_0
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_hi_0
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_0).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_0_temp_lo
+    id: temperature_lo_0
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_lo_0
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_0).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_0_day
+    id: day_0
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_day_0
+              text:
+                format: "%s"
+                args: [ 'id(day_0).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_1_condition
+    id: condition_1
+    on_value:
+      then: !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_1, input_id: condition_1 } }
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_1_temp_hi
+    id: temperature_hi_1
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_hi_1
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_1).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_1_temp_lo
+    id: temperature_lo_1
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_lo_1
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_1).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_1_day
+    id: day_1
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_day_1
+              text:
+                format: "%s"
+                args: [ 'id(day_1).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_2_condition
+    id: condition_2
+    on_value:
+        then:  !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_2, input_id: condition_2 }}
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_2_temp_hi
+    id: temperature_hi_2
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_hi_2
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_2).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_2_temp_lo
+    id: temperature_lo_2
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_lo_2
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_2).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_2_day
+    id: day_2
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_day_2
+              text:
+                format: "%s"
+                args: [ 'id(day_2).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_3_condition
+    id: condition_3
+    on_value:
+        then:  !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_3, input_id: condition_3 }}
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_3_temp_hi
+    id: temperature_hi_3
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_hi_3
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_3).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_3_temp_lo
+    id: temperature_lo_3
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_temperature_lo_3
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_3).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_3_day
+    id: day_3
+    on_value:
+        then:
+          # Update weather_condition
+          - lvgl.label.update:
+              id: forecast_day_3
+              text:
+                format: "%s"
+                args: [ 'id(day_3).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_4_condition
+    id: condition_4
+    on_value:
+        then:  !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_4, input_id: condition_4 }}
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_4_temp_hi
+    id: temperature_hi_4
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_hi_4
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_4).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_4_temp_lo
+    id: temperature_lo_4
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_lo_4
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_4).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_4_day
+    id: day_4
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_day_4
+              text:
+                format: "%s"
+                args: [ 'id(day_4).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_5_condition
+    id: condition_5
+    on_value:
+      then: !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_5, input_id: condition_5 } }
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_5_temp_hi
+    id: temperature_hi_5
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_hi_5
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_5).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_5_temp_lo
+    id: temperature_lo_5
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_lo_5
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_5).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_5_day
+    id: day_5
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_day_5
+              text:
+                format: "%s"
+                args: [ 'id(day_5).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_6_condition
+    id: condition_6
+    on_value:
+        then:  !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_6, input_id: condition_6 }}
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_6_temp_hi
+    id: temperature_hi_6
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_hi_6
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_6).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_6_temp_lo
+    id: temperature_lo_6
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_lo_6
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_6).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_6_day
+    id: day_6
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_day_6
+              text:
+                format: "%s"
+                args: [ 'id(day_6).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_7_condition
+    id: condition_7
+    on_value:
+        then:  !include { file: weather_icons_update.yaml, vars: { size: "${size}", id: forecast_condition_icon_7, input_id: condition_7 }}
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_7_temp_hi
+    id: temperature_hi_7
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_hi_7
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_hi_7).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_7_temp_lo
+    id: temperature_lo_7
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_temperature_lo_7
+              text:
+                format: "%s°"
+                args: [ 'id(temperature_lo_7).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_7_day
+    id: day_7
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_day_7
+              text:
+                format: "%s"
+                args: [ 'id(day_7).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_0_description
+    id: description_0
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_0
+              text:
+                format: "%s"
+                args: [ 'id(description_0).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_1_description
+    id: description_1
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_1
+              text:
+                format: "%s"
+                args: [ 'id(description_1).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_2_description
+    id: description_2
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_2
+              text:
+                format: "%s"
+                args: [ 'id(description_2).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_3_description
+    id: description_3
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_3
+              text:
+                format: "%s"
+                args: [ 'id(description_3).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_4_description
+    id: description_4
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_4
+              text:
+                format: "%s"
+                args: [ 'id(description_4).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_5_description
+    id: description_5
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_5
+              text:
+                format: "%s"
+                args: [ 'id(description_5).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_6_description
+    id: description_6
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_6
+              text:
+                format: "%s"
+                args: [ 'id(description_6).state.c_str()' ]
+
+  - platform: homeassistant
+    entity_id: sensor.forecast_7_description
+    id: description_7
+    on_value:
+        then:
+          - lvgl.label.update:
+              id: forecast_description_7
+              text:
+                format: "%s"
+                args: [ 'id(description_7).state.c_str()' ]
+

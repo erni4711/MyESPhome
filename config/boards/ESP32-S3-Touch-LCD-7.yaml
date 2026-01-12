@@ -1,0 +1,529 @@
+# WaveShare ESP32 S3 Touch 7zoll 
+# https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7
+#
+#
+esphome:
+  name: ${node_name}
+  min_version: "2025.4.2"
+  name_add_mac_suffix: false
+  platformio_options:
+    # platform_packages: https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+    board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
+    board_build.flash_mode: qio
+    board_build.psram_mode: opi
+    board_upload.maximum_ram_size: 524288
+    # lib_deps:
+    #   - https://github.com/bitbank2/PNGenc.git
+
+  
+  on_boot:
+    - logger.log: "ESPHome booted"
+    - delay: 5s
+    - lvgl.widget.hide: boot_screen
+    # screenshot registration handled by component codegen (external_components)
+  # includes:
+  #   - components/PNGenc 
+  #   - components/PNGenc/PNGenc.h
+  # includes:
+  #   - include/lv_conf.h
+  
+external_components:
+  - source: components
+
+
+
+deep_sleep:
+  touch_wakeup: true
+
+
+
+esp32:
+  board: esp32-s3-devkitc-1
+  # board : ESP32-S3-Touch-LCD-7
+  variant: esp32s3
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_SPIRAM_SUPPORT: y
+      CONFIG_SPIRAM: y
+      CONFIG_SPIRAM_MODE_OCT: y
+      CONFIG_SPIRAM_SPEED_80M: y
+      CONFIG_ESPTOOLPY_FLASHMODE_QIO: y
+      CONFIG_ESPTOOLPY_FLASHFREQ_80M: y
+
+psram:
+  mode: octal
+  speed: 80MHz
+  
+
+
+i2c:
+  sda: GPIO08
+  scl: GPIO09
+  scan: True
+  id: bus_a
+
+ch422g:
+  - id: ch422g_hub
+
+http_request:
+  verify_ssl: False
+  
+
+image:
+  - file: "image/esphome.png"
+    id: boot_logo
+    resize: 200x200
+    type: RGB565
+    transparency: alpha_channel
+
+
+# Allow Over-The-Air updates
+ota:
+- platform: esphome
+  password: !secret ota_password
+  on_begin:
+    then:
+      - switch.turn_off: switch_antiburn
+      - lvgl.pause:
+      - logger.log: "LVGL paused for OTA"
+  on_end:
+    then:
+      - lvgl.resume:
+      - logger.log: "LVGL resumed after OTA"
+      - logger.log: "OTA end, restart"
+      #- switch.turn_on: restart_esp
+      
+# UART configuration removed to avoid pin conflicts with display.
+# If you need a hardware UART for a peripheral, add it here with pins
+# that are not used by the display. To view logs on Windows use:
+#   esphome logs 7inch.yaml --device COM9
+
+logger:
+  level: DEBUG
+  hardware_uart: UART0
+  baud_rate: 115200
+
+
+output:
+  - platform: gpio
+    id: backlight
+    pin:
+      ch422g: ch422g_hub
+      number: 2
+      mode:
+        output: true
+      inverted: false
+
+light:
+  - platform: binary
+    output: backlight
+    id: display_backlight
+    name: "LCD Backlight"
+    icon: mdi:wall-sconce-flat-outline
+    restore_mode: ALWAYS_ON
+    on_turn_off:
+      - delay: 5min
+      - logger.log: Starting automatic antiburn.
+      - switch.turn_on: switch_antiburn
+    on_turn_on:
+      - switch.turn_off: switch_antiburn
+
+number:
+  - platform: template
+    name: LVGL Screen timeout
+    optimistic: true
+    id: display_timeout
+    unit_of_measurement: "s"
+    initial_value: 45
+    restore_value: true
+    min_value: 10
+    max_value: 180
+    step: 5
+    mode: box
+
+switch:
+  - platform: template
+    name: Antiburn
+    id: switch_antiburn
+    icon: mdi:television-shimmer
+    optimistic: true
+    entity_category: "config"
+    disabled_by_default: true
+    turn_on_action:
+      - logger.log: "Starting Antiburn"
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lvgl.pause:
+          show_snow: true
+    turn_off_action:
+      - logger.log: "Stopping Antiburn"
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+
+### Display
+display:
+  - platform: rpi_dpi_rgb
+    id: waveshare_display
+    update_interval: never
+    auto_clear_enabled: false
+    color_order: RGB
+    pclk_frequency: 16MHZ
+    dimensions:
+      width: 800
+      height: 480
+    de_pin:
+      number: 5
+    hsync_pin:
+      number: 46
+      ignore_strapping_warning: true
+    vsync_pin:
+      number: 3
+      ignore_strapping_warning: true
+    pclk_pin: 7
+    pclk_inverted: true
+    reset_pin:
+      ch422g: ch422g_hub
+      number: 3
+    hsync_back_porch: 8
+    hsync_front_porch: 8
+    hsync_pulse_width: 4
+    vsync_back_porch: 16
+    vsync_front_porch: 16
+    vsync_pulse_width: 4
+    data_pins:
+      red:
+        - 1         #r3
+        - 2         #r4
+        - 42        #r5
+        - 41        #r6
+        - 40        #r7
+      blue:
+        - 14        #b3
+        - 38        #b4
+        - 18        #b5
+        - 17        #b6
+        - 10        #b7
+      green:
+        - 39        #g2
+        - 0         #g3
+        - 45        #g4
+        - 48        #g5
+        - 47        #g6
+        - 21        #g7
+
+### Touchscreen
+touchscreen:
+  platform: gt911
+  id: waveshare_touch
+  interrupt_pin: GPIO4
+  reset_pin:
+    ch422g: ch422g_hub
+    number: 1
+    mode: OUTPUT
+  on_release:
+    - if:
+        condition: lvgl.is_paused
+        then:
+          - logger.log: "LVGL resuming"
+          - switch.turn_off: switch_antiburn
+          - lvgl.resume:
+          - lvgl.widget.redraw:
+          - light.turn_on: display_backlight
+
+api:
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: lbl_hastatus
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: lbl_hastatus
+  # image_receiver.yaml
+  # services:
+  #   - service: send_image_chunk
+  #     variables:
+  #       index: int
+  #       total: int
+  #       data: string
+  #     then:
+  #       - lambda: |-
+  #           id(ha_image_id).receive_chunk(index, total, data);
+
+# ha_image:
+#   id: ha_image_id
+#   canvas_id: ha_canvas
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    on_time_sync:
+      - script.execute: time_update
+    on_time:
+      - seconds: /1
+        then:
+          - script.execute: time_update
+script:
+  - id: time_update
+    then:
+      - lvgl.label.update:
+          id: clock_label
+          text:
+            time_format: "%H:%M:%S"
+
+<<: !include ../common/7i-fonts.yaml
+
+sensor:
+  # Example configuration entry I2C
+  - platform: bme280_i2c
+    address: 0x76
+    temperature:
+      name: "BME280 Temperature"
+    pressure:
+      name: "BME280 Pressure"
+    humidity:
+      name: "BME280 Humidity"
+  - platform: wifi_signal
+    name: "WiFi Signal Strength"
+  - platform: adc
+    id: battery_voltage_raw
+    pin: GPIO6
+    attenuation: auto
+    name: "Analog Value"
+    update_interval: 60s
+    filters:
+    - multiply: 3.0
+    # on_value:
+    # - lvgl.label.update:
+    #     id: voltage_text
+    #     text:
+    #       format: "%.2fV"
+    #       args: [ 'x' ]
+  - platform: template
+    id: battery_percent
+    unit_of_measurement: "%"
+    update_interval: 5s
+    lambda: |-
+      float v = id(battery_voltage_raw).state;
+      if (v > 4.2) v = 4.2;
+      if (v < 3.0) v = 3.0;
+      return (v - 3.0) * 100.0 / (4.2 - 3.0);
+
+
+web_server:
+  port: 80
+ 
+screenshot:
+  id: screenshot_component
+
+# zlib:
+#   id: zlib_component
+
+# PNGenc:
+#   id: png_encoder
+text_sensor:
+  - platform: version
+    id: esphome_version
+    name: "ESPHome Version"
+    hide_timestamp: True
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: boot_version_label
+            text: !lambda |-
+              auto ver_str = (std::string("ESPHome ") + id(esphome_version).state);
+              return ver_str; //.c_str();
+
+
+interval:
+  - interval: 5s
+    then:
+      - lvgl.label.update:
+          id: battery_text
+          text: !lambda |-
+            char buf[16];
+            sprintf(buf, "%.0f%%", id(battery_percent).state);
+            return std::string(buf);
+      - lambda: |-
+          float p = id(battery_percent).state;
+          lv_color_t color;
+          if (p > 50) color = lv_color_hex(0x00FF00);      // green
+          else if (p > 20) color = lv_color_hex(0xFFFF00); // yellow
+          else color = lv_color_hex(0xFF0000);             // red
+          lv_obj_set_style_text_color(id(battery_text), color, LV_PART_MAIN);
+
+
+lvgl:
+  theme:
+    label:
+      text_font: font_norm
+    button:
+      text_font: font_norm
+    spinbox:
+      text_font: font_norm
+  on_idle:
+    timeout: !lambda "return (id(display_timeout).state * 1000);"
+    then:
+      - logger.log: "LVGL is idle"
+      - light.turn_off: display_backlight
+      - switch.turn_on: switch_antiburn
+      - lvgl.pause:
+  <<: !include ../gui/styles.yaml
+  top_layer:
+    widgets:
+      - obj:
+          styles: header_footer
+          align: top_left
+          width: 40
+          layout:
+            type: flex
+            flex_flow: row
+            pad_column: 4
+            flex_align_main: start
+            flex_align_cross: start
+            
+          widgets:
+            - button:
+                id: reboot_button
+                styles: style_circle_button_mini
+                text: ${mdi_power}
+                on_press:
+                  then:
+                    - lambda: |-
+                        esp_restart();
+      - obj:
+          styles: header_footer
+          align: top_right
+          width: 220
+          layout:
+            type: flex
+            flex_flow: row
+            pad_column: 4
+            flex_align_main: end
+            flex_align_cross: start
+            flex_align_track: end
+          widgets:
+            - label:
+                id: clock_label
+                text:
+                  time_format: "%H:%M:%S"
+                text_color: 0xFFFFFF
+                text_font: font_mono
+            - label:
+                id: lbl_battery_status
+                text_font: battery_icons_20
+                text_align: center
+                text: "${mdi_battery_unknown}" # start with mdi-battery-unknown
+            - label:
+                id: battery_text 
+                text: "~50%"
+                text_font: font_mono
+                align: TOP_RIGHT
+                # x: -10 
+                # y: 40
+            - label:
+                text_font: roboto_reg
+                text: "${mdi_wifi}"
+                id: lbl_hastatus
+                hidden: true
+                text_align: center
+            - button:
+                id: about_button
+                styles: style_circle_button_mini
+                text: ${mdi_info}
+                on_press:
+                  then:
+                    - lvgl.widget.show: boot_about_label
+                    - lvgl.widget.show: boot_screen
+      - buttonmatrix:
+          align: bottom_mid
+          styles: header_footer
+          pad_all: 0
+          outline_width: 0
+          id: top_layer
+          items:
+            styles: header_footer
+          rows:
+            - buttons:
+              - id: page_prev
+                text: "\uF053"
+                on_press:
+                  then:
+                    lvgl.page.previous:
+              - id: page_home
+                text: "\uF015"
+                on_press:
+                  then:
+                    lvgl.page.show: main_page
+              - id: page_sleep
+                text: "Z"
+                on_press:
+                  then:
+                    - deep_sleep.enter:
+                        sleep_duration: 600s
+              - id: page_next
+                text: "\uF054"
+                on_press:
+                  then:
+                    lvgl.page.next:
+      - obj:
+          id: boot_screen
+          x: 0
+          y: 0
+          width: 100%
+          height: 100%
+          bg_color: 0xffffff
+          bg_opa: COVER
+          radius: 0
+          pad_all: 0
+          border_width: 0
+          widgets:
+            - label:
+                id: boot_about_label              
+                align: TOP_LEFT
+                text_font: roboto_med
+                text: "${mdi_info} About"
+                hidden: true
+            - image:
+                align: CENTER
+                src: boot_logo
+                y: -40
+            - spinner:
+                align: CENTER
+                y: 95
+                height: 50
+                width: 50
+                spin_time: 1s
+                arc_length: 60deg
+                arc_width: 8
+                indicator:
+                  arc_color: 0x18bcf2
+                  arc_width: 8
+            - label:
+                id: boot_version_label
+                align: CENTER
+                y: 160  
+                text: "X"
+            - label:
+                align: BOTTOM_RIGHT
+                text_font: montserrat_10
+                text: "based on a template by Bernd Oerding\nhttps://github.com/erni4711/MyESPhome.git"
+            - label:
+                align: CENTER
+                y: 220  
+                text: "Touch to close"
+            
+          on_press:
+            - lvgl.widget.hide: boot_screen

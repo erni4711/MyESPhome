@@ -1,10 +1,10 @@
 substitutions:
-  node_name: "7B-sample"
+  node_name: "7i-sample"
 
 packages:
   - !include common/subst.yaml
   - !include common/wifi.yaml
-  - !include boards/ESP32-S3-Touch-LCD-7.yaml
+  - !include boards/ESP32-S3-Touch-LCD-7B.yaml
   # - !include packages/pglivingroom_sensors.yaml
   - !include
       file: packages/pgclimate_sensor.yaml
@@ -42,6 +42,8 @@ packages:
         title: "Bedroom"
         id: schlafzimmer
         entity: climate.schlafzimmer
+  - !include common/pgweather.yaml
+
 
 
 
@@ -65,15 +67,18 @@ lvgl:
             id: climate_body
             align: top_left
             y: 30
-            width: 800
-            height: 420
+            width: 100%
+            height: 430
+            # height: !lambda |- 
+            #   int h = lv_obj_get_height(lv_scr_act()); 
+            #   return h -60; // adjust for header/footer
             border_width: 0
             outline_width: 0
             pad_all: 0
             layout:
               type: grid
               grid_rows: [ 210px, 210px ]
-              grid_columns: [ content, content, content ]
+              grid_columns: [ fr(1), fr(1), fr(1) ]
               pad_row: 0
               pad_column: 0
             widgets:

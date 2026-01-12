@@ -26,8 +26,9 @@ substitutions:
   mdi_battery:    "\U0000F0A1"
   mdi_battery_outline: "\U0000F13B"
   mdi_battery_unknown: "\U0000E1A6"
-  # Colors common
-  color_white: "0xFFFFFF"
+  # weather symbols (only use letters, digits and underscore in substitution names)
+  # weather symbols (only use letters, digits and underscore in substitution names)
+  color_white: 0xFFFFFF
   color_black: "0x000000"
   color_grey: "0xa5a5a5"
   color_red: "0xff0000"
@@ -51,3 +52,28 @@ substitutions:
   # temperatures
   temperature_lowering: "16.0"
   temperature_comfort: "22.5"
+
+  # fallback glyph (leave empty to avoid embedding the same glyph multiple times)
+  glyph_fallback: ""
+
+  # weather icon substitutions -- use empty string for undefined icons to avoid duplicate glyphs
+  mdi_clear_night: "\U0000EA62"
+  mdi_cloudy: "\U0000E2BD"
+  mdi_exceptional: ""
+  mdi_fog: "\U0000E818"
+  mdi_hail: "\U0000E9B1"
+  mdi_lightning: "\U0000EFA4"
+  mdi_lightning_rainy: "\U0000F61E"
+  mdi_partlycloudy: ""
+  mdi_pouring: "\U0000F61F"
+  mdi_rainy: "\U0000F176"
+  mdi_rainy_night: ""
+  mdi_snowy: "\U0000E80F"
+  mdi_snowy_night: "\U0000E2CD"
+  mdi_snowy_rainy: "\U0000F61D"
+  mdi_sunny: "\U0000E81A"
+  mdi_sunny_off: "\U0000E647"
+  mdi_thunderstorm: "\U0000EBDB"
+  mdi_windy: "\U0000EC0C"
+  mdi_unknown: "\U0000E6A5"
+  mdi_unavailable: ""

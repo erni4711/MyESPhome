@@ -1,0 +1,84 @@
+---
+# Weather icons update (use weather icon code -> mdi glyph)
+# Expects an input icon entity id like: <input_id>_icon (state = "01d","01n","02d",...)
+# Usage example: !include { file: common/weather_icons_update.yaml, vars: { id: weather_icon_label, input_id: weather_condition } }
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "01d";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_sunny}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "01n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_clear_night}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "02d" || id(${input_id}_icon).state == "02n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_partlycloudy}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "03d" || id(${input_id}_icon).state == "03n" || id(${input_id}_icon).state == "04d" || id(${input_id}_icon).state == "04n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_cloudy}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "09d" || id(${input_id}_icon).state == "09n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_pouring}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "10d" || id(${input_id}_icon).state == "10n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_rainy}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "11d" || id(${input_id}_icon).state == "11n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_lightning_rainy}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "13d" || id(${input_id}_icon).state == "13n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_snowy}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "50d" || id(${input_id}_icon).state == "50n";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_fog}'
+
+          - if:
+              condition:
+                lambda: 'return id(${input_id}_icon).state == "" || id(${input_id}_icon).state == "unknown";'
+              then:
+                lvgl.label.update:
+                  id: ${id}
+                  text: '${mdi_unknown}'
