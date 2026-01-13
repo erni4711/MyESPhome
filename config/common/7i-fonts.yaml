@@ -86,6 +86,31 @@ font:
       - ${mdi_unknown}
       - ${mdi_unavailable}
     ignore_missing_glyphs: true
+  - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+    id: weather_symbols_40
+    size: 40
+    bpp: 4
+    glyphs:
+      - ${mdi_clear_night}
+      - ${mdi_cloudy}
+      - ${mdi_exceptional}
+      - ${mdi_fog}
+      - ${mdi_rainy}
+      - ${mdi_snowy}
+      - ${mdi_thunderstorm}
+      - ${mdi_windy}
+      - ${mdi_hail}
+      - ${mdi_lightning}
+      - ${mdi_lightning_rainy}
+      - ${mdi_partlycloudy}
+      - ${mdi_rainy_night}
+      - ${mdi_snowy_night}
+      - ${mdi_pouring}
+      - ${mdi_sunny}
+      - ${mdi_sunny_off}
+      - ${mdi_unknown}
+      - ${mdi_unavailable}
+    ignore_missing_glyphs: true
   - file: 'fonts/RobotoCondensed-Regular.ttf'
     glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
     id: roboto_reg
