@@ -4284,9 +4284,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_1).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_1).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4332,9 +4339,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_2).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_2).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4380,9 +4394,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_3).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_3).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4428,9 +4449,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_4).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_4).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4476,9 +4504,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_5).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_5).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4524,9 +4559,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_6).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_6).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4572,9 +4614,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_7).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_7).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4620,9 +4669,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_8).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_8).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4668,9 +4724,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_9).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_9).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4716,9 +4779,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_10).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_10).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4764,9 +4834,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_11).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_11).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4812,9 +4889,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_12).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_12).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4860,9 +4944,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_13).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_13).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4908,9 +4999,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_14).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_14).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -4956,9 +5054,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_15).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_15).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5004,9 +5109,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_16).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_16).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5052,9 +5164,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_17).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_17).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5100,9 +5219,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_18).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_18).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5148,9 +5274,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_19).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_19).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5196,9 +5329,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_20).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_20).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5244,9 +5384,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_21).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_21).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5292,9 +5439,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_22).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_22).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5340,9 +5494,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_23).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_23).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5388,9 +5549,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_24).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_24).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5436,9 +5604,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_25).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_25).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5484,9 +5659,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_26).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_26).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5532,9 +5714,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_27).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_27).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5580,9 +5769,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_28).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_28).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5628,9 +5824,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_29).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_29).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5676,9 +5879,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_30).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_30).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5724,9 +5934,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_31).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_31).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5772,9 +5989,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_32).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_32).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5820,9 +6044,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_33).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_33).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5868,9 +6099,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_34).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_34).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5916,9 +6154,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_35).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_35).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -5964,9 +6209,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_36).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_36).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6012,9 +6264,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_37).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_37).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6060,9 +6319,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_38).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_38).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6108,9 +6374,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_39).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_39).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6156,9 +6429,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_40).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_40).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6204,9 +6484,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_41).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_41).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6252,9 +6539,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_42).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_42).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6300,9 +6594,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_43).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_43).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6348,9 +6649,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_44).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_44).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6396,9 +6704,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_45).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_45).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6444,9 +6759,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_46).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_46).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
@@ -6492,9 +6814,16 @@ text_sensor:
             if (doc.containsKey("dt_txt") && doc["dt_txt"].is<const char*>()) {
               id(forecast_hourly_time_47).publish_state(std::string((const char*)doc["dt_txt"]));
             } else if (doc.containsKey("dt")) {
+              auto fmt_hour = [](long dt, char *out, size_t len) {
+                if (!dt) { out[0]=0; return; }
+                time_t t = (time_t)dt;
+                struct tm *lt = localtime(&t);
+                if (lt) strftime(out, len, "%H:%M", lt);
+                else out[0]=0;
+              };
+
               long dt = doc["dt"].as<long>();
-              char tsbuf[32];
-              snprintf(tsbuf, sizeof(tsbuf), "%ld", dt);
+              char tsbuf[16]; fmt_hour(dt, tsbuf, sizeof(tsbuf));
               id(forecast_hourly_time_47).publish_state(std::string(tsbuf));
             }
             std::string icon_code = "";
