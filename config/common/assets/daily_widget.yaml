@@ -1,0 +1,45 @@
+height: 240
+width: SIZE_CONTENT
+bg_color: gray50
+radius: 3
+pad_top: 2
+pad_bottom : 2
+layout:
+  type: flex
+  flex_flow: COLUMN
+  flex_align_cross: center
+  flex_align_track: center
+  pad_column: 0
+  pad_row: 2
+grid_cell_row_pos: ${row}
+grid_cell_column_pos: ${col}
+widgets:
+    - label:
+        id: forecast_day_${id}
+        height: SIZE_CONTENT
+        text: ??? 
+        align: CENTER
+    - label:
+        id: forecast_condition_icon_${id}
+        height: SIZE_CONTENT
+        text_font: weather_symbols_80
+        text: ${mdi_unknown}
+    - label:
+        id: forecast_description_${id}
+        height: SIZE_CONTENT
+        text_font: font_small
+        text_color: dodgerblue
+        text: ""
+        align: CENTER
+        width: 100
+    - label:
+        id: forecast_temperature_hi_${id}
+        height: SIZE_CONTENT
+        text: "---°"
+    - label:
+        id: forecast_temperature_lo_${id}
+        height: SIZE_CONTENT
+        text_font: font_small
+        text_color: dodgerblue
+        text: "---°"
+

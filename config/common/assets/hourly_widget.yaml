@@ -1,0 +1,38 @@
+height: 80
+width: SIZE_CONTENT
+bg_color: gray50
+pad_top: 0
+pad_bottom : 0
+border_width: 0
+outline_width: 0
+layout:
+  type: flex
+  flex_flow: COLUMN
+  flex_align_cross: center
+  flex_align_track: center
+  pad_column: 0
+  pad_row: 0
+grid_cell_row_pos: ${row}
+grid_cell_column_pos: ${col}
+widgets:
+  - label:
+      id: forecast_hourly_time_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text: ""
+  - label:
+      id: forecast_hourly_condition_icon_label_${id}
+      text_font: font_small
+      text: ${mdi_unknown}
+      height: SIZE_CONTENT
+      text_color: dodgerblue
+  - label:
+      id: forecast_hourly_temperature_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text: ""
+  - label:
+      id: forecast_hourly_pop_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text: ""

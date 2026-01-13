@@ -1,13 +1,17 @@
 # OpenWeatherMap OneCall v3 -> forecast sensors
 # Usage: Add the full OneCall URL (including API key, lat, lon, exclude, units)
 # to your Home Assistant secrets.yaml as:
-# openweathermap_onecall_url: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&exclude=minutely,alerts&units=metric&appid=YOUR_API_KEY&units=metric&lang=de"
-# openweathermap_onecall_url_daily: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&exclude=minutely,hourly&units=metric&appid=YOUR_API_KEY&units=metric&lang=de"
-# openweathermap_onecall_url_hourly: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&exclude=minutely,daily,current,alerts&units=metric&appid=YOUR_API_KEY&units=metric&lang=de"
+# Base OpenWeather OneCall URL (no exclude params). Fill lat/lon and API key.
+# Example: "https://api.openweathermap.org/data/3.0/onecall?lat=48.123&lon=11.456&appid=YOUR_API_KEY&units=metric&lang=de"
+# openweathermap_onecall_url: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&appid=YOUR_API_KEY&units=metric&lang=de"
+
+substitutions:
+  openweathermap_onecall_base: !secret openweathermap_onecall_url
+
 sensor:
   - platform: rest
     name: "owm_onecall_daily"
-    resource: !secret openweathermap_onecall_url_daily
+    resource: "${openweathermap_onecall_base}&exclude=minutely,hourly"
     method: GET
     timeout: 10
     value_template: "{{ value_json.current.temp if value_json.current is defined else '' }}"
@@ -18,7 +22,7 @@ sensor:
     scan_interval: 1800
   - platform: rest
     name: "owm_onecall_hourly"
-    resource: !secret openweathermap_onecall_url_hourly
+    resource: "${openweathermap_onecall_base}&exclude=minutely,daily,current,alerts"
     method: GET
     timeout: 10
     value_template: "{{ value_json.current.temp if value_json.current is defined else '' }}"
