@@ -114,7 +114,7 @@ color:
 
 esphome:
   includes:
-    - common/assets/pgweather_hourly_parser.h
+    - common/assets/pgweather_parser.h
 
       
 lvgl:
@@ -183,7 +183,7 @@ lvgl:
               align: top_left
               y: 30
               width: 100%
-              height: 100%
+              height: 500
               border_width: 0
               outline_width: 0
               pad_all: 0
@@ -293,634 +293,6 @@ lvgl:
 
 
 text_sensor:
-  # Internal forecast parts (filled by `sensor.owm_daily_text` parser)
-  - platform: template
-    id: forecast_daily_condition_icon_0
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_0"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_0
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_0).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_condition_icon_1
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_1"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_1
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_1).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_condition_icon_2
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_2"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_2
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_2).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_condition_icon_3
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_3"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_3
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_3).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_condition_icon_4
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_4"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_4
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_4).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_condition_icon_5
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_5"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_5
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_5).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_condition_icon_6
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_6"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_6
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_6).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_condition_icon_7
-    internal: true
-    update_interval: never
-    name: "forecast_condition_icon_7"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_condition_icon_7
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_condition_icon_7).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_condition_0
-    internal: true
-    update_interval: never
-    name: "forecast_condition_0"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_1
-    internal: true
-    update_interval: never
-    name: "forecast_condition_1"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_2
-    internal: true
-    update_interval: never
-    name: "forecast_condition_2"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_3
-    internal: true
-    update_interval: never
-    name: "forecast_condition_3"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_4
-    internal: true
-    update_interval: never
-    name: "forecast_condition_4"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_5
-    internal: true
-    update_interval: never
-    name: "forecast_condition_5"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_6
-    internal: true
-    update_interval: never
-    name: "forecast_condition_6"
-    lambda: |-
-      return std::string("");
-  - platform: template
-    id: forecast_daily_condition_7
-    internal: true
-    update_interval: never
-    name: "forecast_condition_7"
-    lambda: |-
-      return std::string("");
-
-  - platform: template
-    id: forecast_daily_temperature_hi_0
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_0"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_0
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_0).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_0
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_0"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_0
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_0).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_0
-    internal: true
-    update_interval: never
-    name: "forecast_day_0"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_0
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_0).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_0
-    internal: true
-    update_interval: never
-    name: "forecast_description_0"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_0
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_0).state.c_str()' ]
-
-  # Repeat for days 1..7
-  - platform: template
-    id: forecast_daily_temperature_hi_1
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_1"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_1
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_1).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_1
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_1"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_1
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_1).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_1
-    internal: true
-    update_interval: never
-    name: "forecast_day_1"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_1
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_1).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_1
-    internal: true
-    update_interval: never
-    name: "forecast_description_1"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_1
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_1).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_temperature_hi_2
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_2"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_2
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_2).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_2
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_2"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_2
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_2).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_2
-    internal: true
-    update_interval: never
-    name: "forecast_day_2"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_2
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_2).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_2
-    internal: true
-    update_interval: never
-    name: "forecast_description_2"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_2
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_2).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_temperature_hi_3
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_3"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_3
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_3).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_3
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_3"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_3
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_3).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_3
-    internal: true
-    update_interval: never
-    name: "forecast_day_3"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_3
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_3).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_3
-    internal: true
-    update_interval: never
-    name: "forecast_description_3"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_3
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_3).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_temperature_hi_4
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_4"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_4
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_4).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_4
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_4"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_4
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_4).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_4
-    internal: true
-    update_interval: never
-    name: "forecast_day_4"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_4
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_4).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_4
-    internal: true
-    update_interval: never
-    name: "forecast_description_4"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_4
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_4).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_temperature_hi_5
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_5"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_5
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_5).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_5
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_5"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_5
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_5).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_5
-    internal: true
-    update_interval: never
-    name: "forecast_day_5"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_5
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_5).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_5
-    internal: true
-    update_interval: never
-    name: "forecast_description_5"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_5
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_5).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_temperature_hi_6
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_6"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_6
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_6).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_6
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_6"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_6
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_6).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_6
-    internal: true
-    update_interval: never
-    name: "forecast_day_6"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_6
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_6).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_6
-    internal: true
-    update_interval: never
-    name: "forecast_description_6"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_6
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_6).state.c_str()' ]
-
-  - platform: template
-    id: forecast_daily_temperature_hi_7
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_hi_7"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_hi_7
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_hi_7).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_temperature_lo_7
-    internal: true
-    update_interval: never
-    name: "forecast_temperature_lo_7"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_temperature_lo_7
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_temperature_lo_7).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_day_7
-    internal: true
-    update_interval: never
-    name: "forecast_day_7"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_day_7
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_day_7).state.c_str()' ]
-  - platform: template
-    id: forecast_daily_description_7
-    internal: true
-    update_interval: never
-    name: "forecast_description_7"
-    lambda: |-
-      return std::string("");
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: forecast_description_7
-            text:
-              format: "%s"
-              args: [ 'id(forecast_daily_description_7).state.c_str()' ]
 
   # Per-day Home Assistant compact JSON sensors: owm_daily_0 .. owm_daily_7
   # Each sensor contains a compact JSON object for a single day. Parse and publish
@@ -931,537 +303,120 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_0 state: %s", j ? j : "(null)");
-            ESP_LOGI("pgweather","owm_daily_0 raw from HA: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_0 empty"); return; }
-            StaticJsonDocument<1024> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_0 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_0 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_0: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_0: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_0: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_0: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_0: glyph is empty");
-            id(forecast_daily_day_0).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_0).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_0).publish_state(std::string(lobuf));
-            id(forecast_daily_description_0).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_0).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_0));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_0
+    attribute: data
+    id: owm_daily_0_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_0), id(forecast_description_0), id(forecast_condition_icon_0), id(forecast_temperature_hi_0), id(forecast_temperature_lo_0));
   - platform: homeassistant
     entity_id: sensor.owm_daily_1
     id: owm_daily_1
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_1 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_1 empty"); return; }
-            StaticJsonDocument<1024> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_1 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_1 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_1: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_1: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_1: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_1: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_1: glyph is empty");
-            id(forecast_daily_day_1).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_1).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_1).publish_state(std::string(lobuf));
-            id(forecast_daily_description_1).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_1).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_1));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_1
+    attribute: data
+    id: owm_daily_1_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_1), id(forecast_description_1), id(forecast_condition_icon_1), id(forecast_temperature_hi_1), id(forecast_temperature_lo_1));
   - platform: homeassistant
     entity_id: sensor.owm_daily_2
     id: owm_daily_2
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_2 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_2 empty"); return; }
-            StaticJsonDocument<1024> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_2 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_2 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_2: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_2: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_2: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_2: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_2: glyph is empty");
-            id(forecast_daily_day_2).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_2).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_2).publish_state(std::string(lobuf));
-            id(forecast_daily_description_2).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_2).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_2));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_2
+    attribute: data
+    id: owm_daily_2_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_2), id(forecast_description_2), id(forecast_condition_icon_2), id(forecast_temperature_hi_2), id(forecast_temperature_lo_2));
   - platform: homeassistant
     entity_id: sensor.owm_daily_3
     id: owm_daily_3
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_3 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_3 empty"); return; }
-            StaticJsonDocument<1024> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_3 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_3 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_3: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_3: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_3: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_3: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_3: glyph is empty");
-            id(forecast_daily_day_3).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_3).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_3).publish_state(std::string(lobuf));
-            id(forecast_daily_description_3).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_3).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_3));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_3
+    attribute: data
+    id: owm_daily_3_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_3), id(forecast_description_3), id(forecast_condition_icon_3), id(forecast_temperature_hi_3), id(forecast_temperature_lo_3));
   - platform: homeassistant
     entity_id: sensor.owm_daily_4
     id: owm_daily_4
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_4 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_4 empty"); return; }
-            StaticJsonDocument<1024> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_4 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_4 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_4: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_4: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_4: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_4: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_4: glyph is empty");
-            id(forecast_daily_day_4).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_4).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_4).publish_state(std::string(lobuf));
-            id(forecast_daily_description_4).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_4).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_4));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_4
+    attribute: data
+    id: owm_daily_4_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_4), id(forecast_description_4), id(forecast_condition_icon_4), id(forecast_temperature_hi_4), id(forecast_temperature_lo_4));
   - platform: homeassistant
     entity_id: sensor.owm_daily_5
     id: owm_daily_5
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_5 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_5 empty"); return; }
-            StaticJsonDocument<1028> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_5 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_5 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_5: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_5: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_5: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_5: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_5: glyph is empty");
-            id(forecast_daily_day_5).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_5).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_5).publish_state(std::string(lobuf));
-            id(forecast_daily_description_5).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_5).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_5));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_5
+    attribute: data
+    id: owm_daily_5_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_5), id(forecast_description_5), id(forecast_condition_icon_5), id(forecast_temperature_hi_5), id(forecast_temperature_lo_5));
   - platform: homeassistant
     entity_id: sensor.owm_daily_6
     id: owm_daily_6
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_6 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_6 empty"); return; }
-            StaticJsonDocument<1026> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_6 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_6 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_6: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_6: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_6: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_6: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_6: glyph is empty");
-            id(forecast_daily_day_6).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_6).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_6).publish_state(std::string(lobuf));
-            id(forecast_daily_description_6).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_6).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_6));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_6
+    attribute: data
+    id: owm_daily_6_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_6), id(forecast_description_6), id(forecast_condition_icon_6), id(forecast_temperature_hi_6), id(forecast_temperature_lo_6));
   - platform: homeassistant
     entity_id: sensor.owm_daily_7
     id: owm_daily_7
     on_value:
       then:
         - lambda: |-
-            #include <ArduinoJson.h>
-            const char *j = x.c_str();
-            ESP_LOGD("pgweather","owm_daily_7 state: %s", j ? j : "(null)");
-            if (!j || !*j) { ESP_LOGD("pgweather","owm_daily_7 empty"); return; }
-            StaticJsonDocument<1024> doc;
-            DeserializationError err = deserializeJson(doc, j);
-            if (err) { ESP_LOGW("pgweather","owm_daily_7 deserializeJson failed: %s", err.c_str()); return; }
-            JsonObject it = doc.as<JsonObject>();
-
-            auto fmt_day = [](long dt, char *out, size_t len) {
-              if (!dt) { out[0]=0; return; }
-              time_t t = (time_t)dt;
-              struct tm *lt = localtime(&t);
-              if (lt) strftime(out, len, "%a", lt);
-              else out[0]=0;
-            };
-
-            long dt = it["dt"] | 0L;
-            char daybuf[16]; fmt_day(dt, daybuf, sizeof(daybuf));
-
-            float hi = 0.0f, lo = 0.0f;
-            if (it["temp"].is<JsonObject>()) {
-              JsonObject t = it["temp"].as<JsonObject>();
-              hi = t["max"] | t["day"] | 0.0f;
-              lo = t["min"] | 0.0f;
-            } else {
-              hi = it["temp"] | 0.0f;
-              lo = it["temp"] | 0.0f;
-            }
-            char hibuf[16]; snprintf(hibuf, sizeof(hibuf), "%d°", (int)round(hi));
-            char lobuf[16]; snprintf(lobuf, sizeof(lobuf), "%d°", (int)round(lo));
-
-            const char *desc = "";
-            const char *glyph = "${mdi_unknown}";
-            if (it["weather"].is<JsonArray>() && it["weather"].size() > 0) {
-              JsonObject w = it["weather"][0].as<JsonObject>();
-              desc = w["description"] | "";
-              const char *icon = w["icon"] | "";
-              if (strcmp(icon, "01d") == 0) glyph = "${mdi_sunny}";
-              else if (strcmp(icon, "01n") == 0) glyph = "${mdi_clear_night}";
-              else if (strcmp(icon, "02d") == 0 || strcmp(icon, "02n") == 0) glyph = "${mdi_partlycloudy}";
-              else if (strcmp(icon, "03d") == 0 || strcmp(icon, "03n") == 0 || strcmp(icon, "04d") == 0 || strcmp(icon, "04n") == 0) glyph = "${mdi_cloudy}";
-              else if (strcmp(icon, "09d") == 0 || strcmp(icon, "09n") == 0) glyph = "${mdi_pouring}";
-              else if (strcmp(icon, "10d") == 0 || strcmp(icon, "10n") == 0) glyph = "${mdi_rainy}";
-              else if (strcmp(icon, "11d") == 0 || strcmp(icon, "11n") == 0) glyph = "${mdi_lightning_rainy}";
-              else if (strcmp(icon, "13d") == 0 || strcmp(icon, "13n") == 0) glyph = "${mdi_snowy}";
-              else if (strcmp(icon, "50d") == 0 || strcmp(icon, "50n") == 0) glyph = "${mdi_fog}";
-            }
-
-            ESP_LOGD("pgweather","owm_daily_7 publishing: day='%s' hi='%s' lo='%s' desc='%s' glyph='%s'", daybuf, hibuf, lobuf, desc, glyph);
-            if (!daybuf[0]) ESP_LOGW("pgweather","owm_daily_7: day is empty");
-            if (!hibuf[0]) ESP_LOGW("pgweather","owm_daily_7: hi temp is empty");
-            if (!lobuf[0]) ESP_LOGW("pgweather","owm_daily_7: lo temp is empty");
-            if (!desc || !*desc) ESP_LOGW("pgweather","owm_daily_7: description is empty");
-            if (!glyph || !*glyph) ESP_LOGW("pgweather","owm_daily_7: glyph is empty");
-            id(forecast_daily_day_7).publish_state(std::string(daybuf));
-            id(forecast_daily_temperature_hi_7).publish_state(std::string(hibuf));
-            id(forecast_daily_temperature_lo_7).publish_state(std::string(lobuf));
-            id(forecast_daily_description_7).publish_state(std::string(desc));
-            id(forecast_daily_condition_icon_7).publish_state(std::string(glyph));
-
+            pgweather_daily_parse_state(x, id(forecast_day_7));
+  - platform: homeassistant
+    entity_id: sensor.owm_daily_7
+    attribute: data
+    id: owm_daily_7_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_daily_parse_attrs(x, id(forecast_day_7), id(forecast_description_7), id(forecast_condition_icon_7), id(forecast_temperature_hi_7), id(forecast_temperature_lo_7));            
 
 # Home Assistant parsers for hourly compact OpenWeather JSON (owm_hourly_0..47)
 # Each publishes `time`, `condition_icon`, `temperature`, and `pop` to internal template sensors.
@@ -1471,334 +426,718 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_0), id(forecast_hourly_condition_icon_label_0), id(forecast_hourly_temperature_label_0), id(forecast_hourly_pop_label_0));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_0));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_0
+    attribute: data
+    id: owm_hourly_0_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_0), id(forecast_hourly_condition_icon_label_0), id(forecast_hourly_temperature_label_0), id(forecast_hourly_pop_label_0));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_1
     id: owm_hourly_1
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_1), id(forecast_hourly_condition_icon_label_1), id(forecast_hourly_temperature_label_1), id(forecast_hourly_pop_label_1));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_1));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_1
+    attribute: data
+    id: owm_hourly_1_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_1), id(forecast_hourly_condition_icon_label_1), id(forecast_hourly_temperature_label_1), id(forecast_hourly_pop_label_1));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_2
     id: owm_hourly_2
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_2), id(forecast_hourly_condition_icon_label_2), id(forecast_hourly_temperature_label_2), id(forecast_hourly_pop_label_2));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_2));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_2
+    attribute: data
+    id: owm_hourly_2_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_2), id(forecast_hourly_condition_icon_label_2), id(forecast_hourly_temperature_label_2), id(forecast_hourly_pop_label_2));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_3
     id: owm_hourly_3
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_3), id(forecast_hourly_condition_icon_label_3), id(forecast_hourly_temperature_label_3), id(forecast_hourly_pop_label_3));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_3));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_3
+    attribute: data
+    id: owm_hourly_3_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_3), id(forecast_hourly_condition_icon_label_3), id(forecast_hourly_temperature_label_3), id(forecast_hourly_pop_label_3));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_4
     id: owm_hourly_4
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_4), id(forecast_hourly_condition_icon_label_4), id(forecast_hourly_temperature_label_4), id(forecast_hourly_pop_label_4));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_4));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_4
+    attribute: data
+    id: owm_hourly_4_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_4), id(forecast_hourly_condition_icon_label_4), id(forecast_hourly_temperature_label_4), id(forecast_hourly_pop_label_4));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_5
     id: owm_hourly_5
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_5), id(forecast_hourly_condition_icon_label_5), id(forecast_hourly_temperature_label_5), id(forecast_hourly_pop_label_5));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_5));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_5
+    attribute: data
+    id: owm_hourly_5_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_5), id(forecast_hourly_condition_icon_label_5), id(forecast_hourly_temperature_label_5), id(forecast_hourly_pop_label_5));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_6
     id: owm_hourly_6
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_6), id(forecast_hourly_condition_icon_label_6), id(forecast_hourly_temperature_label_6), id(forecast_hourly_pop_label_6));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_6));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_6
+    attribute: data
+    id: owm_hourly_6_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_6), id(forecast_hourly_condition_icon_label_6), id(forecast_hourly_temperature_label_6), id(forecast_hourly_pop_label_6));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_7
     id: owm_hourly_7
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_7), id(forecast_hourly_condition_icon_label_7), id(forecast_hourly_temperature_label_7), id(forecast_hourly_pop_label_7));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_7));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_7
+    attribute: data
+    id: owm_hourly_7_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_7), id(forecast_hourly_condition_icon_label_7), id(forecast_hourly_temperature_label_7), id(forecast_hourly_pop_label_7));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_8
     id: owm_hourly_8
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_8), id(forecast_hourly_condition_icon_label_8), id(forecast_hourly_temperature_label_8), id(forecast_hourly_pop_label_8));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_8));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_8
+    attribute: data
+    id: owm_hourly_8_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_8), id(forecast_hourly_condition_icon_label_8), id(forecast_hourly_temperature_label_8), id(forecast_hourly_pop_label_8));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_9
     id: owm_hourly_9
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_9), id(forecast_hourly_condition_icon_label_9), id(forecast_hourly_temperature_label_9), id(forecast_hourly_pop_label_9));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_9));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_9
+    attribute: data
+    id: owm_hourly_9_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_9), id(forecast_hourly_condition_icon_label_9), id(forecast_hourly_temperature_label_9), id(forecast_hourly_pop_label_9));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_10
     id: owm_hourly_10
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_10), id(forecast_hourly_condition_icon_label_10), id(forecast_hourly_temperature_label_10), id(forecast_hourly_pop_label_10));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_10));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_10
+    attribute: data
+    id: owm_hourly_10_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_10), id(forecast_hourly_condition_icon_label_10), id(forecast_hourly_temperature_label_10), id(forecast_hourly_pop_label_10));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_11
     id: owm_hourly_11
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_11), id(forecast_hourly_condition_icon_label_11), id(forecast_hourly_temperature_label_11), id(forecast_hourly_pop_label_11));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_11));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_11
+    attribute: data
+    id: owm_hourly_11_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_11), id(forecast_hourly_condition_icon_label_11), id(forecast_hourly_temperature_label_11), id(forecast_hourly_pop_label_11));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_12
     id: owm_hourly_12
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_12), id(forecast_hourly_condition_icon_label_12), id(forecast_hourly_temperature_label_12), id(forecast_hourly_pop_label_12));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_12));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_12
+    attribute: data
+    id: owm_hourly_12_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_12), id(forecast_hourly_condition_icon_label_12), id(forecast_hourly_temperature_label_12), id(forecast_hourly_pop_label_12));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_13
     id: owm_hourly_13
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_13), id(forecast_hourly_condition_icon_label_13), id(forecast_hourly_temperature_label_13), id(forecast_hourly_pop_label_13));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_13));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_13
+    attribute: data
+    id: owm_hourly_13_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_13), id(forecast_hourly_condition_icon_label_13), id(forecast_hourly_temperature_label_13), id(forecast_hourly_pop_label_13));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_14
     id: owm_hourly_14
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_14), id(forecast_hourly_condition_icon_label_14), id(forecast_hourly_temperature_label_14), id(forecast_hourly_pop_label_14));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_14));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_14
+    attribute: data
+    id: owm_hourly_14_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_14), id(forecast_hourly_condition_icon_label_14), id(forecast_hourly_temperature_label_14), id(forecast_hourly_pop_label_14));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_15
     id: owm_hourly_15
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_15), id(forecast_hourly_condition_icon_label_15), id(forecast_hourly_temperature_label_15), id(forecast_hourly_pop_label_15));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_15));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_15
+    attribute: data
+    id: owm_hourly_15_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_15), id(forecast_hourly_condition_icon_label_15), id(forecast_hourly_temperature_label_15), id(forecast_hourly_pop_label_15));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_16
     id: owm_hourly_16
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_16), id(forecast_hourly_condition_icon_label_16), id(forecast_hourly_temperature_label_16), id(forecast_hourly_pop_label_16));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_16));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_16
+    attribute: data
+    id: owm_hourly_16_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_16), id(forecast_hourly_condition_icon_label_16), id(forecast_hourly_temperature_label_16), id(forecast_hourly_pop_label_16));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_17
     id: owm_hourly_17
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_17), id(forecast_hourly_condition_icon_label_17), id(forecast_hourly_temperature_label_17), id(forecast_hourly_pop_label_17));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_17));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_17
+    attribute: data
+    id: owm_hourly_17_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_17), id(forecast_hourly_condition_icon_label_17), id(forecast_hourly_temperature_label_17), id(forecast_hourly_pop_label_17));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_18
     id: owm_hourly_18
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_18), id(forecast_hourly_condition_icon_label_18), id(forecast_hourly_temperature_label_18), id(forecast_hourly_pop_label_18));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_18));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_18
+    attribute: data
+    id: owm_hourly_18_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_18), id(forecast_hourly_condition_icon_label_18), id(forecast_hourly_temperature_label_18), id(forecast_hourly_pop_label_18));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_19
     id: owm_hourly_19
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_19), id(forecast_hourly_condition_icon_label_19), id(forecast_hourly_temperature_label_19), id(forecast_hourly_pop_label_19));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_19));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_19
+    attribute: data
+    id: owm_hourly_19_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_19), id(forecast_hourly_condition_icon_label_19), id(forecast_hourly_temperature_label_19), id(forecast_hourly_pop_label_19));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_20
     id: owm_hourly_20
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_20), id(forecast_hourly_condition_icon_label_20), id(forecast_hourly_temperature_label_20), id(forecast_hourly_pop_label_20));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_20));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_20
+    attribute: data
+    id: owm_hourly_20_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_20), id(forecast_hourly_condition_icon_label_20), id(forecast_hourly_temperature_label_20), id(forecast_hourly_pop_label_20));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_21
     id: owm_hourly_21
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_21), id(forecast_hourly_condition_icon_label_21), id(forecast_hourly_temperature_label_21), id(forecast_hourly_pop_label_21));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_21));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_21
+    attribute: data
+    id: owm_hourly_21_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_21), id(forecast_hourly_condition_icon_label_21), id(forecast_hourly_temperature_label_21), id(forecast_hourly_pop_label_21));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_22
     id: owm_hourly_22
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_22), id(forecast_hourly_condition_icon_label_22), id(forecast_hourly_temperature_label_22), id(forecast_hourly_pop_label_22));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_22));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_22
+    attribute: data
+    id: owm_hourly_22_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_22), id(forecast_hourly_condition_icon_label_22), id(forecast_hourly_temperature_label_22), id(forecast_hourly_pop_label_22));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_23
     id: owm_hourly_23
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_23), id(forecast_hourly_condition_icon_label_23), id(forecast_hourly_temperature_label_23), id(forecast_hourly_pop_label_23));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_23));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_23
+    attribute: data
+    id: owm_hourly_23_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_23), id(forecast_hourly_condition_icon_label_23), id(forecast_hourly_temperature_label_23), id(forecast_hourly_pop_label_23));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_24
     id: owm_hourly_24
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_24), id(forecast_hourly_condition_icon_label_24), id(forecast_hourly_temperature_label_24), id(forecast_hourly_pop_label_24));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_24));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_24
+    attribute: data
+    id: owm_hourly_24_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_24), id(forecast_hourly_condition_icon_label_24), id(forecast_hourly_temperature_label_24), id(forecast_hourly_pop_label_24));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_25
     id: owm_hourly_25
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_25), id(forecast_hourly_condition_icon_label_25), id(forecast_hourly_temperature_label_25), id(forecast_hourly_pop_label_25));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_25));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_25
+    attribute: data
+    id: owm_hourly_25_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_25), id(forecast_hourly_condition_icon_label_25), id(forecast_hourly_temperature_label_25), id(forecast_hourly_pop_label_25));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_26
     id: owm_hourly_26
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_26), id(forecast_hourly_condition_icon_label_26), id(forecast_hourly_temperature_label_26), id(forecast_hourly_pop_label_26));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_26));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_26
+    attribute: data
+    id: owm_hourly_26_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_26), id(forecast_hourly_condition_icon_label_26), id(forecast_hourly_temperature_label_26), id(forecast_hourly_pop_label_26));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_27
     id: owm_hourly_27
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_27), id(forecast_hourly_condition_icon_label_27), id(forecast_hourly_temperature_label_27), id(forecast_hourly_pop_label_27));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_27));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_27
+    attribute: data
+    id: owm_hourly_27_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_27), id(forecast_hourly_condition_icon_label_27), id(forecast_hourly_temperature_label_27), id(forecast_hourly_pop_label_27));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_28
     id: owm_hourly_28
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_28), id(forecast_hourly_condition_icon_label_28), id(forecast_hourly_temperature_label_28), id(forecast_hourly_pop_label_28));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_28));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_28
+    attribute: data
+    id: owm_hourly_28_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_28), id(forecast_hourly_condition_icon_label_28), id(forecast_hourly_temperature_label_28), id(forecast_hourly_pop_label_28));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_29
     id: owm_hourly_29
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_29), id(forecast_hourly_condition_icon_label_29), id(forecast_hourly_temperature_label_29), id(forecast_hourly_pop_label_29));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_29));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_29
+    attribute: data
+    id: owm_hourly_29_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_29), id(forecast_hourly_condition_icon_label_29), id(forecast_hourly_temperature_label_29), id(forecast_hourly_pop_label_29));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_30
     id: owm_hourly_30
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_30), id(forecast_hourly_condition_icon_label_30), id(forecast_hourly_temperature_label_30), id(forecast_hourly_pop_label_30));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_30));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_30
+    attribute: data
+    id: owm_hourly_30_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_30), id(forecast_hourly_condition_icon_label_30), id(forecast_hourly_temperature_label_30), id(forecast_hourly_pop_label_30));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_31
     id: owm_hourly_31
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_31), id(forecast_hourly_condition_icon_label_31), id(forecast_hourly_temperature_label_31), id(forecast_hourly_pop_label_31));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_31));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_31
+    attribute: data
+    id: owm_hourly_31_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_31), id(forecast_hourly_condition_icon_label_31), id(forecast_hourly_temperature_label_31), id(forecast_hourly_pop_label_31));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_32
     id: owm_hourly_32
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_32), id(forecast_hourly_condition_icon_label_32), id(forecast_hourly_temperature_label_32), id(forecast_hourly_pop_label_32));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_32));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_32
+    attribute: data
+    id: owm_hourly_32_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_32), id(forecast_hourly_condition_icon_label_32), id(forecast_hourly_temperature_label_32), id(forecast_hourly_pop_label_32));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_33
     id: owm_hourly_33
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_33), id(forecast_hourly_condition_icon_label_33), id(forecast_hourly_temperature_label_33), id(forecast_hourly_pop_label_33));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_33));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_33
+    attribute: data
+    id: owm_hourly_33_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_33), id(forecast_hourly_condition_icon_label_33), id(forecast_hourly_temperature_label_33), id(forecast_hourly_pop_label_33));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_34
     id: owm_hourly_34
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_34), id(forecast_hourly_condition_icon_label_34), id(forecast_hourly_temperature_label_34), id(forecast_hourly_pop_label_34));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_34));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_34
+    attribute: data
+    id: owm_hourly_34_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_34), id(forecast_hourly_condition_icon_label_34), id(forecast_hourly_temperature_label_34), id(forecast_hourly_pop_label_34));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_35
     id: owm_hourly_35
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_35), id(forecast_hourly_condition_icon_label_35), id(forecast_hourly_temperature_label_35), id(forecast_hourly_pop_label_35));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_35));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_35
+    attribute: data
+    id: owm_hourly_35_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_35), id(forecast_hourly_condition_icon_label_35), id(forecast_hourly_temperature_label_35), id(forecast_hourly_pop_label_35));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_36
     id: owm_hourly_36
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_36), id(forecast_hourly_condition_icon_label_36), id(forecast_hourly_temperature_label_36), id(forecast_hourly_pop_label_36));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_36));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_36
+    attribute: data
+    id: owm_hourly_36_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_36), id(forecast_hourly_condition_icon_label_36), id(forecast_hourly_temperature_label_36), id(forecast_hourly_pop_label_36));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_37
     id: owm_hourly_37
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_37), id(forecast_hourly_condition_icon_label_37), id(forecast_hourly_temperature_label_37), id(forecast_hourly_pop_label_37));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_37));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_37
+    attribute: data
+    id: owm_hourly_37_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_37), id(forecast_hourly_condition_icon_label_37), id(forecast_hourly_temperature_label_37), id(forecast_hourly_pop_label_37));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_38
     id: owm_hourly_38
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_38), id(forecast_hourly_condition_icon_label_38), id(forecast_hourly_temperature_label_38), id(forecast_hourly_pop_label_38));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_38));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_38
+    attribute: data
+    id: owm_hourly_38_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_38), id(forecast_hourly_condition_icon_label_38), id(forecast_hourly_temperature_label_38), id(forecast_hourly_pop_label_38));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_39
     id: owm_hourly_39
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_39), id(forecast_hourly_condition_icon_label_39), id(forecast_hourly_temperature_label_39), id(forecast_hourly_pop_label_39));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_39));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_39
+    attribute: data
+    id: owm_hourly_39_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_39), id(forecast_hourly_condition_icon_label_39), id(forecast_hourly_temperature_label_39), id(forecast_hourly_pop_label_39));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_40
     id: owm_hourly_40
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_40), id(forecast_hourly_condition_icon_label_40), id(forecast_hourly_temperature_label_40), id(forecast_hourly_pop_label_40));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_40));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_40
+    attribute: data
+    id: owm_hourly_40_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_40), id(forecast_hourly_condition_icon_label_40), id(forecast_hourly_temperature_label_40), id(forecast_hourly_pop_label_40));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_41
     id: owm_hourly_41
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_41), id(forecast_hourly_condition_icon_label_41), id(forecast_hourly_temperature_label_41), id(forecast_hourly_pop_label_41));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_41));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_41
+    attribute: data
+    id: owm_hourly_41_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_41), id(forecast_hourly_condition_icon_label_41), id(forecast_hourly_temperature_label_41), id(forecast_hourly_pop_label_41));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_42
     id: owm_hourly_42
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_42), id(forecast_hourly_condition_icon_label_42), id(forecast_hourly_temperature_label_42), id(forecast_hourly_pop_label_42));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_42));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_42
+    attribute: data
+    id: owm_hourly_42_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_42), id(forecast_hourly_condition_icon_label_42), id(forecast_hourly_temperature_label_42), id(forecast_hourly_pop_label_42));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_43
     id: owm_hourly_43
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_43), id(forecast_hourly_condition_icon_label_43), id(forecast_hourly_temperature_label_43), id(forecast_hourly_pop_label_43));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_43));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_43
+    attribute: data
+    id: owm_hourly_43_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_43), id(forecast_hourly_condition_icon_label_43), id(forecast_hourly_temperature_label_43), id(forecast_hourly_pop_label_43));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_44
     id: owm_hourly_44
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_44), id(forecast_hourly_condition_icon_label_44), id(forecast_hourly_temperature_label_44), id(forecast_hourly_pop_label_44));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_44));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_44
+    attribute: data
+    id: owm_hourly_44_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_44), id(forecast_hourly_condition_icon_label_44), id(forecast_hourly_temperature_label_44), id(forecast_hourly_pop_label_44));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_45
     id: owm_hourly_45
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_45), id(forecast_hourly_condition_icon_label_45), id(forecast_hourly_temperature_label_45), id(forecast_hourly_pop_label_45));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_45));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_45
+    attribute: data
+    id: owm_hourly_45_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_45), id(forecast_hourly_condition_icon_label_45), id(forecast_hourly_temperature_label_45), id(forecast_hourly_pop_label_45));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_46
     id: owm_hourly_46
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_46), id(forecast_hourly_condition_icon_label_46), id(forecast_hourly_temperature_label_46), id(forecast_hourly_pop_label_46));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_46));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_46
+    attribute: data
+    id: owm_hourly_46_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_46), id(forecast_hourly_condition_icon_label_46), id(forecast_hourly_temperature_label_46), id(forecast_hourly_pop_label_46));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_47
     id: owm_hourly_47
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parser(x, id(forecast_hourly_time_label_47), id(forecast_hourly_condition_icon_label_47), id(forecast_hourly_temperature_label_47), id(forecast_hourly_pop_label_47));
+            pgweather_hourly_parse_state(x, id(forecast_hourly_time_label_47));
+  - platform: homeassistant
+    entity_id: sensor.owm_hourly_47
+    attribute: data
+    id: owm_hourly_47_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_47), id(forecast_hourly_condition_icon_label_47), id(forecast_hourly_temperature_label_47), id(forecast_hourly_pop_label_47));
 
