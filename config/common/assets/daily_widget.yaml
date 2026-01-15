@@ -54,7 +54,9 @@ widgets:
         id: forecast_sunset_${id}
         height: SIZE_CONTENT
         text_font: font_small
-        text_color: ep_orange
+        text_color: white
+        bg_color: black
+        bg_opa: 100%
         text: "${mdi_clear_night} --:--"
         align: CENTER
 
