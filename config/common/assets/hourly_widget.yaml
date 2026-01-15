@@ -1,4 +1,4 @@
-height: 80
+height: SIZE_CONTENT
 width: SIZE_CONTENT
 bg_color: gray50
 pad_top: 0

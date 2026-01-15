@@ -51,7 +51,8 @@ static inline std::string icon_code_to_glyph(const std::string& icon_code) {
 
 static inline void pgweather_daily_parse_attrs(
     const std::string& json, lv_obj_t* day_label, lv_obj_t* description_label,
-    lv_obj_t* icon_lbl, lv_obj_t* temp_hi_lbl, lv_obj_t* temp_lo_lbl) {
+    lv_obj_t* icon_lbl, lv_obj_t* temp_hi_lbl, lv_obj_t* temp_lo_lbl,
+    lv_obj_t* sunrise_lbl, lv_obj_t* sunset_lbl) {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
@@ -79,6 +80,37 @@ static inline void pgweather_daily_parse_attrs(
     const std::string icon = w["icon"] | "";
     safe_lv_label_set_text(description_label, desc.c_str());
     safe_lv_label_set_text(icon_lbl, icon_code_to_glyph(icon).c_str());
+  }
+
+  // Sunrise / sunset handling: format timestamps as HH:MM and prefix with glyphs
+  if (sunrise_lbl) {
+    long sr = doc["sunrise"] | 0L;
+    if (sr) {
+      time_t t = (time_t)sr;
+      struct tm* lt = localtime(&t);
+      char timestr[16] = {0};
+      if (lt) strftime(timestr, sizeof(timestr), "%H:%M", lt);
+      std::string s = std::string(mdi_sunny) + " ";
+      s += timestr;
+      safe_lv_label_set_text(sunrise_lbl, s.c_str());
+    } else {
+      safe_lv_label_set_text(sunrise_lbl, "");
+    }
+  }
+
+  if (sunset_lbl) {
+    long ss = doc["sunset"] | 0L;
+    if (ss) {
+      time_t t = (time_t)ss;
+      struct tm* lt = localtime(&t);
+      char timestr[16] = {0};
+      if (lt) strftime(timestr, sizeof(timestr), "%H:%M", lt);
+      std::string s = std::string(mdi_clear_night) + " ";
+      s += timestr;
+      safe_lv_label_set_text(sunset_lbl, s.c_str());
+    } else {
+      safe_lv_label_set_text(sunset_lbl, "");
+    }
   }
 }
 

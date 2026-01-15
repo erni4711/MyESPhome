@@ -2,16 +2,16 @@
 # Usage: Add the full OneCall URL (including API key, lat, lon, exclude, units)
 # to your Home Assistant secrets.yaml as:
 # Base OpenWeather OneCall URL (no exclude params). Fill lat/lon and API key.
-# Example: "https://api.openweathermap.org/data/3.0/onecall?lat=48.123&lon=11.456&appid=YOUR_API_KEY&units=metric&lang=de"
-# openweathermap_onecall_url: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&appid=YOUR_API_KEY&units=metric&lang=de"
-
-substitutions:
-  openweathermap_onecall_base: !secret openweathermap_onecall_url
+# Example: "https://api.openweathermap.org/data/3.0/onecall?lat=48.123&lon=11.456&appid=YOUR_API_KEY&units=metric&lang=de&exclude=minutely"
+# openweathermap_onecall_url: "https://api.openweathermap.org/data/3.0/onecall?lat=...&lon=...&appid=YOUR_API_KEY&units=metric&lang=de&exclude=minutely"
 
 sensor:
   - platform: rest
     name: "owm_onecall_daily"
-    resource: "${openweathermap_onecall_base}&exclude=minutely,hourly"
+    # Provide a dedicated secret URL that includes excludes for daily data.
+    # Example secret value (include API key, lat, lon, units):
+    # https://api.openweathermap.org/data/3.0/onecall?lat=48.1&lon=11.2&appid=APIKEY&units=metric&lang=de&exclude=minutely,hourly
+    resource: !secret openweathermap_onecall_daily_url
     method: GET
     timeout: 10
     value_template: "{{ value_json.current.temp if value_json.current is defined else '' }}"
@@ -22,7 +22,10 @@ sensor:
     scan_interval: 1800
   - platform: rest
     name: "owm_onecall_hourly"
-    resource: "${openweathermap_onecall_base}&exclude=minutely,daily,current,alerts"
+    # Provide a dedicated secret URL that includes excludes for hourly data.
+    # Example secret value (include API key, lat, lon, units):
+    # https://api.openweathermap.org/data/3.0/onecall?lat=48.1&lon=11.2&appid=APIKEY&units=metric&lang=de&exclude=minutely,daily,current,alerts
+    resource: !secret openweathermap_onecall_hourly_url
     method: GET
     timeout: 10
     value_template: "{{ value_json.current.temp if value_json.current is defined else '' }}"
@@ -35,227 +38,1355 @@ template:
   - sensor:
       - name: "owm_daily_0"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 0 %}{"dt": {{ d[0].dt | int(0) }}, "temp": {"max": {{ d[0].temp.max | default(d[0].temp.day | default(0)) }}, "min": {{ d[0].temp.min | default(0) }}}, "weather": [{"description": {{ d[0].weather[0].description | tojson }}, "icon": {{ d[0].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 0 %}{{ d[0].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 0 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[0].sunrise | int(0) }},
+              "sunset": {{ d[0].sunset | int(0) }},
+              "temp_max": {{ d[0].temp.max | default(d[0].temp.day | default(0)) }},
+              "temp_min": {{ d[0].temp.min | default(0) }},
+              "temp_day": {{ d[0].temp.day | default(0) }},
+              "temp_night": {{ d[0].temp.night | default(0) }},
+              "feels_like_day": {{ d[0].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[0].feels_like.night | default(0) }},
+              "pressure": {{ d[0].pressure | default(0) }},
+              "humidity": {{ d[0].humidity | default(0) }},
+              "dew_point": {{ d[0].dew_point | default(0) }},
+              "wind_speed": {{ d[0].wind_speed | default(0) }},
+              "wind_deg": {{ d[0].wind_deg | default(0) }},
+              "clouds": {{ d[0].clouds | default(0) }},
+              "pop": {{ d[0].pop | default(0) }},
+              "uvi": {{ d[0].uvi | default(0) }},
+              "rain": {{ d[0].rain | default(0) }},
+              "snow": {{ d[0].snow | default(0) }},
+              "weather": [ {"description": {{ d[0].weather[0].description | tojson }}, "icon": {{ d[0].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_1"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 1 %}{"dt": {{ d[1].dt | int(0) }}, "temp": {"max": {{ d[1].temp.max | default(d[1].temp.day | default(0)) }}, "min": {{ d[1].temp.min | default(0) }}}, "weather": [{"description": {{ d[1].weather[0].description | tojson }}, "icon": {{ d[1].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 1 %}{{ d[1].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 1 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[1].sunrise | int(0) }},
+              "sunset": {{ d[1].sunset | int(0) }},
+              "temp_max": {{ d[1].temp.max | default(d[1].temp.day | default(0)) }},
+              "temp_min": {{ d[1].temp.min | default(0) }},
+              "temp_day": {{ d[1].temp.day | default(0) }},
+              "temp_night": {{ d[1].temp.night | default(0) }},
+              "feels_like_day": {{ d[1].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[1].feels_like.night | default(0) }},
+              "pressure": {{ d[1].pressure | default(0) }},
+              "humidity": {{ d[1].humidity | default(0) }},
+              "dew_point": {{ d[1].dew_point | default(0) }},
+              "wind_speed": {{ d[1].wind_speed | default(0) }},
+              "wind_deg": {{ d[1].wind_deg | default(0) }},
+              "clouds": {{ d[1].clouds | default(0) }},
+              "pop": {{ d[1].pop | default(0) }},
+              "uvi": {{ d[1].uvi | default(0) }},
+              "rain": {{ d[1].rain | default(0) }},
+              "snow": {{ d[1].snow | default(0) }},
+              "weather": [ {"description": {{ d[1].weather[0].description | tojson }}, "icon": {{ d[1].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_2"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 2 %}{"dt": {{ d[2].dt | int(0) }}, "temp": {"max": {{ d[2].temp.max | default(d[2].temp.day | default(0)) }}, "min": {{ d[2].temp.min | default(0) }}}, "weather": [{"description": {{ d[2].weather[0].description | tojson }}, "icon": {{ d[2].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 2 %}{{ d[2].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 2 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[2].sunrise | int(0) }},
+              "sunset": {{ d[2].sunset | int(0) }},
+              "temp_max": {{ d[2].temp.max | default(d[2].temp.day | default(0)) }},
+              "temp_min": {{ d[2].temp.min | default(0) }},
+              "temp_day": {{ d[2].temp.day | default(0) }},
+              "temp_night": {{ d[2].temp.night | default(0) }},
+              "feels_like_day": {{ d[2].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[2].feels_like.night | default(0) }},
+              "pressure": {{ d[2].pressure | default(0) }},
+              "humidity": {{ d[2].humidity | default(0) }},
+              "dew_point": {{ d[2].dew_point | default(0) }},
+              "wind_speed": {{ d[2].wind_speed | default(0) }},
+              "wind_deg": {{ d[2].wind_deg | default(0) }},
+              "clouds": {{ d[2].clouds | default(0) }},
+              "pop": {{ d[2].pop | default(0) }},
+              "uvi": {{ d[2].uvi | default(0) }},
+              "rain": {{ d[2].rain | default(0) }},
+              "snow": {{ d[2].snow | default(0) }},
+              "weather": [ {"description": {{ d[2].weather[0].description | tojson }}, "icon": {{ d[2].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_3"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 3 %}{"dt": {{ d[3].dt | int(0) }}, "temp": {"max": {{ d[3].temp.max | default(d[3].temp.day | default(0)) }}, "min": {{ d[3].temp.min | default(0) }}}, "weather": [{"description": {{ d[3].weather[0].description | tojson }}, "icon": {{ d[3].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 3 %}{{ d[3].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 3 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[3].sunrise | int(0) }},
+              "sunset": {{ d[3].sunset | int(0) }},
+              "temp_max": {{ d[3].temp.max | default(d[3].temp.day | default(0)) }},
+              "temp_min": {{ d[3].temp.min | default(0) }},
+              "temp_day": {{ d[3].temp.day | default(0) }},
+              "temp_night": {{ d[3].temp.night | default(0) }},
+              "feels_like_day": {{ d[3].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[3].feels_like.night | default(0) }},
+              "pressure": {{ d[3].pressure | default(0) }},
+              "humidity": {{ d[3].humidity | default(0) }},
+              "dew_point": {{ d[3].dew_point | default(0) }},
+              "wind_speed": {{ d[3].wind_speed | default(0) }},
+              "wind_deg": {{ d[3].wind_deg | default(0) }},
+              "clouds": {{ d[3].clouds | default(0) }},
+              "pop": {{ d[3].pop | default(0) }},
+              "uvi": {{ d[3].uvi | default(0) }},
+              "rain": {{ d[3].rain | default(0) }},
+              "snow": {{ d[3].snow | default(0) }},
+              "weather": [ {"description": {{ d[3].weather[0].description | tojson }}, "icon": {{ d[3].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_4"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 4 %}{"dt": {{ d[4].dt | int(0) }}, "temp": {"max": {{ d[4].temp.max | default(d[4].temp.day | default(0)) }}, "min": {{ d[4].temp.min | default(0) }}}, "weather": [{"description": {{ d[4].weather[0].description | tojson }}, "icon": {{ d[4].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 4 %}{{ d[4].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 4 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[4].sunrise | int(0) }},
+              "sunset": {{ d[4].sunset | int(0) }},
+              "temp_max": {{ d[4].temp.max | default(d[4].temp.day | default(0)) }},
+              "temp_min": {{ d[4].temp.min | default(0) }},
+              "temp_day": {{ d[4].temp.day | default(0) }},
+              "temp_night": {{ d[4].temp.night | default(0) }},
+              "feels_like_day": {{ d[4].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[4].feels_like.night | default(0) }},
+              "pressure": {{ d[4].pressure | default(0) }},
+              "humidity": {{ d[4].humidity | default(0) }},
+              "dew_point": {{ d[4].dew_point | default(0) }},
+              "wind_speed": {{ d[4].wind_speed | default(0) }},
+              "wind_deg": {{ d[4].wind_deg | default(0) }},
+              "clouds": {{ d[4].clouds | default(0) }},
+              "pop": {{ d[4].pop | default(0) }},
+              "uvi": {{ d[4].uvi | default(0) }},
+              "rain": {{ d[4].rain | default(0) }},
+              "snow": {{ d[4].snow | default(0) }},
+              "weather": [ {"description": {{ d[4].weather[0].description | tojson }}, "icon": {{ d[4].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_5"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 5 %}{"dt": {{ d[5].dt | int(0) }}, "temp": {"max": {{ d[5].temp.max | default(d[5].temp.day | default(0)) }}, "min": {{ d[5].temp.min | default(0) }}}, "weather": [{"description": {{ d[5].weather[0].description | tojson }}, "icon": {{ d[5].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 5 %}{{ d[5].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 5 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[5].sunrise | int(0) }},
+              "sunset": {{ d[5].sunset | int(0) }},
+              "temp_max": {{ d[5].temp.max | default(d[5].temp.day | default(0)) }},
+              "temp_min": {{ d[5].temp.min | default(0) }},
+              "temp_day": {{ d[5].temp.day | default(0) }},
+              "temp_night": {{ d[5].temp.night | default(0) }},
+              "feels_like_day": {{ d[5].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[5].feels_like.night | default(0) }},
+              "pressure": {{ d[5].pressure | default(0) }},
+              "humidity": {{ d[5].humidity | default(0) }},
+              "dew_point": {{ d[5].dew_point | default(0) }},
+              "wind_speed": {{ d[5].wind_speed | default(0) }},
+              "wind_deg": {{ d[5].wind_deg | default(0) }},
+              "clouds": {{ d[5].clouds | default(0) }},
+              "pop": {{ d[5].pop | default(0) }},
+              "uvi": {{ d[5].uvi | default(0) }},
+              "rain": {{ d[5].rain | default(0) }},
+              "snow": {{ d[5].snow | default(0) }},
+              "weather": [ {"description": {{ d[5].weather[0].description | tojson }}, "icon": {{ d[5].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_6"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 6 %}{"dt": {{ d[6].dt | int(0) }}, "temp": {"max": {{ d[6].temp.max | default(d[6].temp.day | default(0)) }}, "min": {{ d[6].temp.min | default(0) }}}, "weather": [{"description": {{ d[6].weather[0].description | tojson }}, "icon": {{ d[6].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 6 %}{{ d[6].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 6 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[6].sunrise | int(0) }},
+              "sunset": {{ d[6].sunset | int(0) }},
+              "temp_max": {{ d[6].temp.max | default(d[6].temp.day | default(0)) }},
+              "temp_min": {{ d[6].temp.min | default(0) }},
+              "temp_day": {{ d[6].temp.day | default(0) }},
+              "temp_night": {{ d[6].temp.night | default(0) }},
+              "feels_like_day": {{ d[6].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[6].feels_like.night | default(0) }},
+              "pressure": {{ d[6].pressure | default(0) }},
+              "humidity": {{ d[6].humidity | default(0) }},
+              "dew_point": {{ d[6].dew_point | default(0) }},
+              "wind_speed": {{ d[6].wind_speed | default(0) }},
+              "wind_deg": {{ d[6].wind_deg | default(0) }},
+              "clouds": {{ d[6].clouds | default(0) }},
+              "pop": {{ d[6].pop | default(0) }},
+              "uvi": {{ d[6].uvi | default(0) }},
+              "rain": {{ d[6].rain | default(0) }},
+              "snow": {{ d[6].snow | default(0) }},
+              "weather": [ {"description": {{ d[6].weather[0].description | tojson }}, "icon": {{ d[6].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_7"
         state: >-
-          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or state_attr('sensor.owm_onecall_daily','daily') or []) %}
-          {% if d|length > 7 %}{"dt": {{ d[7].dt | int(0) }}, "temp": {"max": {{ d[7].temp.max | default(d[7].temp.day | default(0)) }}, "min": {{ d[7].temp.min | default(0) }}}, "weather": [{"description": {{ d[7].weather[0].description | tojson }}, "icon": {{ d[7].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+          {% if d|length > 7 %}{{ d[7].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}
+            {% if d|length > 7 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "sunrise": {{ d[7].sunrise | int(0) }},
+              "sunset": {{ d[7].sunset | int(0) }},
+              "temp_max": {{ d[7].temp.max | default(d[7].temp.day | default(0)) }},
+              "temp_min": {{ d[7].temp.min | default(0) }},
+              "temp_day": {{ d[7].temp.day | default(0) }},
+              "temp_night": {{ d[7].temp.night | default(0) }},
+              "feels_like_day": {{ d[7].feels_like.day | default(0) }},
+              "feels_like_night": {{ d[7].feels_like.night | default(0) }},
+              "pressure": {{ d[7].pressure | default(0) }},
+              "humidity": {{ d[7].humidity | default(0) }},
+              "dew_point": {{ d[7].dew_point | default(0) }},
+              "wind_speed": {{ d[7].wind_speed | default(0) }},
+              "wind_deg": {{ d[7].wind_deg | default(0) }},
+              "clouds": {{ d[7].clouds | default(0) }},
+              "pop": {{ d[7].pop | default(0) }},
+              "uvi": {{ d[7].uvi | default(0) }},
+              "rain": {{ d[7].rain | default(0) }},
+              "snow": {{ d[7].snow | default(0) }},
+              "weather": [ {"description": {{ d[7].weather[0].description | tojson }}, "icon": {{ d[7].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       # Hourly entries (0..47) from sensor.owm_onecall_hourly
       - name: "owm_hourly_0"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 0 %}{"dt": {{ h[0].dt | int(0) }}, "temp": {{ h[0].temp | default(0) }}, "pop": {{ h[0].pop | default(0) }}, "weather": [{"description": {{ h[0].weather[0].description | tojson }}, "icon": {{ h[0].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 0 %}{{ h[0].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 0 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[0].temp | default(0) }},
+              "pop": {{ h[0].pop | default(0) }},
+              "pressure": {{ h[0].pressure | default(0) }},
+              "humidity": {{ h[0].humidity | default(0) }},
+              "dew_point": {{ h[0].dew_point | default(0) }},
+              "wind_speed": {{ h[0].wind_speed | default(0) }},
+              "wind_deg": {{ h[0].wind_deg | default(0) }},
+              "clouds": {{ h[0].clouds | default(0) }},
+              "rain": {{ h[0].rain | default(0) }},
+              "snow": {{ h[0].snow | default(0) }},
+              "weather": [ {"description": {{ h[0].weather[0].description | tojson }}, "icon": {{ h[0].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_1"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 1 %}{"dt": {{ h[1].dt | int(0) }}, "temp": {{ h[1].temp | default(0) }}, "pop": {{ h[1].pop | default(0) }}, "weather": [{"description": {{ h[1].weather[0].description | tojson }}, "icon": {{ h[1].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 1 %}{{ h[1].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 1 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[1].temp | default(0) }},
+              "pop": {{ h[1].pop | default(0) }},
+              "pressure": {{ h[1].pressure | default(0) }},
+              "humidity": {{ h[1].humidity | default(0) }},
+              "dew_point": {{ h[1].dew_point | default(0) }},
+              "wind_speed": {{ h[1].wind_speed | default(0) }},
+              "wind_deg": {{ h[1].wind_deg | default(0) }},
+              "clouds": {{ h[1].clouds | default(0) }},
+              "rain": {{ h[1].rain | default(0) }},
+              "snow": {{ h[1].snow | default(0) }},
+              "weather": [ {"description": {{ h[1].weather[0].description | tojson }}, "icon": {{ h[1].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_2"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 2 %}{"dt": {{ h[2].dt | int(0) }}, "temp": {{ h[2].temp | default(0) }}, "pop": {{ h[2].pop | default(0) }}, "weather": [{"description": {{ h[2].weather[0].description | tojson }}, "icon": {{ h[2].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 2 %}{{ h[2].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 2 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[2].temp | default(0) }},
+              "pop": {{ h[2].pop | default(0) }},
+              "pressure": {{ h[2].pressure | default(0) }},
+              "humidity": {{ h[2].humidity | default(0) }},
+              "dew_point": {{ h[2].dew_point | default(0) }},
+              "wind_speed": {{ h[2].wind_speed | default(0) }},
+              "wind_deg": {{ h[2].wind_deg | default(0) }},
+              "clouds": {{ h[2].clouds | default(0) }},
+              "rain": {{ h[2].rain | default(0) }},
+              "snow": {{ h[2].snow | default(0) }},
+              "weather": [ {"description": {{ h[2].weather[0].description | tojson }}, "icon": {{ h[2].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_3"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 3 %}{"dt": {{ h[3].dt | int(0) }}, "temp": {{ h[3].temp | default(0) }}, "pop": {{ h[3].pop | default(0) }}, "weather": [{"description": {{ h[3].weather[0].description | tojson }}, "icon": {{ h[3].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 3 %}{{ h[3].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 3 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[3].temp | default(0) }},
+              "pop": {{ h[3].pop | default(0) }},
+              "pressure": {{ h[3].pressure | default(0) }},
+              "humidity": {{ h[3].humidity | default(0) }},
+              "dew_point": {{ h[3].dew_point | default(0) }},
+              "wind_speed": {{ h[3].wind_speed | default(0) }},
+              "wind_deg": {{ h[3].wind_deg | default(0) }},
+              "clouds": {{ h[3].clouds | default(0) }},
+              "rain": {{ h[3].rain | default(0) }},
+              "snow": {{ h[3].snow | default(0) }},
+              "weather": [ {"description": {{ h[3].weather[0].description | tojson }}, "icon": {{ h[3].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_4"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 4 %}{"dt": {{ h[4].dt | int(0) }}, "temp": {{ h[4].temp | default(0) }}, "pop": {{ h[4].pop | default(0) }}, "weather": [{"description": {{ h[4].weather[0].description | tojson }}, "icon": {{ h[4].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 4 %}{{ h[4].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 4 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[4].temp | default(0) }},
+              "pop": {{ h[4].pop | default(0) }},
+              "pressure": {{ h[4].pressure | default(0) }},
+              "humidity": {{ h[4].humidity | default(0) }},
+              "dew_point": {{ h[4].dew_point | default(0) }},
+              "wind_speed": {{ h[4].wind_speed | default(0) }},
+              "wind_deg": {{ h[4].wind_deg | default(0) }},
+              "clouds": {{ h[4].clouds | default(0) }},
+              "rain": {{ h[4].rain | default(0) }},
+              "snow": {{ h[4].snow | default(0) }},
+              "weather": [ {"description": {{ h[4].weather[0].description | tojson }}, "icon": {{ h[4].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_5"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 5 %}{"dt": {{ h[5].dt | int(0) }}, "temp": {{ h[5].temp | default(0) }}, "pop": {{ h[5].pop | default(0) }}, "weather": [{"description": {{ h[5].weather[0].description | tojson }}, "icon": {{ h[5].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 5 %}{{ h[5].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 5 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[5].temp | default(0) }},
+              "pop": {{ h[5].pop | default(0) }},
+              "pressure": {{ h[5].pressure | default(0) }},
+              "humidity": {{ h[5].humidity | default(0) }},
+              "dew_point": {{ h[5].dew_point | default(0) }},
+              "wind_speed": {{ h[5].wind_speed | default(0) }},
+              "wind_deg": {{ h[5].wind_deg | default(0) }},
+              "clouds": {{ h[5].clouds | default(0) }},
+              "rain": {{ h[5].rain | default(0) }},
+              "snow": {{ h[5].snow | default(0) }},
+              "weather": [ {"description": {{ h[5].weather[0].description | tojson }}, "icon": {{ h[5].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_6"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 6 %}{"dt": {{ h[6].dt | int(0) }}, "temp": {{ h[6].temp | default(0) }}, "pop": {{ h[6].pop | default(0) }}, "weather": [{"description": {{ h[6].weather[0].description | tojson }}, "icon": {{ h[6].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 6 %}{{ h[6].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 6 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[6].temp | default(0) }},
+              "pop": {{ h[6].pop | default(0) }},
+              "pressure": {{ h[6].pressure | default(0) }},
+              "humidity": {{ h[6].humidity | default(0) }},
+              "dew_point": {{ h[6].dew_point | default(0) }},
+              "wind_speed": {{ h[6].wind_speed | default(0) }},
+              "wind_deg": {{ h[6].wind_deg | default(0) }},
+              "clouds": {{ h[6].clouds | default(0) }},
+              "rain": {{ h[6].rain | default(0) }},
+              "snow": {{ h[6].snow | default(0) }},
+              "weather": [ {"description": {{ h[6].weather[0].description | tojson }}, "icon": {{ h[6].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_7"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 7 %}{"dt": {{ h[7].dt | int(0) }}, "temp": {{ h[7].temp | default(0) }}, "pop": {{ h[7].pop | default(0) }}, "weather": [{"description": {{ h[7].weather[0].description | tojson }}, "icon": {{ h[7].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 7 %}{{ h[7].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 7 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[7].temp | default(0) }},
+              "pop": {{ h[7].pop | default(0) }},
+              "pressure": {{ h[7].pressure | default(0) }},
+              "humidity": {{ h[7].humidity | default(0) }},
+              "dew_point": {{ h[7].dew_point | default(0) }},
+              "wind_speed": {{ h[7].wind_speed | default(0) }},
+              "wind_deg": {{ h[7].wind_deg | default(0) }},
+              "clouds": {{ h[7].clouds | default(0) }},
+              "rain": {{ h[7].rain | default(0) }},
+              "snow": {{ h[7].snow | default(0) }},
+              "weather": [ {"description": {{ h[7].weather[0].description | tojson }}, "icon": {{ h[7].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_8"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 8 %}{"dt": {{ h[8].dt | int(0) }}, "temp": {{ h[8].temp | default(0) }}, "pop": {{ h[8].pop | default(0) }}, "weather": [{"description": {{ h[8].weather[0].description | tojson }}, "icon": {{ h[8].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 8 %}{{ h[8].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 8 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[8].temp | default(0) }},
+              "pop": {{ h[8].pop | default(0) }},
+              "pressure": {{ h[8].pressure | default(0) }},
+              "humidity": {{ h[8].humidity | default(0) }},
+              "dew_point": {{ h[8].dew_point | default(0) }},
+              "wind_speed": {{ h[8].wind_speed | default(0) }},
+              "wind_deg": {{ h[8].wind_deg | default(0) }},
+              "clouds": {{ h[8].clouds | default(0) }},
+              "rain": {{ h[8].rain | default(0) }},
+              "snow": {{ h[8].snow | default(0) }},
+              "weather": [ {"description": {{ h[8].weather[0].description | tojson }}, "icon": {{ h[8].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_9"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 9 %}{"dt": {{ h[9].dt | int(0) }}, "temp": {{ h[9].temp | default(0) }}, "pop": {{ h[9].pop | default(0) }}, "weather": [{"description": {{ h[9].weather[0].description | tojson }}, "icon": {{ h[9].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 9 %}{{ h[9].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 9 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[9].temp | default(0) }},
+              "pop": {{ h[9].pop | default(0) }},
+              "pressure": {{ h[9].pressure | default(0) }},
+              "humidity": {{ h[9].humidity | default(0) }},
+              "dew_point": {{ h[9].dew_point | default(0) }},
+              "wind_speed": {{ h[9].wind_speed | default(0) }},
+              "wind_deg": {{ h[9].wind_deg | default(0) }},
+              "clouds": {{ h[9].clouds | default(0) }},
+              "rain": {{ h[9].rain | default(0) }},
+              "snow": {{ h[9].snow | default(0) }},
+              "weather": [ {"description": {{ h[9].weather[0].description | tojson }}, "icon": {{ h[9].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_10"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 10 %}{"dt": {{ h[10].dt | int(0) }}, "temp": {{ h[10].temp | default(0) }}, "pop": {{ h[10].pop | default(0) }}, "weather": [{"description": {{ h[10].weather[0].description | tojson }}, "icon": {{ h[10].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 10 %}{{ h[10].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 10 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[10].temp | default(0) }},
+              "pop": {{ h[10].pop | default(0) }},
+              "pressure": {{ h[10].pressure | default(0) }},
+              "humidity": {{ h[10].humidity | default(0) }},
+              "dew_point": {{ h[10].dew_point | default(0) }},
+              "wind_speed": {{ h[10].wind_speed | default(0) }},
+              "wind_deg": {{ h[10].wind_deg | default(0) }},
+              "clouds": {{ h[10].clouds | default(0) }},
+              "rain": {{ h[10].rain | default(0) }},
+              "snow": {{ h[10].snow | default(0) }},
+              "weather": [ {"description": {{ h[10].weather[0].description | tojson }}, "icon": {{ h[10].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_11"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 11 %}{"dt": {{ h[11].dt | int(0) }}, "temp": {{ h[11].temp | default(0) }}, "pop": {{ h[11].pop | default(0) }}, "weather": [{"description": {{ h[11].weather[0].description | tojson }}, "icon": {{ h[11].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 11 %}{{ h[11].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 11 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[11].temp | default(0) }},
+              "pop": {{ h[11].pop | default(0) }},
+              "pressure": {{ h[11].pressure | default(0) }},
+              "humidity": {{ h[11].humidity | default(0) }},
+              "dew_point": {{ h[11].dew_point | default(0) }},
+              "wind_speed": {{ h[11].wind_speed | default(0) }},
+              "wind_deg": {{ h[11].wind_deg | default(0) }},
+              "clouds": {{ h[11].clouds | default(0) }},
+              "rain": {{ h[11].rain | default(0) }},
+              "snow": {{ h[11].snow | default(0) }},
+              "weather": [ {"description": {{ h[11].weather[0].description | tojson }}, "icon": {{ h[11].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_12"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 12 %}{"dt": {{ h[12].dt | int(0) }}, "temp": {{ h[12].temp | default(0) }}, "pop": {{ h[12].pop | default(0) }}, "weather": [{"description": {{ h[12].weather[0].description | tojson }}, "icon": {{ h[12].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 12 %}{{ h[12].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 12 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[12].temp | default(0) }},
+              "pop": {{ h[12].pop | default(0) }},
+              "pressure": {{ h[12].pressure | default(0) }},
+              "humidity": {{ h[12].humidity | default(0) }},
+              "dew_point": {{ h[12].dew_point | default(0) }},
+              "wind_speed": {{ h[12].wind_speed | default(0) }},
+              "wind_deg": {{ h[12].wind_deg | default(0) }},
+              "clouds": {{ h[12].clouds | default(0) }},
+              "rain": {{ h[12].rain | default(0) }},
+              "snow": {{ h[12].snow | default(0) }},
+              "weather": [ {"description": {{ h[12].weather[0].description | tojson }}, "icon": {{ h[12].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_13"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 13 %}{"dt": {{ h[13].dt | int(0) }}, "temp": {{ h[13].temp | default(0) }}, "pop": {{ h[13].pop | default(0) }}, "weather": [{"description": {{ h[13].weather[0].description | tojson }}, "icon": {{ h[13].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 13 %}{{ h[13].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 13 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[13].temp | default(0) }},
+              "pop": {{ h[13].pop | default(0) }},
+              "pressure": {{ h[13].pressure | default(0) }},
+              "humidity": {{ h[13].humidity | default(0) }},
+              "dew_point": {{ h[13].dew_point | default(0) }},
+              "wind_speed": {{ h[13].wind_speed | default(0) }},
+              "wind_deg": {{ h[13].wind_deg | default(0) }},
+              "clouds": {{ h[13].clouds | default(0) }},
+              "rain": {{ h[13].rain | default(0) }},
+              "snow": {{ h[13].snow | default(0) }},
+              "weather": [ {"description": {{ h[13].weather[0].description | tojson }}, "icon": {{ h[13].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_14"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 14 %}{"dt": {{ h[14].dt | int(0) }}, "temp": {{ h[14].temp | default(0) }}, "pop": {{ h[14].pop | default(0) }}, "weather": [{"description": {{ h[14].weather[0].description | tojson }}, "icon": {{ h[14].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 14 %}{{ h[14].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 14 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[14].temp | default(0) }},
+              "pop": {{ h[14].pop | default(0) }},
+              "pressure": {{ h[14].pressure | default(0) }},
+              "humidity": {{ h[14].humidity | default(0) }},
+              "dew_point": {{ h[14].dew_point | default(0) }},
+              "wind_speed": {{ h[14].wind_speed | default(0) }},
+              "wind_deg": {{ h[14].wind_deg | default(0) }},
+              "clouds": {{ h[14].clouds | default(0) }},
+              "rain": {{ h[14].rain | default(0) }},
+              "snow": {{ h[14].snow | default(0) }},
+              "weather": [ {"description": {{ h[14].weather[0].description | tojson }}, "icon": {{ h[14].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_15"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 15 %}{"dt": {{ h[15].dt | int(0) }}, "temp": {{ h[15].temp | default(0) }}, "pop": {{ h[15].pop | default(0) }}, "weather": [{"description": {{ h[15].weather[0].description | tojson }}, "icon": {{ h[15].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 15 %}{{ h[15].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 15 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[15].temp | default(0) }},
+              "pop": {{ h[15].pop | default(0) }},
+              "pressure": {{ h[15].pressure | default(0) }},
+              "humidity": {{ h[15].humidity | default(0) }},
+              "dew_point": {{ h[15].dew_point | default(0) }},
+              "wind_speed": {{ h[15].wind_speed | default(0) }},
+              "wind_deg": {{ h[15].wind_deg | default(0) }},
+              "clouds": {{ h[15].clouds | default(0) }},
+              "rain": {{ h[15].rain | default(0) }},
+              "snow": {{ h[15].snow | default(0) }},
+              "weather": [ {"description": {{ h[15].weather[0].description | tojson }}, "icon": {{ h[15].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_16"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 16 %}{"dt": {{ h[16].dt | int(0) }}, "temp": {{ h[16].temp | default(0) }}, "pop": {{ h[16].pop | default(0) }}, "weather": [{"description": {{ h[16].weather[0].description | tojson }}, "icon": {{ h[16].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 16 %}{{ h[16].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 16 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[16].temp | default(0) }},
+              "pop": {{ h[16].pop | default(0) }},
+              "pressure": {{ h[16].pressure | default(0) }},
+              "humidity": {{ h[16].humidity | default(0) }},
+              "dew_point": {{ h[16].dew_point | default(0) }},
+              "wind_speed": {{ h[16].wind_speed | default(0) }},
+              "wind_deg": {{ h[16].wind_deg | default(0) }},
+              "clouds": {{ h[16].clouds | default(0) }},
+              "rain": {{ h[16].rain | default(0) }},
+              "snow": {{ h[16].snow | default(0) }},
+              "weather": [ {"description": {{ h[16].weather[0].description | tojson }}, "icon": {{ h[16].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_17"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 17 %}{"dt": {{ h[17].dt | int(0) }}, "temp": {{ h[17].temp | default(0) }}, "pop": {{ h[17].pop | default(0) }}, "weather": [{"description": {{ h[17].weather[0].description | tojson }}, "icon": {{ h[17].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 17 %}{{ h[17].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 17 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[17].temp | default(0) }},
+              "pop": {{ h[17].pop | default(0) }},
+              "pressure": {{ h[17].pressure | default(0) }},
+              "humidity": {{ h[17].humidity | default(0) }},
+              "dew_point": {{ h[17].dew_point | default(0) }},
+              "wind_speed": {{ h[17].wind_speed | default(0) }},
+              "wind_deg": {{ h[17].wind_deg | default(0) }},
+              "clouds": {{ h[17].clouds | default(0) }},
+              "rain": {{ h[17].rain | default(0) }},
+              "snow": {{ h[17].snow | default(0) }},
+              "weather": [ {"description": {{ h[17].weather[0].description | tojson }}, "icon": {{ h[17].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_18"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 18 %}{"dt": {{ h[18].dt | int(0) }}, "temp": {{ h[18].temp | default(0) }}, "pop": {{ h[18].pop | default(0) }}, "weather": [{"description": {{ h[18].weather[0].description | tojson }}, "icon": {{ h[18].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 18 %}{{ h[18].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 18 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[18].temp | default(0) }},
+              "pop": {{ h[18].pop | default(0) }},
+              "pressure": {{ h[18].pressure | default(0) }},
+              "humidity": {{ h[18].humidity | default(0) }},
+              "dew_point": {{ h[18].dew_point | default(0) }},
+              "wind_speed": {{ h[18].wind_speed | default(0) }},
+              "wind_deg": {{ h[18].wind_deg | default(0) }},
+              "clouds": {{ h[18].clouds | default(0) }},
+              "rain": {{ h[18].rain | default(0) }},
+              "snow": {{ h[18].snow | default(0) }},
+              "weather": [ {"description": {{ h[18].weather[0].description | tojson }}, "icon": {{ h[18].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_19"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 19 %}{"dt": {{ h[19].dt | int(0) }}, "temp": {{ h[19].temp | default(0) }}, "pop": {{ h[19].pop | default(0) }}, "weather": [{"description": {{ h[19].weather[0].description | tojson }}, "icon": {{ h[19].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 19 %}{{ h[19].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 19 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[19].temp | default(0) }},
+              "pop": {{ h[19].pop | default(0) }},
+              "pressure": {{ h[19].pressure | default(0) }},
+              "humidity": {{ h[19].humidity | default(0) }},
+              "dew_point": {{ h[19].dew_point | default(0) }},
+              "wind_speed": {{ h[19].wind_speed | default(0) }},
+              "wind_deg": {{ h[19].wind_deg | default(0) }},
+              "clouds": {{ h[19].clouds | default(0) }},
+              "rain": {{ h[19].rain | default(0) }},
+              "snow": {{ h[19].snow | default(0) }},
+              "weather": [ {"description": {{ h[19].weather[0].description | tojson }}, "icon": {{ h[19].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_20"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 20 %}{"dt": {{ h[20].dt | int(0) }}, "temp": {{ h[20].temp | default(0) }}, "pop": {{ h[20].pop | default(0) }}, "weather": [{"description": {{ h[20].weather[0].description | tojson }}, "icon": {{ h[20].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 20 %}{{ h[20].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 20 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[20].temp | default(0) }},
+              "pop": {{ h[20].pop | default(0) }},
+              "pressure": {{ h[20].pressure | default(0) }},
+              "humidity": {{ h[20].humidity | default(0) }},
+              "dew_point": {{ h[20].dew_point | default(0) }},
+              "wind_speed": {{ h[20].wind_speed | default(0) }},
+              "wind_deg": {{ h[20].wind_deg | default(0) }},
+              "clouds": {{ h[20].clouds | default(0) }},
+              "rain": {{ h[20].rain | default(0) }},
+              "snow": {{ h[20].snow | default(0) }},
+              "weather": [ {"description": {{ h[20].weather[0].description | tojson }}, "icon": {{ h[20].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_21"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 21 %}{"dt": {{ h[21].dt | int(0) }}, "temp": {{ h[21].temp | default(0) }}, "pop": {{ h[21].pop | default(0) }}, "weather": [{"description": {{ h[21].weather[0].description | tojson }}, "icon": {{ h[21].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 21 %}{{ h[21].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 21 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[21].temp | default(0) }},
+              "pop": {{ h[21].pop | default(0) }},
+              "pressure": {{ h[21].pressure | default(0) }},
+              "humidity": {{ h[21].humidity | default(0) }},
+              "dew_point": {{ h[21].dew_point | default(0) }},
+              "wind_speed": {{ h[21].wind_speed | default(0) }},
+              "wind_deg": {{ h[21].wind_deg | default(0) }},
+              "clouds": {{ h[21].clouds | default(0) }},
+              "rain": {{ h[21].rain | default(0) }},
+              "snow": {{ h[21].snow | default(0) }},
+              "weather": [ {"description": {{ h[21].weather[0].description | tojson }}, "icon": {{ h[21].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_22"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 22 %}{"dt": {{ h[22].dt | int(0) }}, "temp": {{ h[22].temp | default(0) }}, "pop": {{ h[22].pop | default(0) }}, "weather": [{"description": {{ h[22].weather[0].description | tojson }}, "icon": {{ h[22].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 22 %}{{ h[22].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 22 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[22].temp | default(0) }},
+              "pop": {{ h[22].pop | default(0) }},
+              "pressure": {{ h[22].pressure | default(0) }},
+              "humidity": {{ h[22].humidity | default(0) }},
+              "dew_point": {{ h[22].dew_point | default(0) }},
+              "wind_speed": {{ h[22].wind_speed | default(0) }},
+              "wind_deg": {{ h[22].wind_deg | default(0) }},
+              "clouds": {{ h[22].clouds | default(0) }},
+              "rain": {{ h[22].rain | default(0) }},
+              "snow": {{ h[22].snow | default(0) }},
+              "weather": [ {"description": {{ h[22].weather[0].description | tojson }}, "icon": {{ h[22].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_23"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 23 %}{"dt": {{ h[23].dt | int(0) }}, "temp": {{ h[23].temp | default(0) }}, "pop": {{ h[23].pop | default(0) }}, "weather": [{"description": {{ h[23].weather[0].description | tojson }}, "icon": {{ h[23].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 23 %}{{ h[23].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 23 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[23].temp | default(0) }},
+              "pop": {{ h[23].pop | default(0) }},
+              "pressure": {{ h[23].pressure | default(0) }},
+              "humidity": {{ h[23].humidity | default(0) }},
+              "dew_point": {{ h[23].dew_point | default(0) }},
+              "wind_speed": {{ h[23].wind_speed | default(0) }},
+              "wind_deg": {{ h[23].wind_deg | default(0) }},
+              "clouds": {{ h[23].clouds | default(0) }},
+              "rain": {{ h[23].rain | default(0) }},
+              "snow": {{ h[23].snow | default(0) }},
+              "weather": [ {"description": {{ h[23].weather[0].description | tojson }}, "icon": {{ h[23].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_24"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 24 %}{"dt": {{ h[24].dt | int(0) }}, "temp": {{ h[24].temp | default(0) }}, "pop": {{ h[24].pop | default(0) }}, "weather": [{"description": {{ h[24].weather[0].description | tojson }}, "icon": {{ h[24].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 24 %}{{ h[24].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 24 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[24].temp | default(0) }},
+              "pop": {{ h[24].pop | default(0) }},
+              "pressure": {{ h[24].pressure | default(0) }},
+              "humidity": {{ h[24].humidity | default(0) }},
+              "dew_point": {{ h[24].dew_point | default(0) }},
+              "wind_speed": {{ h[24].wind_speed | default(0) }},
+              "wind_deg": {{ h[24].wind_deg | default(0) }},
+              "clouds": {{ h[24].clouds | default(0) }},
+              "rain": {{ h[24].rain | default(0) }},
+              "snow": {{ h[24].snow | default(0) }},
+              "weather": [ {"description": {{ h[24].weather[0].description | tojson }}, "icon": {{ h[24].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_25"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 25 %}{"dt": {{ h[25].dt | int(0) }}, "temp": {{ h[25].temp | default(0) }}, "pop": {{ h[25].pop | default(0) }}, "weather": [{"description": {{ h[25].weather[0].description | tojson }}, "icon": {{ h[25].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 25 %}{{ h[25].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 25 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[25].temp | default(0) }},
+              "pop": {{ h[25].pop | default(0) }},
+              "pressure": {{ h[25].pressure | default(0) }},
+              "humidity": {{ h[25].humidity | default(0) }},
+              "dew_point": {{ h[25].dew_point | default(0) }},
+              "wind_speed": {{ h[25].wind_speed | default(0) }},
+              "wind_deg": {{ h[25].wind_deg | default(0) }},
+              "clouds": {{ h[25].clouds | default(0) }},
+              "rain": {{ h[25].rain | default(0) }},
+              "snow": {{ h[25].snow | default(0) }},
+              "weather": [ {"description": {{ h[25].weather[0].description | tojson }}, "icon": {{ h[25].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_26"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 26 %}{"dt": {{ h[26].dt | int(0) }}, "temp": {{ h[26].temp | default(0) }}, "pop": {{ h[26].pop | default(0) }}, "weather": [{"description": {{ h[26].weather[0].description | tojson }}, "icon": {{ h[26].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 26 %}{{ h[26].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 26 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[26].temp | default(0) }},
+              "pop": {{ h[26].pop | default(0) }},
+              "pressure": {{ h[26].pressure | default(0) }},
+              "humidity": {{ h[26].humidity | default(0) }},
+              "dew_point": {{ h[26].dew_point | default(0) }},
+              "wind_speed": {{ h[26].wind_speed | default(0) }},
+              "wind_deg": {{ h[26].wind_deg | default(0) }},
+              "clouds": {{ h[26].clouds | default(0) }},
+              "rain": {{ h[26].rain | default(0) }},
+              "snow": {{ h[26].snow | default(0) }},
+              "weather": [ {"description": {{ h[26].weather[0].description | tojson }}, "icon": {{ h[26].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_27"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 27 %}{"dt": {{ h[27].dt | int(0) }}, "temp": {{ h[27].temp | default(0) }}, "pop": {{ h[27].pop | default(0) }}, "weather": [{"description": {{ h[27].weather[0].description | tojson }}, "icon": {{ h[27].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 27 %}{{ h[27].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 27 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[27].temp | default(0) }},
+              "pop": {{ h[27].pop | default(0) }},
+              "pressure": {{ h[27].pressure | default(0) }},
+              "humidity": {{ h[27].humidity | default(0) }},
+              "dew_point": {{ h[27].dew_point | default(0) }},
+              "wind_speed": {{ h[27].wind_speed | default(0) }},
+              "wind_deg": {{ h[27].wind_deg | default(0) }},
+              "clouds": {{ h[27].clouds | default(0) }},
+              "rain": {{ h[27].rain | default(0) }},
+              "snow": {{ h[27].snow | default(0) }},
+              "weather": [ {"description": {{ h[27].weather[0].description | tojson }}, "icon": {{ h[27].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_28"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 28 %}{"dt": {{ h[28].dt | int(0) }}, "temp": {{ h[28].temp | default(0) }}, "pop": {{ h[28].pop | default(0) }}, "weather": [{"description": {{ h[28].weather[0].description | tojson }}, "icon": {{ h[28].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 28 %}{{ h[28].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 28 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[28].temp | default(0) }},
+              "pop": {{ h[28].pop | default(0) }},
+              "pressure": {{ h[28].pressure | default(0) }},
+              "humidity": {{ h[28].humidity | default(0) }},
+              "dew_point": {{ h[28].dew_point | default(0) }},
+              "wind_speed": {{ h[28].wind_speed | default(0) }},
+              "wind_deg": {{ h[28].wind_deg | default(0) }},
+              "clouds": {{ h[28].clouds | default(0) }},
+              "rain": {{ h[28].rain | default(0) }},
+              "snow": {{ h[28].snow | default(0) }},
+              "weather": [ {"description": {{ h[28].weather[0].description | tojson }}, "icon": {{ h[28].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_29"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 29 %}{"dt": {{ h[29].dt | int(0) }}, "temp": {{ h[29].temp | default(0) }}, "pop": {{ h[29].pop | default(0) }}, "weather": [{"description": {{ h[29].weather[0].description | tojson }}, "icon": {{ h[29].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 29 %}{{ h[29].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 29 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[29].temp | default(0) }},
+              "pop": {{ h[29].pop | default(0) }},
+              "pressure": {{ h[29].pressure | default(0) }},
+              "humidity": {{ h[29].humidity | default(0) }},
+              "dew_point": {{ h[29].dew_point | default(0) }},
+              "wind_speed": {{ h[29].wind_speed | default(0) }},
+              "wind_deg": {{ h[29].wind_deg | default(0) }},
+              "clouds": {{ h[29].clouds | default(0) }},
+              "rain": {{ h[29].rain | default(0) }},
+              "snow": {{ h[29].snow | default(0) }},
+              "weather": [ {"description": {{ h[29].weather[0].description | tojson }}, "icon": {{ h[29].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_30"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 30 %}{"dt": {{ h[30].dt | int(0) }}, "temp": {{ h[30].temp | default(0) }}, "pop": {{ h[30].pop | default(0) }}, "weather": [{"description": {{ h[30].weather[0].description | tojson }}, "icon": {{ h[30].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 30 %}{{ h[30].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 30 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[30].temp | default(0) }},
+              "pop": {{ h[30].pop | default(0) }},
+              "pressure": {{ h[30].pressure | default(0) }},
+              "humidity": {{ h[30].humidity | default(0) }},
+              "dew_point": {{ h[30].dew_point | default(0) }},
+              "wind_speed": {{ h[30].wind_speed | default(0) }},
+              "wind_deg": {{ h[30].wind_deg | default(0) }},
+              "clouds": {{ h[30].clouds | default(0) }},
+              "rain": {{ h[30].rain | default(0) }},
+              "snow": {{ h[30].snow | default(0) }},
+              "weather": [ {"description": {{ h[30].weather[0].description | tojson }}, "icon": {{ h[30].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_31"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 31 %}{"dt": {{ h[31].dt | int(0) }}, "temp": {{ h[31].temp | default(0) }}, "pop": {{ h[31].pop | default(0) }}, "weather": [{"description": {{ h[31].weather[0].description | tojson }}, "icon": {{ h[31].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 31 %}{{ h[31].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 31 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[31].temp | default(0) }},
+              "pop": {{ h[31].pop | default(0) }},
+              "pressure": {{ h[31].pressure | default(0) }},
+              "humidity": {{ h[31].humidity | default(0) }},
+              "dew_point": {{ h[31].dew_point | default(0) }},
+              "wind_speed": {{ h[31].wind_speed | default(0) }},
+              "wind_deg": {{ h[31].wind_deg | default(0) }},
+              "clouds": {{ h[31].clouds | default(0) }},
+              "rain": {{ h[31].rain | default(0) }},
+              "snow": {{ h[31].snow | default(0) }},
+              "weather": [ {"description": {{ h[31].weather[0].description | tojson }}, "icon": {{ h[31].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_32"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 32 %}{"dt": {{ h[32].dt | int(0) }}, "temp": {{ h[32].temp | default(0) }}, "pop": {{ h[32].pop | default(0) }}, "weather": [{"description": {{ h[32].weather[0].description | tojson }}, "icon": {{ h[32].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 32 %}{{ h[32].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 32 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[32].temp | default(0) }},
+              "pop": {{ h[32].pop | default(0) }},
+              "pressure": {{ h[32].pressure | default(0) }},
+              "humidity": {{ h[32].humidity | default(0) }},
+              "dew_point": {{ h[32].dew_point | default(0) }},
+              "wind_speed": {{ h[32].wind_speed | default(0) }},
+              "wind_deg": {{ h[32].wind_deg | default(0) }},
+              "clouds": {{ h[32].clouds | default(0) }},
+              "rain": {{ h[32].rain | default(0) }},
+              "snow": {{ h[32].snow | default(0) }},
+              "weather": [ {"description": {{ h[32].weather[0].description | tojson }}, "icon": {{ h[32].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_33"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 33 %}{"dt": {{ h[33].dt | int(0) }}, "temp": {{ h[33].temp | default(0) }}, "pop": {{ h[33].pop | default(0) }}, "weather": [{"description": {{ h[33].weather[0].description | tojson }}, "icon": {{ h[33].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 33 %}{{ h[33].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 33 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[33].temp | default(0) }},
+              "pop": {{ h[33].pop | default(0) }},
+              "pressure": {{ h[33].pressure | default(0) }},
+              "humidity": {{ h[33].humidity | default(0) }},
+              "dew_point": {{ h[33].dew_point | default(0) }},
+              "wind_speed": {{ h[33].wind_speed | default(0) }},
+              "wind_deg": {{ h[33].wind_deg | default(0) }},
+              "clouds": {{ h[33].clouds | default(0) }},
+              "rain": {{ h[33].rain | default(0) }},
+              "snow": {{ h[33].snow | default(0) }},
+              "weather": [ {"description": {{ h[33].weather[0].description | tojson }}, "icon": {{ h[33].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_34"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 34 %}{"dt": {{ h[34].dt | int(0) }}, "temp": {{ h[34].temp | default(0) }}, "pop": {{ h[34].pop | default(0) }}, "weather": [{"description": {{ h[34].weather[0].description | tojson }}, "icon": {{ h[34].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 34 %}{{ h[34].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 34 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[34].temp | default(0) }},
+              "pop": {{ h[34].pop | default(0) }},
+              "pressure": {{ h[34].pressure | default(0) }},
+              "humidity": {{ h[34].humidity | default(0) }},
+              "dew_point": {{ h[34].dew_point | default(0) }},
+              "wind_speed": {{ h[34].wind_speed | default(0) }},
+              "wind_deg": {{ h[34].wind_deg | default(0) }},
+              "clouds": {{ h[34].clouds | default(0) }},
+              "rain": {{ h[34].rain | default(0) }},
+              "snow": {{ h[34].snow | default(0) }},
+              "weather": [ {"description": {{ h[34].weather[0].description | tojson }}, "icon": {{ h[34].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_35"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 35 %}{"dt": {{ h[35].dt | int(0) }}, "temp": {{ h[35].temp | default(0) }}, "pop": {{ h[35].pop | default(0) }}, "weather": [{"description": {{ h[35].weather[0].description | tojson }}, "icon": {{ h[35].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 35 %}{{ h[35].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 35 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[35].temp | default(0) }},
+              "pop": {{ h[35].pop | default(0) }},
+              "pressure": {{ h[35].pressure | default(0) }},
+              "humidity": {{ h[35].humidity | default(0) }},
+              "dew_point": {{ h[35].dew_point | default(0) }},
+              "wind_speed": {{ h[35].wind_speed | default(0) }},
+              "wind_deg": {{ h[35].wind_deg | default(0) }},
+              "clouds": {{ h[35].clouds | default(0) }},
+              "rain": {{ h[35].rain | default(0) }},
+              "snow": {{ h[35].snow | default(0) }},
+              "weather": [ {"description": {{ h[35].weather[0].description | tojson }}, "icon": {{ h[35].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_36"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 36 %}{"dt": {{ h[36].dt | int(0) }}, "temp": {{ h[36].temp | default(0) }}, "pop": {{ h[36].pop | default(0) }}, "weather": [{"description": {{ h[36].weather[0].description | tojson }}, "icon": {{ h[36].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 36 %}{{ h[36].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 36 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[36].temp | default(0) }},
+              "pop": {{ h[36].pop | default(0) }},
+              "pressure": {{ h[36].pressure | default(0) }},
+              "humidity": {{ h[36].humidity | default(0) }},
+              "dew_point": {{ h[36].dew_point | default(0) }},
+              "wind_speed": {{ h[36].wind_speed | default(0) }},
+              "wind_deg": {{ h[36].wind_deg | default(0) }},
+              "clouds": {{ h[36].clouds | default(0) }},
+              "rain": {{ h[36].rain | default(0) }},
+              "snow": {{ h[36].snow | default(0) }},
+              "weather": [ {"description": {{ h[36].weather[0].description | tojson }}, "icon": {{ h[36].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_37"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 37 %}{"dt": {{ h[37].dt | int(0) }}, "temp": {{ h[37].temp | default(0) }}, "pop": {{ h[37].pop | default(0) }}, "weather": [{"description": {{ h[37].weather[0].description | tojson }}, "icon": {{ h[37].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 37 %}{{ h[37].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 37 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[37].temp | default(0) }},
+              "pop": {{ h[37].pop | default(0) }},
+              "pressure": {{ h[37].pressure | default(0) }},
+              "humidity": {{ h[37].humidity | default(0) }},
+              "dew_point": {{ h[37].dew_point | default(0) }},
+              "wind_speed": {{ h[37].wind_speed | default(0) }},
+              "wind_deg": {{ h[37].wind_deg | default(0) }},
+              "clouds": {{ h[37].clouds | default(0) }},
+              "rain": {{ h[37].rain | default(0) }},
+              "snow": {{ h[37].snow | default(0) }},
+              "weather": [ {"description": {{ h[37].weather[0].description | tojson }}, "icon": {{ h[37].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_38"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 38 %}{"dt": {{ h[38].dt | int(0) }}, "temp": {{ h[38].temp | default(0) }}, "pop": {{ h[38].pop | default(0) }}, "weather": [{"description": {{ h[38].weather[0].description | tojson }}, "icon": {{ h[38].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 38 %}{{ h[38].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 38 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[38].temp | default(0) }},
+              "pop": {{ h[38].pop | default(0) }},
+              "pressure": {{ h[38].pressure | default(0) }},
+              "humidity": {{ h[38].humidity | default(0) }},
+              "dew_point": {{ h[38].dew_point | default(0) }},
+              "wind_speed": {{ h[38].wind_speed | default(0) }},
+              "wind_deg": {{ h[38].wind_deg | default(0) }},
+              "clouds": {{ h[38].clouds | default(0) }},
+              "rain": {{ h[38].rain | default(0) }},
+              "snow": {{ h[38].snow | default(0) }},
+              "weather": [ {"description": {{ h[38].weather[0].description | tojson }}, "icon": {{ h[38].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_39"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 39 %}{"dt": {{ h[39].dt | int(0) }}, "temp": {{ h[39].temp | default(0) }}, "pop": {{ h[39].pop | default(0) }}, "weather": [{"description": {{ h[39].weather[0].description | tojson }}, "icon": {{ h[39].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 39 %}{{ h[39].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 39 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[39].temp | default(0) }},
+              "pop": {{ h[39].pop | default(0) }},
+              "pressure": {{ h[39].pressure | default(0) }},
+              "humidity": {{ h[39].humidity | default(0) }},
+              "dew_point": {{ h[39].dew_point | default(0) }},
+              "wind_speed": {{ h[39].wind_speed | default(0) }},
+              "wind_deg": {{ h[39].wind_deg | default(0) }},
+              "clouds": {{ h[39].clouds | default(0) }},
+              "rain": {{ h[39].rain | default(0) }},
+              "snow": {{ h[39].snow | default(0) }},
+              "weather": [ {"description": {{ h[39].weather[0].description | tojson }}, "icon": {{ h[39].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_40"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 40 %}{"dt": {{ h[40].dt | int(0) }}, "temp": {{ h[40].temp | default(0) }}, "pop": {{ h[40].pop | default(0) }}, "weather": [{"description": {{ h[40].weather[0].description | tojson }}, "icon": {{ h[40].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 40 %}{{ h[40].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 40 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[40].temp | default(0) }},
+              "pop": {{ h[40].pop | default(0) }},
+              "pressure": {{ h[40].pressure | default(0) }},
+              "humidity": {{ h[40].humidity | default(0) }},
+              "dew_point": {{ h[40].dew_point | default(0) }},
+              "wind_speed": {{ h[40].wind_speed | default(0) }},
+              "wind_deg": {{ h[40].wind_deg | default(0) }},
+              "clouds": {{ h[40].clouds | default(0) }},
+              "rain": {{ h[40].rain | default(0) }},
+              "snow": {{ h[40].snow | default(0) }},
+              "weather": [ {"description": {{ h[40].weather[0].description | tojson }}, "icon": {{ h[40].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_41"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 41 %}{"dt": {{ h[41].dt | int(0) }}, "temp": {{ h[41].temp | default(0) }}, "pop": {{ h[41].pop | default(0) }}, "weather": [{"description": {{ h[41].weather[0].description | tojson }}, "icon": {{ h[41].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 41 %}{{ h[41].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 41 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[41].temp | default(0) }},
+              "pop": {{ h[41].pop | default(0) }},
+              "pressure": {{ h[41].pressure | default(0) }},
+              "humidity": {{ h[41].humidity | default(0) }},
+              "dew_point": {{ h[41].dew_point | default(0) }},
+              "wind_speed": {{ h[41].wind_speed | default(0) }},
+              "wind_deg": {{ h[41].wind_deg | default(0) }},
+              "clouds": {{ h[41].clouds | default(0) }},
+              "rain": {{ h[41].rain | default(0) }},
+              "snow": {{ h[41].snow | default(0) }},
+              "weather": [ {"description": {{ h[41].weather[0].description | tojson }}, "icon": {{ h[41].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_42"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 42 %}{"dt": {{ h[42].dt | int(0) }}, "temp": {{ h[42].temp | default(0) }}, "pop": {{ h[42].pop | default(0) }}, "weather": [{"description": {{ h[42].weather[0].description | tojson }}, "icon": {{ h[42].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 42 %}{{ h[42].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 42 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[42].temp | default(0) }},
+              "pop": {{ h[42].pop | default(0) }},
+              "pressure": {{ h[42].pressure | default(0) }},
+              "humidity": {{ h[42].humidity | default(0) }},
+              "dew_point": {{ h[42].dew_point | default(0) }},
+              "wind_speed": {{ h[42].wind_speed | default(0) }},
+              "wind_deg": {{ h[42].wind_deg | default(0) }},
+              "clouds": {{ h[42].clouds | default(0) }},
+              "rain": {{ h[42].rain | default(0) }},
+              "snow": {{ h[42].snow | default(0) }},
+              "weather": [ {"description": {{ h[42].weather[0].description | tojson }}, "icon": {{ h[42].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_43"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 43 %}{"dt": {{ h[43].dt | int(0) }}, "temp": {{ h[43].temp | default(0) }}, "pop": {{ h[43].pop | default(0) }}, "weather": [{"description": {{ h[43].weather[0].description | tojson }}, "icon": {{ h[43].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 43 %}{{ h[43].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 43 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[43].temp | default(0) }},
+              "pop": {{ h[43].pop | default(0) }},
+              "pressure": {{ h[43].pressure | default(0) }},
+              "humidity": {{ h[43].humidity | default(0) }},
+              "dew_point": {{ h[43].dew_point | default(0) }},
+              "wind_speed": {{ h[43].wind_speed | default(0) }},
+              "wind_deg": {{ h[43].wind_deg | default(0) }},
+              "clouds": {{ h[43].clouds | default(0) }},
+              "rain": {{ h[43].rain | default(0) }},
+              "snow": {{ h[43].snow | default(0) }},
+              "weather": [ {"description": {{ h[43].weather[0].description | tojson }}, "icon": {{ h[43].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_44"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 44 %}{"dt": {{ h[44].dt | int(0) }}, "temp": {{ h[44].temp | default(0) }}, "pop": {{ h[44].pop | default(0) }}, "weather": [{"description": {{ h[44].weather[0].description | tojson }}, "icon": {{ h[44].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 44 %}{{ h[44].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 44 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[44].temp | default(0) }},
+              "pop": {{ h[44].pop | default(0) }},
+              "pressure": {{ h[44].pressure | default(0) }},
+              "humidity": {{ h[44].humidity | default(0) }},
+              "dew_point": {{ h[44].dew_point | default(0) }},
+              "wind_speed": {{ h[44].wind_speed | default(0) }},
+              "wind_deg": {{ h[44].wind_deg | default(0) }},
+              "clouds": {{ h[44].clouds | default(0) }},
+              "rain": {{ h[44].rain | default(0) }},
+              "snow": {{ h[44].snow | default(0) }},
+              "weather": [ {"description": {{ h[44].weather[0].description | tojson }}, "icon": {{ h[44].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_45"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 45 %}{"dt": {{ h[45].dt | int(0) }}, "temp": {{ h[45].temp | default(0) }}, "pop": {{ h[45].pop | default(0) }}, "weather": [{"description": {{ h[45].weather[0].description | tojson }}, "icon": {{ h[45].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 45 %}{{ h[45].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 45 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[45].temp | default(0) }},
+              "pop": {{ h[45].pop | default(0) }},
+              "pressure": {{ h[45].pressure | default(0) }},
+              "humidity": {{ h[45].humidity | default(0) }},
+              "dew_point": {{ h[45].dew_point | default(0) }},
+              "wind_speed": {{ h[45].wind_speed | default(0) }},
+              "wind_deg": {{ h[45].wind_deg | default(0) }},
+              "clouds": {{ h[45].clouds | default(0) }},
+              "rain": {{ h[45].rain | default(0) }},
+              "snow": {{ h[45].snow | default(0) }},
+              "weather": [ {"description": {{ h[45].weather[0].description | tojson }}, "icon": {{ h[45].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_46"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 46 %}{"dt": {{ h[46].dt | int(0) }}, "temp": {{ h[46].temp | default(0) }}, "pop": {{ h[46].pop | default(0) }}, "weather": [{"description": {{ h[46].weather[0].description | tojson }}, "icon": {{ h[46].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 46 %}{{ h[46].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 46 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[46].temp | default(0) }},
+              "pop": {{ h[46].pop | default(0) }},
+              "pressure": {{ h[46].pressure | default(0) }},
+              "humidity": {{ h[46].humidity | default(0) }},
+              "dew_point": {{ h[46].dew_point | default(0) }},
+              "wind_speed": {{ h[46].wind_speed | default(0) }},
+              "wind_deg": {{ h[46].wind_deg | default(0) }},
+              "clouds": {{ h[46].clouds | default(0) }},
+              "rain": {{ h[46].rain | default(0) }},
+              "snow": {{ h[46].snow | default(0) }},
+              "weather": [ {"description": {{ h[46].weather[0].description | tojson }}, "icon": {{ h[46].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_hourly_47"
         state: >-
           {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
-          {% if h|length > 47 %}{"dt": {{ h[47].dt | int(0) }}, "temp": {{ h[47].temp | default(0) }}, "pop": {{ h[47].pop | default(0) }}, "weather": [{"description": {{ h[47].weather[0].description | tojson }}, "icon": {{ h[47].weather[0].icon | tojson }}}]}{% else %}''{% endif %}
+          {% if h|length > 47 %}{{ h[47].dt | int(0) }}{% else %}''{% endif %}
+        attributes:
+          data: >
+            {% set h = (state_attr('sensor.owm_onecall_hourly','hourly') or []) %}
+            {% if h|length > 47 %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_hourly.last_updated) | int }},
+              "temp": {{ h[47].temp | default(0) }},
+              "pop": {{ h[47].pop | default(0) }},
+              "pressure": {{ h[47].pressure | default(0) }},
+              "humidity": {{ h[47].humidity | default(0) }},
+              "dew_point": {{ h[47].dew_point | default(0) }},
+              "wind_speed": {{ h[47].wind_speed | default(0) }},
+              "wind_deg": {{ h[47].wind_deg | default(0) }},
+              "clouds": {{ h[47].clouds | default(0) }},
+              "rain": {{ h[47].rain | default(0) }},
+              "snow": {{ h[47].snow | default(0) }},
+              "weather": [ {"description": {{ h[47].weather[0].description | tojson }}, "icon": {{ h[47].weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
 

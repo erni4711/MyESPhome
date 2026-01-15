@@ -311,7 +311,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_0), id(forecast_description_0), id(forecast_condition_icon_0), id(forecast_temperature_hi_0), id(forecast_temperature_lo_0));
+            pgweather_daily_parse_attrs(x, id(forecast_day_0), id(forecast_description_0), id(forecast_condition_icon_0), id(forecast_temperature_hi_0), id(forecast_temperature_lo_0), id(forecast_sunrise_0), id(forecast_sunset_0));
   - platform: homeassistant
     entity_id: sensor.owm_daily_1
     id: owm_daily_1
@@ -326,7 +326,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_1), id(forecast_description_1), id(forecast_condition_icon_1), id(forecast_temperature_hi_1), id(forecast_temperature_lo_1));
+            pgweather_daily_parse_attrs(x, id(forecast_day_1), id(forecast_description_1), id(forecast_condition_icon_1), id(forecast_temperature_hi_1), id(forecast_temperature_lo_1), id(forecast_sunrise_1), id(forecast_sunset_1));
   - platform: homeassistant
     entity_id: sensor.owm_daily_2
     id: owm_daily_2
@@ -341,7 +341,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_2), id(forecast_description_2), id(forecast_condition_icon_2), id(forecast_temperature_hi_2), id(forecast_temperature_lo_2));
+            pgweather_daily_parse_attrs(x, id(forecast_day_2), id(forecast_description_2), id(forecast_condition_icon_2), id(forecast_temperature_hi_2), id(forecast_temperature_lo_2), id(forecast_sunrise_2), id(forecast_sunset_2));
   - platform: homeassistant
     entity_id: sensor.owm_daily_3
     id: owm_daily_3
@@ -356,7 +356,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_3), id(forecast_description_3), id(forecast_condition_icon_3), id(forecast_temperature_hi_3), id(forecast_temperature_lo_3));
+            pgweather_daily_parse_attrs(x, id(forecast_day_3), id(forecast_description_3), id(forecast_condition_icon_3), id(forecast_temperature_hi_3), id(forecast_temperature_lo_3), id(forecast_sunrise_3), id(forecast_sunset_3));
   - platform: homeassistant
     entity_id: sensor.owm_daily_4
     id: owm_daily_4
@@ -371,7 +371,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_4), id(forecast_description_4), id(forecast_condition_icon_4), id(forecast_temperature_hi_4), id(forecast_temperature_lo_4));
+            pgweather_daily_parse_attrs(x, id(forecast_day_4), id(forecast_description_4), id(forecast_condition_icon_4), id(forecast_temperature_hi_4), id(forecast_temperature_lo_4), id(forecast_sunrise_4), id(forecast_sunset_4));
   - platform: homeassistant
     entity_id: sensor.owm_daily_5
     id: owm_daily_5
@@ -386,7 +386,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_5), id(forecast_description_5), id(forecast_condition_icon_5), id(forecast_temperature_hi_5), id(forecast_temperature_lo_5));
+            pgweather_daily_parse_attrs(x, id(forecast_day_5), id(forecast_description_5), id(forecast_condition_icon_5), id(forecast_temperature_hi_5), id(forecast_temperature_lo_5), id(forecast_sunrise_5), id(forecast_sunset_5));
   - platform: homeassistant
     entity_id: sensor.owm_daily_6
     id: owm_daily_6
@@ -401,7 +401,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_6), id(forecast_description_6), id(forecast_condition_icon_6), id(forecast_temperature_hi_6), id(forecast_temperature_lo_6));
+            pgweather_daily_parse_attrs(x, id(forecast_day_6), id(forecast_description_6), id(forecast_condition_icon_6), id(forecast_temperature_hi_6), id(forecast_temperature_lo_6), id(forecast_sunrise_6), id(forecast_sunset_6));
   - platform: homeassistant
     entity_id: sensor.owm_daily_7
     id: owm_daily_7
@@ -416,7 +416,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_7), id(forecast_description_7), id(forecast_condition_icon_7), id(forecast_temperature_hi_7), id(forecast_temperature_lo_7));            
+            pgweather_daily_parse_attrs(x, id(forecast_day_7), id(forecast_description_7), id(forecast_condition_icon_7), id(forecast_temperature_hi_7), id(forecast_temperature_lo_7), id(forecast_sunrise_7), id(forecast_sunset_7));            
 
 # Home Assistant parsers for hourly compact OpenWeather JSON (owm_hourly_0..47)
 # Each publishes `time`, `condition_icon`, `temperature`, and `pop` to internal template sensors.
