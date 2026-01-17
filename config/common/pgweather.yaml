@@ -1,31 +1,4 @@
 # Styles for Weather forecast
-.forecast_styles:
-    - &forecast_obj_base
-      height: 240
-      width: SIZE_CONTENT
-      bg_color: gray50
-      radius: 3
-      pad_top: 2
-      pad_bottom : 2
-      layout:
-        type: flex
-        flex_flow: COLUMN
-        flex_align_cross: center
-        flex_align_track: center
-        pad_column: 0
-        pad_row: 2
-
-    - &forecast_label_base
-    #   text_font: nunito_24
-      height: SIZE_CONTENT
-
-    - &forecast_label_base_lo
-      height: SIZE_CONTENT
-      text_font: font_small
-      text_color: dodgerblue
-
-    - &forecast_image_base
-      height: SIZE_CONTENT
 
 color:
     - id: burnt_sienna
@@ -120,52 +93,123 @@ esphome:
 lvgl:
 # Main Page
   pages:
-      - id: weather_page_dailyy
+      - id: weather_page_daily
         width: 100%
         bg_color: White
         widgets:
           - obj:
-                align: TOP_MID
-                styles: header_footer
-                widgets:
-                    - label:
-                        text: "Wettervorhersage 8 Tage"
-                        align: CENTER
-                        text_align: CENTER
-                        text_color: 0xFFFFFF
-          - obj:
+              align: TOP_MID
+              styles: header_footer
+              widgets:
+                  - label:
+                      text: "Wettervorhersage 8 Tage"
+                      align: CENTER
+                      text_align: CENTER
+                      text_color: 0xFFFFFF
+          - obj: # Current weather section
               align: top_left
               y: 30
               width: 100%
-              height: 240
+              height: 540
               border_width: 0
               outline_width: 0
               pad_all: 0
               layout:
-                type: GRID
-                grid_rows: [ 240 ]
-                grid_columns: [ fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1) ]
-                pad_column: 0
+                type: flex
+                flex_flow: COLUMN
+                flex_align_cross: start
+                flex_align_track: start
+                pad_column: 6
                 pad_row: 0
               widgets:
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 0, id: 0 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 1, id: 1 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 2, id: 2 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 3, id: 3 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 4, id: 4 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 5, id: 5 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 6, id: 6 } }              
-                  - obj:
-                     <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 7, id: 7 } }              
+                - obj:
+                    height: SIZE_CONTENT
+                    width: 100%
+                    border_width: 0
+                    outline_width: 0
+                    pad_all: 0
+                    layout:
+                      type: flex
+                      flex_flow: ROW
+                      flex_align_cross: start
+                      flex_align_track: start
+                      pad_column: 6
+                      pad_row: 0
+                    widgets:
+                      - label:
+                          width: SIZE_CONTENT
+                          id: current_condition_icon
+                          height: SIZE_CONTENT
+                          text_font: weather_symbols_80
+                          text: ${mdi_unknown}
+                      - obj:
+                          width: SIZE_CONTENT
+                          border_width: 0
+                          outline_width: 0
+                          pad_all: 0
+                          layout:
+                            type: flex
+                            flex_flow: COLUMN
+                            flex_align_cross: center
+                            flex_align_track: center
+                            pad_column: 0
+                            pad_row: 2
 
-# hourly weather page
+                          widgets:
+                            - label:
+                                id: current_temp
+                                height: SIZE_CONTENT
+                                text_font: font_large
+                                text: "---°"
+                            - label:
+                                id: current_description
+                                height: SIZE_CONTENT
+                                text_font: font_norm
+                                text_color: dodgerblue
+                                text: ""
+                            - label:
+                                id: current_humidity
+                                height: SIZE_CONTENT
+                                text_font: font_norm
+                                text: ""
+                            - label:
+                                id: current_wind
+                                height: SIZE_CONTENT
+                                text_font: font_norm
+                                text: ""
+                - obj: # Daily forecast grid
+                    id: daily_forecast_grid
+                    height: SIZE_CONTENT
+                    width: 100%
+                    border_width: 0
+                    outline_width: 0
+                    pad_all: 0
+                    layout:
+                      type: GRID
+                      grid_rows: [ fr(1) ]
+                      grid_columns: [ fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1) ]
+                      pad_column: 0
+                      pad_row: 0
+                    widgets:
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 0, id: 0 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 1, id: 1 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 2, id: 2 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 3, id: 3 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 4, id: 4 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 5, id: 5 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 6, id: 6 } }              
+                      - obj:
+                          <<: !include { file: assets/daily_widget.yaml, vars: { row: 0, col: 7, id: 7 } }              
+
+
+    # hourly weather page
       - id: weather_page_hourly
         width: 100%
         bg_color: White
@@ -311,7 +355,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_0), id(forecast_description_0), id(forecast_condition_icon_0), id(forecast_temperature_hi_0), id(forecast_temperature_lo_0), id(forecast_sunrise_0), id(forecast_sunset_0));
+            pgweather_daily_parse_attrs(x, id(forecast_day_0), id(forecast_description_0), id(forecast_condition_icon_0), id(forecast_temperature_hi_0), id(forecast_temperature_lo_0), id(forecast_sunrise_0), id(forecast_sunset_0), id(forecast_wind_0));
   - platform: homeassistant
     entity_id: sensor.owm_daily_1
     id: owm_daily_1
@@ -326,7 +370,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_1), id(forecast_description_1), id(forecast_condition_icon_1), id(forecast_temperature_hi_1), id(forecast_temperature_lo_1), id(forecast_sunrise_1), id(forecast_sunset_1));
+            pgweather_daily_parse_attrs(x, id(forecast_day_1), id(forecast_description_1), id(forecast_condition_icon_1), id(forecast_temperature_hi_1), id(forecast_temperature_lo_1), id(forecast_sunrise_1), id(forecast_sunset_1), id(forecast_wind_1));
   - platform: homeassistant
     entity_id: sensor.owm_daily_2
     id: owm_daily_2
@@ -341,7 +385,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_2), id(forecast_description_2), id(forecast_condition_icon_2), id(forecast_temperature_hi_2), id(forecast_temperature_lo_2), id(forecast_sunrise_2), id(forecast_sunset_2));
+            pgweather_daily_parse_attrs(x, id(forecast_day_2), id(forecast_description_2), id(forecast_condition_icon_2), id(forecast_temperature_hi_2), id(forecast_temperature_lo_2), id(forecast_sunrise_2), id(forecast_sunset_2), id(forecast_wind_2));
   - platform: homeassistant
     entity_id: sensor.owm_daily_3
     id: owm_daily_3
@@ -356,7 +400,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_3), id(forecast_description_3), id(forecast_condition_icon_3), id(forecast_temperature_hi_3), id(forecast_temperature_lo_3), id(forecast_sunrise_3), id(forecast_sunset_3));
+            pgweather_daily_parse_attrs(x, id(forecast_day_3), id(forecast_description_3), id(forecast_condition_icon_3), id(forecast_temperature_hi_3), id(forecast_temperature_lo_3), id(forecast_sunrise_3), id(forecast_sunset_3), id(forecast_wind_3));
   - platform: homeassistant
     entity_id: sensor.owm_daily_4
     id: owm_daily_4
@@ -371,7 +415,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_4), id(forecast_description_4), id(forecast_condition_icon_4), id(forecast_temperature_hi_4), id(forecast_temperature_lo_4), id(forecast_sunrise_4), id(forecast_sunset_4));
+            pgweather_daily_parse_attrs(x, id(forecast_day_4), id(forecast_description_4), id(forecast_condition_icon_4), id(forecast_temperature_hi_4), id(forecast_temperature_lo_4), id(forecast_sunrise_4), id(forecast_sunset_4), id(forecast_wind_4));
   - platform: homeassistant
     entity_id: sensor.owm_daily_5
     id: owm_daily_5
@@ -386,7 +430,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_5), id(forecast_description_5), id(forecast_condition_icon_5), id(forecast_temperature_hi_5), id(forecast_temperature_lo_5), id(forecast_sunrise_5), id(forecast_sunset_5));
+            pgweather_daily_parse_attrs(x, id(forecast_day_5), id(forecast_description_5), id(forecast_condition_icon_5), id(forecast_temperature_hi_5), id(forecast_temperature_lo_5), id(forecast_sunrise_5), id(forecast_sunset_5), id(forecast_wind_5));
   - platform: homeassistant
     entity_id: sensor.owm_daily_6
     id: owm_daily_6
@@ -401,7 +445,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_6), id(forecast_description_6), id(forecast_condition_icon_6), id(forecast_temperature_hi_6), id(forecast_temperature_lo_6), id(forecast_sunrise_6), id(forecast_sunset_6));
+            pgweather_daily_parse_attrs(x, id(forecast_day_6), id(forecast_description_6), id(forecast_condition_icon_6), id(forecast_temperature_hi_6), id(forecast_temperature_lo_6), id(forecast_sunrise_6), id(forecast_sunset_6), id(forecast_wind_6));
   - platform: homeassistant
     entity_id: sensor.owm_daily_7
     id: owm_daily_7
@@ -416,7 +460,24 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_daily_parse_attrs(x, id(forecast_day_7), id(forecast_description_7), id(forecast_condition_icon_7), id(forecast_temperature_hi_7), id(forecast_temperature_lo_7), id(forecast_sunrise_7), id(forecast_sunset_7));            
+            pgweather_daily_parse_attrs(x, id(forecast_day_7), id(forecast_description_7), id(forecast_condition_icon_7), id(forecast_temperature_hi_7), id(forecast_temperature_lo_7), id(forecast_sunrise_7), id(forecast_sunset_7), id(forecast_wind_7));            
+
+  # Current weather parsers (sensor.owm_current)
+  - platform: homeassistant
+    entity_id: sensor.owm_current
+    id: owm_current
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_current_parse_state(x, id(current_temp));
+  - platform: homeassistant
+    entity_id: sensor.owm_current
+    attribute: data
+    id: owm_current_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_current_parse_attrs(x, id(current_condition_icon), id(current_temp), id(current_description), id(current_humidity), id(current_wind));
 
 # Home Assistant parsers for hourly compact OpenWeather JSON (owm_hourly_0..47)
 # Each publishes `time`, `condition_icon`, `temperature`, and `pop` to internal template sensors.

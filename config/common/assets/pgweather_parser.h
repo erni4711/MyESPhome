@@ -49,10 +49,21 @@ static inline std::string icon_code_to_glyph(const std::string& icon_code) {
   return std::string(mdi_unknown);
 }
 
+static inline std::string wind_deg_to_dir(double deg) {
+  // German-style abbreviations: N, NNO, NO, ONO, O, OSO, SO, SSO, S, SSW, SW, WSW, W, WNW, NW, NNW
+  static const char* dirs[] = {"N","NNO","NO","ONO","O","OSO","SO","SSO","S","SSW","SW","WSW","W","WNW","NW","NNW"};
+  if (std::isnan(deg)) return std::string("");
+  // Normalize
+  while (deg < 0) deg += 360.0;
+  while (deg >= 360.0) deg -= 360.0;
+  int idx = (int)((deg + 11.25) / 22.5) % 16;
+  return std::string(dirs[idx]);
+}
+
 static inline void pgweather_daily_parse_attrs(
-    const std::string& json, lv_obj_t* day_label, lv_obj_t* description_label,
-    lv_obj_t* icon_lbl, lv_obj_t* temp_hi_lbl, lv_obj_t* temp_lo_lbl,
-    lv_obj_t* sunrise_lbl, lv_obj_t* sunset_lbl) {
+  const std::string& json, lv_obj_t* day_label, lv_obj_t* description_label,
+  lv_obj_t* icon_lbl, lv_obj_t* temp_hi_lbl, lv_obj_t* temp_lo_lbl,
+  lv_obj_t* sunrise_lbl, lv_obj_t* sunset_lbl, lv_obj_t* wind_lbl) {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
@@ -80,6 +91,26 @@ static inline void pgweather_daily_parse_attrs(
     const std::string icon = w["icon"] | "";
     safe_lv_label_set_text(description_label, desc.c_str());
     safe_lv_label_set_text(icon_lbl, icon_code_to_glyph(icon).c_str());
+  }
+
+  // Wind: show speed and compass direction if available
+  if (wind_lbl) {
+    if (doc["wind_speed"].is<double>() || doc["wind_speed"].is<int>()) {
+      double ws = doc["wind_speed"].as<double>();
+      std::string dir = "";
+      if (doc["wind_deg"].is<double>() || doc["wind_deg"].is<int>()) {
+        double deg = doc["wind_deg"].as<double>();
+        dir = wind_deg_to_dir(deg);
+      }
+      char wb[64];
+      if (!dir.empty())
+        snprintf(wb, sizeof(wb), "%.1f m/s (%s)", ws, dir.c_str());
+      else
+        snprintf(wb, sizeof(wb), "%.1f m/s", ws);
+      safe_lv_label_set_text(wind_lbl, wb);
+    } else {
+      safe_lv_label_set_text(wind_lbl, "");
+    }
   }
 
   // Sunrise / sunset handling: format timestamps as HH:MM and prefix with glyphs
@@ -206,5 +237,96 @@ static inline void pgweather_hourly_parse_state(const std::string& state,
     if (lt) strftime(tsbuf, sizeof(tsbuf), "%H:%M", lt);
   }
   safe_lv_label_set_text(time_label, tsbuf);
+}
+
+// Parse current conditions JSON into LV labels
+static inline void pgweather_current_parse_attrs(const std::string& json,
+                                                lv_obj_t* icon_lbl,
+                                                lv_obj_t* temp_lbl,
+                                                lv_obj_t* desc_lbl,
+                                                lv_obj_t* humidity_lbl,
+                                                lv_obj_t* wind_lbl) {
+  if (json.empty()) return;
+  JsonDocument doc;
+  auto err = deserializeJson(doc, json.c_str());
+  if (err) {
+    ESP_LOGW("pgweather", "owm_current deserializeJson failed: %s", err.c_str());
+    return;
+  }
+
+  std::string icon_code = "";
+  if (doc["weather"].is<JsonArray>() && doc["weather"][0]["icon"].is<const char*>())
+    icon_code = doc["weather"][0]["icon"].as<const char*>();
+  else if (doc["icon"].is<const char*>())
+    icon_code = doc["icon"].as<const char*>();
+
+  std::string glyph = icon_code_to_glyph(icon_code);
+  safe_lv_label_set_text(icon_lbl, glyph.c_str());
+
+  if (temp_lbl) {
+    if (doc["temp"].is<double>() || doc["temp"].is<long>()) {
+      double t = doc["temp"].as<double>();
+      char tb[32];
+      snprintf(tb, sizeof(tb), "%.1f°", t);
+      safe_lv_label_set_text(temp_lbl, tb);
+    } else {
+      safe_lv_label_set_text(temp_lbl, "");
+    }
+  }
+
+  if (desc_lbl) {
+    std::string desc = "";
+    if (doc["weather"].is<JsonArray>() && doc["weather"][0]["description"].is<const char*>())
+      desc = doc["weather"][0]["description"].as<const char*>();
+    else if (doc["description"].is<const char* >())
+      desc = doc["description"].as<const char*>();
+    safe_lv_label_set_text(desc_lbl, desc.c_str());
+  }
+
+  if (humidity_lbl) {
+    if (doc["humidity"].is<int>() || doc["humidity"].is<long>()) {
+      int h = doc["humidity"].as<int>();
+      char hb[16];
+      snprintf(hb, sizeof(hb), "%d%%", h);
+      safe_lv_label_set_text(humidity_lbl, hb);
+    } else {
+      safe_lv_label_set_text(humidity_lbl, "");
+    }
+  }
+
+  if (wind_lbl) {
+    if (doc["wind_speed"].is<double>() || doc["wind_speed"].is<int>()) {
+      double w = doc["wind_speed"].as<double>();
+      std::string dir = "";
+      if (doc["wind_deg"].is<double>() || doc["wind_deg"].is<int>()) {
+        double deg = doc["wind_deg"].as<double>();
+        dir = wind_deg_to_dir(deg);
+      }
+      char wb[64];
+      if (!dir.empty())
+        snprintf(wb, sizeof(wb), "%.1f m/s (%s)", w, dir.c_str());
+      else
+        snprintf(wb, sizeof(wb), "%.1f m/s", w);
+      safe_lv_label_set_text(wind_lbl, wb);
+    } else {
+      safe_lv_label_set_text(wind_lbl, "");
+    }
+  }
+}
+
+// Parse state (temperature) for current sensor
+static inline void pgweather_current_parse_state(const std::string& state,
+                                                 lv_obj_t* temp_lbl) {
+  if (state.empty() || !temp_lbl) return;
+  errno = 0;
+  char* endptr = nullptr;
+  double v = strtod(state.c_str(), &endptr);
+  if (endptr == state.c_str() || errno != 0) {
+    safe_lv_label_set_text(temp_lbl, "");
+    return;
+  }
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%.1f°", v);
+  safe_lv_label_set_text(temp_lbl, buf);
 }
 

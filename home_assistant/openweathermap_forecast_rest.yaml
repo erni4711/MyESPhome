@@ -36,6 +36,44 @@ sensor:
 # Template sensors mapping daily[0..3] to sensor.forecast_*
 template:
   - sensor:
+      # Alerts sensor from sensor.owm_onecall_daily
+      - name: "owm_alerts"
+        state: >-
+          {% set a = (state_attr('sensor.owm_onecall_daily','alerts') or []) %}
+          {{ a|length }}
+        attributes:
+          last_updated: >-
+            {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }}
+          has_alerts: >-
+            {% set a = (state_attr('sensor.owm_onecall_daily','alerts') or []) %}
+            {{ (a|length > 0) | lower }}
+          alerts: >-
+            {{ state_attr('sensor.owm_onecall_daily','alerts') | tojson }}
+      # Current conditions from sensor.owm_onecall_daily
+      - name: "owm_current"
+        state: >-
+          {% set c = (state_attr('sensor.owm_onecall_daily','current') or {}) %}
+          {% if c %}{{ c.temp | default('') }}{% else %}''{% endif %}
+        attributes:
+          data: >-
+            {% set c = (state_attr('sensor.owm_onecall_daily','current') or {}) %}
+            {% if c %}
+            {
+              "last_updated": {{ as_timestamp(states.sensor.owm_onecall_daily.last_updated) | int }},
+              "dt": {{ c.dt | default(0) }},
+              "temp": {{ c.temp | default(0) }},
+              "feels_like": {{ c.feels_like | default(0) }},
+              "pressure": {{ c.pressure | default(0) }},
+              "humidity": {{ c.humidity | default(0) }},
+              "dew_point": {{ c.dew_point | default(0) }},
+              "uvi": {{ c.uvi | default(0) }},
+              "clouds": {{ c.clouds | default(0) }},
+              "visibility": {{ c.visibility | default(0) }},
+              "wind_speed": {{ c.wind_speed | default(0) }},
+              "wind_deg": {{ c.wind_deg | default(0) }},
+              "weather": [ {"description": {{ c.weather[0].description | tojson }}, "icon": {{ c.weather[0].icon | tojson }}} ]
+            }
+            {% else %}{}{% endif %}
       - name: "owm_daily_0"
         state: >-
           {% set d = (state_attr('sensor.owm_onecall_daily','daily') or []) %}

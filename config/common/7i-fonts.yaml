@@ -3,6 +3,18 @@ font:
     id: font_mono
     size: 20
   - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
+    id: font_large
+    bpp: 4
+    size: 32
+    glyphsets:
+    - GF_Latin_Core
+    extras:
+      - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+        glyphs: 
+          - ${mdi_humidity_percentage} 
+          - ${mdi_thermometer}
+    ignore_missing_glyphs: true
+  - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
     id: font_norm
     bpp: 4
     size: 24
@@ -64,6 +76,31 @@ font:
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: weather_symbols_80
     size: 80
+    bpp: 4
+    glyphs:
+      - ${mdi_clear_night}
+      - ${mdi_cloudy}
+      - ${mdi_exceptional}
+      - ${mdi_fog}
+      - ${mdi_rainy}
+      - ${mdi_snowy}
+      - ${mdi_thunderstorm}
+      - ${mdi_windy}
+      - ${mdi_hail}
+      - ${mdi_lightning}
+      - ${mdi_lightning_rainy}
+      - ${mdi_partlycloudy}
+      - ${mdi_rainy_night}
+      - ${mdi_snowy_night}
+      - ${mdi_pouring}
+      - ${mdi_sunny}
+      - ${mdi_sunny_off}
+      - ${mdi_unknown}
+      - ${mdi_unavailable}
+    ignore_missing_glyphs: true
+  - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
+    id: weather_symbols_64
+    size: 64
     bpp: 4
     glyphs:
       - ${mdi_clear_night}

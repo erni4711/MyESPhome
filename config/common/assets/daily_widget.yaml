@@ -59,4 +59,10 @@ widgets:
         bg_opa: 100%
         text: "${mdi_clear_night} --:--"
         align: CENTER
+    - label:
+        id: forecast_wind_${id}
+        height: SIZE_CONTENT
+        text_font: font_small
+        text_color: gray
+        text: ""
 
