@@ -135,7 +135,7 @@ lvgl:
                       flex_flow: ROW
                       flex_align_cross: start
                       flex_align_track: start
-                      pad_column: 0
+                      pad_column: 6
                       pad_row: 0 
                     widgets:
                       - label:
@@ -179,6 +179,26 @@ lvgl:
                                 id: current_wind
                                 height: SIZE_CONTENT
                                 text_font: font_norm
+                                text: ""
+                      - obj:
+                          width: SIZE_CONTENT
+                          border_width: 0
+                          shadow_width: 0
+                          outline_width: 0
+                          pad_all: 0
+                          layout:
+                            type: flex
+                            flex_flow: ROW
+                            flex_align_cross: center
+                            flex_align_track: center
+                            pad_column: 0
+                            pad_row: 0
+                          widgets:
+                            - label:
+                                id: current_alerts
+                                height: SIZE_CONTENT
+                                text_font: font_norm
+                                text_color: crimson
                                 text: ""
                 - obj: # Daily forecast grid
                     id: daily_forecast_grid
@@ -482,6 +502,40 @@ text_sensor:
       then:
         - lambda: |-
             pgweather_current_parse_attrs(x, id(current_condition_icon), id(current_temp), id(current_description), id(current_humidity), id(current_wind));
+
+  # Alerts sensor (from Home Assistant template `sensor.owm_alerts`) -> show count on UI
+  - platform: homeassistant
+    entity_id: sensor.owm_alerts
+    id: owm_alerts
+    # State may be unused (template may expose attributes). We handle
+    # structured `alerts` in the attributes below.
+    on_value:
+      then:
+        - lambda: |-
+            (void)x; // ignore raw state
+
+  - platform: homeassistant
+    entity_id: sensor.owm_alerts
+    attribute: alerts
+    id: owm_alerts_json
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_alerts_parse_attrs(x, id(current_alerts));
+
+  - platform: homeassistant
+    entity_id: sensor.owm_alerts
+    attribute: has_alerts
+    id: owm_has_alerts
+    on_value:
+      then:
+        - lambda: |-
+            // If has_alerts is falsy, clear the alert label.
+            std::string v = x;
+            for (auto &c : v) c = tolower(c);
+            if (v == "false" || v == "0" || v == "none" || v.empty()) {
+              safe_lv_label_set_text(id(current_alerts), "");
+            }
 
 # Home Assistant parsers for hourly compact OpenWeather JSON (owm_hourly_0..47)
 # Each publishes `time`, `condition_icon`, `temperature`, and `pop` to internal template sensors.

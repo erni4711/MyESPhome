@@ -330,3 +330,101 @@ static inline void pgweather_current_parse_state(const std::string& state,
   safe_lv_label_set_text(temp_lbl, buf);
 }
 
+// Parse OpenWeatherMap "alerts" payloads into a short, display-friendly
+// string and set it on the provided label. Handles JSON arrays, single
+// alert objects or plain strings. Truncates long output to avoid UI overflow.
+static inline void pgweather_alerts_parse_attrs(const std::string& json,
+                                               lv_obj_t* alerts_lbl) {
+  if (!alerts_lbl) return;
+  if (json.empty()) {
+    safe_lv_label_set_text(alerts_lbl, "");
+    return;
+  }
+
+  // Try to parse as JSON first — sensor can provide structured alerts.
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, json.c_str());
+  if (!err) {
+    std::string out;
+
+    // Helper: format unix timestamp to compact human readable string
+    auto ts_to_string = [](long t) -> std::string {
+      if (!t) return std::string("");
+      time_t tt = (time_t)t;
+      struct tm* lt = localtime(&tt);
+      char buf[32] = {0};
+      if (lt) strftime(buf, sizeof(buf), "%d.%m %H:%M", lt);
+      return std::string(buf);
+    };
+
+    if (doc.is<JsonArray>()) {
+      for (auto el : doc.as<JsonArray>()) {
+        if (el.is<JsonObject>()) {
+          const char* event = el["event"] | "";
+          const char* desc = el["description"] | "";
+          long start = el["start"] | 0L;
+          long end = el["end"] | 0L;
+          std::string piece;
+          if (event && event[0]) piece += event;
+          if (desc && desc[0]) {
+            if (!piece.empty()) piece += ": ";
+            piece += desc;
+          }
+          // append start/end if present
+          std::string sstart = ts_to_string(start);
+          std::string send = ts_to_string(end);
+          if (!sstart.empty() || !send.empty()) {
+            if (!piece.empty()) piece += " ";
+            piece += "\n(";
+            if (!sstart.empty()) piece += sstart;
+            if (!sstart.empty() && !send.empty()) piece += " - ";
+            if (!send.empty()) piece += send;
+            piece += ")";
+          }
+          if (!piece.empty()) {
+            if (!out.empty()) out += "\n";
+            out += piece;
+          }
+        } else if (el.is<const char*>()) {
+          if (!out.empty()) out += "; ";
+          out += std::string(el.as<const char*>());
+        }
+      }
+    } else if (doc.is<JsonObject>()) {
+      const char* event = doc["event"] | "";
+      const char* desc = doc["description"] | "";
+      long start = doc["start"] | 0L;
+      long end = doc["end"] | 0L;
+      if (event && event[0]) out += event;
+      if (desc && desc[0]) {
+        if (!out.empty()) out += ": ";
+        out += desc;
+      }
+      std::string sstart = ts_to_string(start);
+      std::string send = ts_to_string(end);
+      if (!sstart.empty() || !send.empty()) {
+        if (!out.empty()) out += " ";
+        out += "(";
+        if (!sstart.empty()) out += sstart;
+        if (!sstart.empty() && !send.empty()) out += " - ";
+        if (!send.empty()) out += send;
+        out += ")";
+      }
+    }
+
+    if (!out.empty()) {
+      // Keep label text short — truncate if necessary.
+      const size_t maxlen = 200;
+      if (out.size() > maxlen) out = out.substr(0, maxlen) + "…";
+      safe_lv_label_set_text(alerts_lbl, out.c_str());
+      return;
+    }
+  }
+
+  // Fallback: treat payload as plain text (non-JSON) and display/truncate it.
+  std::string s = json;
+  const size_t maxlen = 200;
+  if (s.size() > maxlen) s = s.substr(0, maxlen) + "…";
+  safe_lv_label_set_text(alerts_lbl, s.c_str());
+}
+
