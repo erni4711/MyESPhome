@@ -9,20 +9,11 @@ esphome:
   #   board_build.flash_mode: qio
   #   board_build.psram_mode: opi
   #   board_upload.maximum_ram_size: 524288
-    # lib_deps:
-    #   - https://github.com/bitbank2/PNGenc.git
-
-  
+   
   on_boot:
     - logger.log: "ESPHome booted"
     - delay: 5s
     - lvgl.widget.hide: boot_screen
-    # screenshot registration handled by component codegen (external_components)
-  # includes:
-  #   - components/PNGenc 
-  #   - components/PNGenc/PNGenc.h
-  # includes:
-  #   - include/lv_conf.h
   
 esp32:
   board: esp32-s3-devkitc-1
@@ -51,12 +42,17 @@ preferences:
 
 external_components:
   - source: components
-  - source: github://pr#10071
+  - source: 
+      type: git
+      url: https://github.com/fuzzybear62/esphome-waveshare_io_ch32v003
+      ref: main
+  # github://pr#10071
     components: [waveshare_io_ch32v003]
-    refresh: 1h
-
+   
 waveshare_io_ch32v003:
   - id: waveshare_io_hub
+    i2c_id: bus_a
+    address: 0x24
 
 deep_sleep:
   touch_wakeup: true
@@ -73,29 +69,29 @@ i2c:
 #-------------------------------------------
 output:
   - platform: waveshare_io_ch32v003
-    id: backlight_output
-
-  - platform: waveshare_io_ch32v003
-    id: pwm_backlight_output
+    id: wave_io_pwm_output
     inverted: true
-    min_power: 0.03
-    max_power: 1.0
-
+    zero_means_zero: true
+    waveshare_io_ch32v003_id: waveshare_io_hub
+    # Hardware safety limits (0-255)
+    safe_pwm_levels:
+      min_value: 0
+      max_value: 247
 
 light:
   - platform: monochromatic
-    output: pwm_backlight_output
-    name: Display Backlight
+    output: wave_io_pwm_output
+    name: "Display Backlight"
     icon: mdi:lightbulb-on
     id: display_backlight
     restore_mode: ALWAYS_ON
     default_transition_length: 250ms
     on_turn_on: 
       then:
-        - switch.turn_on: exio2
+        - switch.turn_on: backlight_switch
     on_turn_off: 
       then:
-        - switch.turn_off: exio2      
+        - switch.turn_off: backlight_switch      
 
 
 
@@ -143,29 +139,6 @@ logger:
   baud_rate: 115200
 
 
-# output:
-#   - platform: gpio
-#     id: backlight
-#     pin:
-#       ch422g: ch422g_hub
-#       number: 2
-#       mode:
-#         output: true
-#       inverted: false
-
-# light:
-#   - platform: binary
-#     output: backlight
-#     id: display_backlight
-#     name: "LCD Backlight"
-#     icon: mdi:wall-sconce-flat-outline
-#     restore_mode: ALWAYS_ON
-#     on_turn_off:
-#       - delay: 5min
-#       - logger.log: Starting automatic antiburn.
-#       - switch.turn_on: switch_antiburn
-#     on_turn_on:
-#       - switch.turn_off: switch_antiburn
 
 number:
   - platform: template
@@ -182,14 +155,14 @@ number:
 
 switch:
   - platform: gpio
-    internal: True
-    id: exio2
-    restore_mode: ALWAYS_ON
-    pin: 
+    name: "Backlight Switch"
+    id: backlight_switch
+    internal: true                
+    pin:
       waveshare_io_ch32v003: waveshare_io_hub
       number: 2
-      mode: 
-        output: true
+      mode: OUTPUT
+    restore_mode: ALWAYS_ON 
   - platform: template
     name: Antiburn
     id: switch_antiburn
@@ -297,75 +270,6 @@ display:
         - 47        #g6
         - 21        #g7
 
-# ### Display
-# display:
-#   - platform: rpi_dpi_rgb
-#     id: waveshare_display
-#     update_interval: never
-#     auto_clear_enabled: false
-#     color_order: RGB
-#     pclk_frequency: 16MHZ
-#     dimensions:
-#       width: 800
-#       height: 480
-#     de_pin:
-#       number: 5
-#     hsync_pin:
-#       number: 46
-#       ignore_strapping_warning: true
-#     vsync_pin:
-#       number: 3
-#       ignore_strapping_warning: true
-#     pclk_pin: 7
-#     pclk_inverted: true
-#     reset_pin:
-#       ch422g: ch422g_hub
-#       number: 3
-#     hsync_back_porch: 8
-#     hsync_front_porch: 8
-#     hsync_pulse_width: 4
-#     vsync_back_porch: 16
-#     vsync_front_porch: 16
-#     vsync_pulse_width: 4
-#     data_pins:
-#       red:
-#         - 1         #r3
-#         - 2         #r4
-#         - 42        #r5
-#         - 41        #r6
-#         - 40        #r7
-#       blue:
-#         - 14        #b3
-#         - 38        #b4
-#         - 18        #b5
-#         - 17        #b6
-#         - 10        #b7
-#       green:
-#         - 39        #g2
-#         - 0         #g3
-#         - 45        #g4
-#         - 48        #g5
-#         - 47        #g6
-#         - 21        #g7
-
-# ### Touchscreen
-# touchscreen:
-#   platform: gt911
-#   id: waveshare_touch
-#   interrupt_pin: GPIO4
-#   reset_pin:
-#     ch422g: ch422g_hub
-#     number: 1
-#     mode: OUTPUT
-#   on_release:
-#     - if:
-#         condition: lvgl.is_paused
-#         then:
-#           - logger.log: "LVGL resuming"
-#           - switch.turn_off: switch_antiburn
-#           - lvgl.resume:
-#           - lvgl.widget.redraw:
-#           - light.turn_on: display_backlight
 
 api:
   on_client_connected:
@@ -380,21 +284,7 @@ api:
           lambda: 'return (0 == client_info.find("Home Assistant "));'
         then:
           - lvgl.widget.hide: lbl_hastatus
-  # image_receiver.yaml
-  # services:
-  #   - service: send_image_chunk
-  #     variables:
-  #       index: int
-  #       total: int
-  #       data: string
-  #     then:
-  #       - lambda: |-
-  #           id(ha_image_id).receive_chunk(index, total, data);
-
-# ha_image:
-#   id: ha_image_id
-#   canvas_id: ha_canvas
-
+ 
 time:
   - platform: homeassistant
     id: homeassistant_time
@@ -415,6 +305,15 @@ script:
 <<: !include ../common/7i-fonts.yaml
 
 sensor:
+  # Battery level via ADC on waveshare IO ch32v003
+  - platform: waveshare_io_ch32v003
+    name: "Battery level"
+    waveshare_io_ch32v003_id: waveshare_io_hub
+    id: wave_adc
+    # Calculation: value = adc * 3 * 3.3V / 1023.0
+    # Therefore, reference_voltage is set to 9.9 (3 * 3.3)
+    reference_voltage: 9.9 
+
   # Example configuration entry I2C
   - platform: bme280_i2c
     address: 0x76
@@ -427,7 +326,7 @@ sensor:
   - platform: wifi_signal
     name: "WiFi Signal Strength"
   - platform: adc
-    id: battery_voltage_raw
+    id: voltage_raw
     pin: GPIO6
     attenuation: auto
     name: "Analog Value"
@@ -445,7 +344,7 @@ sensor:
     unit_of_measurement: "%"
     update_interval: 5s
     lambda: |-
-      float v = id(battery_voltage_raw).state;
+      float v = id(wave_adc).state;
       if (v > 4.2) v = 4.2;
       if (v < 3.0) v = 3.0;
       return (v - 3.0) * 100.0 / (4.2 - 3.0);
@@ -457,11 +356,6 @@ web_server:
 screenshot:
   id: screenshot_component
 
-# zlib:
-#   id: zlib_component
-
-# PNGenc:
-#   id: png_encoder
 text_sensor:
   - platform: version
     id: esphome_version
