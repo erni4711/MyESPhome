@@ -1,4 +1,5 @@
 border_width: 0
+shadow_width: 0
 outline_width: 0
 width: 250
 height: 210
@@ -42,6 +43,7 @@ widgets:
       align: CENTER
       bg_opa: TRANSP
       border_width: 0
+      shadow_width: 0
       scales:
         range_from: 160   # 16°C
         range_to: 340     # 34°C
@@ -89,6 +91,7 @@ widgets:
       width: 130
       height: 40
       border_width: 0
+      shadow_width: 0
       outline_width: 0
   # Set temperature knob, should change with the set temperature ticks
   - arc:

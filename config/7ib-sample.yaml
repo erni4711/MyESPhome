@@ -73,6 +73,7 @@ lvgl:
             #   int h = lv_obj_get_height(lv_scr_act()); 
             #   return h -60; // adjust for header/footer
             border_width: 0
+            shadow_width: 0
             outline_width: 0
             pad_all: 0
             layout:

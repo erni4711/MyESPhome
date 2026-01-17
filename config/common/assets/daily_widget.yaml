@@ -1,8 +1,9 @@
-height: 240
+height: SIZE_CONTENT
 width: SIZE_CONTENT
 bg_color: gray50
 radius: 0
 border_width: 0
+shadow_width: 0
 outline_width: 0
 pad_top: 0
 layout:

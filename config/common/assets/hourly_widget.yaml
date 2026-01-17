@@ -4,6 +4,7 @@ bg_color: gray50
 pad_top: 0
 pad_bottom : 0
 border_width: 0
+shadow_width: 0
 outline_width: 0
 layout:
   type: flex

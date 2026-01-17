@@ -618,6 +618,7 @@ lvgl:
           radius: 0
           pad_all: 0
           border_width: 0
+          shadow_width: 0
           widgets:
             - label:
                 id: boot_about_label              
