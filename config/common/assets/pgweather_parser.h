@@ -14,7 +14,8 @@ static inline void safe_lv_label_set_text(lv_obj_t* label, const char* txt) {
   lv_label_set_text(label, txt);
 }
 
-static const char* mdi_clear_night = "\U0000EA62";
+
+static const char* mdi_clear_night = "\U0000F34F";
 static const char* mdi_cloudy = "\U0000E2BD";
 static const char* mdi_fog = "\U0000E818";
 static const char* mdi_lightning_rainy = "\U0000F61E";
@@ -25,6 +26,9 @@ static const char* mdi_snowy_night = "\U0000E2CD";
 static const char* mdi_snowy_rainy = "\U0000F61D";
 static const char* mdi_sunny = "\U0000E81A";
 static const char* mdi_unknown = "\U0000E6A5";
+static const char* mdi_windy = "\U0000EC0C";  
+static const char* mdi_wb_twilight = "\U0000E1C6";  
+static const char* mdi_exceptional = "\U0000F157";
 
 static inline std::string icon_code_to_glyph(const std::string& icon_code) {
   if (icon_code == "01d")
@@ -63,7 +67,7 @@ static inline std::string wind_deg_to_dir(double deg) {
 static inline void pgweather_daily_parse_attrs(
   const std::string& json, lv_obj_t* day_label, lv_obj_t* description_label,
   lv_obj_t* icon_lbl, lv_obj_t* temp_hi_lbl, lv_obj_t* temp_lo_lbl,
-  lv_obj_t* sunrise_lbl, lv_obj_t* sunset_lbl, lv_obj_t* wind_lbl) {
+  lv_obj_t* sunrise_lbl, lv_obj_t* sunset_lbl, lv_obj_t* rain_lbl, lv_obj_t* snow_lbl, lv_obj_t* wind_lbl) {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
@@ -107,7 +111,10 @@ static inline void pgweather_daily_parse_attrs(
         snprintf(wb, sizeof(wb), "%.1f m/s (%s)", ws, dir.c_str());
       else
         snprintf(wb, sizeof(wb), "%.1f m/s", ws);
-      safe_lv_label_set_text(wind_lbl, wb);
+      std::string s = std::string(mdi_windy) + " ";
+      s += wb;
+
+      safe_lv_label_set_text(wind_lbl, s.c_str());
     } else {
       safe_lv_label_set_text(wind_lbl, "");
     }
@@ -128,7 +135,7 @@ static inline void pgweather_daily_parse_attrs(
       safe_lv_label_set_text(sunrise_lbl, "");
     }
   }
-
+  
   if (sunset_lbl) {
     long ss = doc["sunset"] | 0L;
     if (ss) {
@@ -136,11 +143,65 @@ static inline void pgweather_daily_parse_attrs(
       struct tm* lt = localtime(&t);
       char timestr[16] = {0};
       if (lt) strftime(timestr, sizeof(timestr), "%H:%M", lt);
-      std::string s = std::string(mdi_clear_night) + " ";
+      std::string s = std::string(mdi_wb_twilight) + " ";
       s += timestr;
       safe_lv_label_set_text(sunset_lbl, s.c_str());
     } else {
       safe_lv_label_set_text(sunset_lbl, "");
+    }
+  }
+  // Rain: show amount (mm) if available
+  if (rain_lbl) {
+    double rain_amt = 0.0;
+    bool has_rain = false;
+    if (doc["rain"].is<JsonObject>()) {
+      if (doc["rain"]["1h"].is<double>() || doc["rain"]["1h"].is<int>()) {
+        rain_amt = doc["rain"]["1h"].as<double>();
+        has_rain = true;
+      } else if (doc["rain"]["3h"].is<double>() || doc["rain"]["3h"].is<int>()) {
+        rain_amt = doc["rain"]["3h"].as<double>();
+        has_rain = true;
+      }
+    } else if (doc["rain"].is<double>() || doc["rain"].is<int>()) {
+      rain_amt = doc["rain"].as<double>();
+      has_rain = true;
+    }
+
+    if (has_rain && rain_amt > 0.0) {
+      char rb[32];
+      snprintf(rb, sizeof(rb), "%.1f mm", rain_amt);
+      std::string s = std::string(mdi_rainy) + " ";
+      s += rb;
+      safe_lv_label_set_text(rain_lbl, s.c_str());
+    } else {
+      safe_lv_label_set_text(rain_lbl, "");
+    }
+  }
+  // Snow: show amount (mm) if available
+  if (snow_lbl) {
+    double snow_amt = 0.0;
+    bool has_snow = false;
+    if (doc["snow"].is<JsonObject>()) {
+      if (doc["snow"]["1h"].is<double>() || doc["snow"]["1h"].is<int>()) {
+        snow_amt = doc["snow"]["1h"].as<double>();
+        has_snow = true;
+      } else if (doc["snow"]["3h"].is<double>() || doc["snow"]["3h"].is<int>()) {
+        snow_amt = doc["snow"]["3h"].as<double>();
+        has_snow = true;
+      }
+    } else if (doc["snow"].is<double>() || doc["snow"].is<int>()) {
+      snow_amt = doc["snow"].as<double>();
+      has_snow = true;
+    }
+    
+    if (has_snow && snow_amt > 0.0) {
+      char sb[32];
+      snprintf(sb, sizeof(sb), "%.1f mm", snow_amt);
+      std::string s = std::string(mdi_snowy) + " ";
+      s += sb;
+      safe_lv_label_set_text(snow_lbl, s.c_str());
+    } else {
+      safe_lv_label_set_text(snow_lbl, "");
     }
   }
 }
@@ -165,7 +226,18 @@ static inline void pgweather_daily_parse_state(const std::string& state,
   if (dt) {
     time_t t = (time_t)dt;
     struct tm* lt = localtime(&t);
-    if (lt) strftime(daybuf, sizeof(daybuf), "%a", lt);
+    if (lt) {    
+      switch (lt->tm_wday) {
+        case 0: strftime(daybuf, sizeof(daybuf), "Son", lt); break;
+        case 1: strftime(daybuf, sizeof(daybuf), "Mon", lt); break;
+        case 2: strftime(daybuf, sizeof(daybuf), "Die", lt); break;
+        case 3: strftime(daybuf, sizeof(daybuf), "Mit", lt); break;
+        case 4: strftime(daybuf, sizeof(daybuf), "Don", lt); break;
+        case 5: strftime(daybuf, sizeof(daybuf), "Fre", lt); break;
+        case 6: strftime(daybuf, sizeof(daybuf), "Sam", lt); break;
+        default: break;
+      }
+    }
   }
   safe_lv_label_set_text(day_label, daybuf);
 }
@@ -312,6 +384,7 @@ static inline void pgweather_current_parse_attrs(const std::string& json,
       safe_lv_label_set_text(wind_lbl, "");
     }
   }
+  
 }
 
 // Parse state (temperature) for current sensor
@@ -414,7 +487,7 @@ static inline void pgweather_alerts_parse_attrs(const std::string& json,
 
     if (!out.empty()) {
       // Keep label text short — truncate if necessary.
-      const size_t maxlen = 200;
+      const size_t maxlen = 512;
       if (out.size() > maxlen) out = out.substr(0, maxlen) + "…";
       safe_lv_label_set_text(alerts_lbl, out.c_str());
       return;

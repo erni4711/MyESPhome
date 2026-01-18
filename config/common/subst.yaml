@@ -57,9 +57,9 @@ substitutions:
   glyph_fallback: ""
 
   # weather icon substitutions -- use empty string for undefined icons to avoid duplicate glyphs
-  mdi_clear_night: "\U0000EA62"
+  mdi_clear_night: "\U0000f34f"
   mdi_cloudy: "\U0000E2BD"
-  mdi_exceptional: ""
+  mdi_exceptional: "\U0000F157"
   mdi_fog: "\U0000E818"
   mdi_hail: "\U0000E9B1"
   mdi_lightning: "\U0000EFA4"
@@ -76,4 +76,5 @@ substitutions:
   mdi_thunderstorm: "\U0000EBDB"
   mdi_windy: "\U0000EC0C"
   mdi_unknown: "\U0000E6A5"
+  mdi_wb_twilight: "\U0000E1C6"
   mdi_unavailable: ""

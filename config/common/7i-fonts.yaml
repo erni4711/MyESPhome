@@ -55,6 +55,7 @@ font:
           - ${mdi_sunny_off}
           - ${mdi_unknown}
           - ${mdi_unavailable}
+          - ${mdi_wb_twilight}
 
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: battery_icons_20
@@ -97,6 +98,7 @@ font:
       - ${mdi_sunny_off}
       - ${mdi_unknown}
       - ${mdi_unavailable}
+      - ${mdi_wb_twilight}
     ignore_missing_glyphs: true
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: weather_symbols_64
@@ -122,6 +124,7 @@ font:
       - ${mdi_sunny_off}
       - ${mdi_unknown}
       - ${mdi_unavailable}
+      - ${mdi_wb_twilight}
     ignore_missing_glyphs: true
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: weather_symbols_40
@@ -147,6 +150,7 @@ font:
       - ${mdi_sunny_off}
       - ${mdi_unknown}
       - ${mdi_unavailable}
+      - ${mdi_wb_twilight}
     ignore_missing_glyphs: true
   - file: 'fonts/RobotoCondensed-Regular.ttf'
     glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'

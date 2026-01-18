@@ -28,7 +28,7 @@ widgets:
         text: ${mdi_unknown}
     - label:
         id: forecast_description_${id}
-        height: SIZE_CONTENT
+        height: 32
         text_font: font_small
         text_color: dodgerblue
         text: ""
@@ -45,6 +45,24 @@ widgets:
         text_color: dodgerblue
         text: "---°"
     - label:
+        id: forecast_snow_${id}
+        height: SIZE_CONTENT
+        text_font: font_small
+        text_color: gray
+        text: "${mdi_snow} "
+    - label:
+        id: forecast_rain_${id}
+        height: SIZE_CONTENT
+        text_font: font_small
+        text_color: gray
+        text: "${mdi_rainy} "
+    - label:
+        id: forecast_wind_${id}
+        height: SIZE_CONTENT
+        text_font: font_small
+        text_color: gray
+        text: "${mdi_windy} "
+    - label:
         id: forecast_sunrise_${id}
         height: SIZE_CONTENT
         text_font: font_small
@@ -60,10 +78,4 @@ widgets:
         bg_opa: 100%
         text: "${mdi_clear_night} --:--"
         align: CENTER
-    - label:
-        id: forecast_wind_${id}
-        height: SIZE_CONTENT
-        text_font: font_small
-        text_color: gray
-        text: ""
 

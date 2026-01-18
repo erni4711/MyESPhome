@@ -1,5 +1,5 @@
 substitutions:
-  node_name: "7i-sample"
+  node_name: "esp32s3-7b-sample"
 
 packages:
   - !include common/subst.yaml
