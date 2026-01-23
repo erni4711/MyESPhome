@@ -1,0 +1,5 @@
+dependencies: [web_server]
+sources:
+  - sd_file_server.cpp
+headers:
+  - sd_file_server.h

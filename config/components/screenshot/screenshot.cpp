@@ -64,7 +64,7 @@ static const char *TAG = "screenshot";
 static lv_img_dsc_t *grab_lvgl_rgb565() {
   lv_obj_t *scr = lv_scr_act();
   ESP_LOGD(TAG, "grab_lvgl_rgb565: lv_scr_act -> %p", (void *)scr);
-  /* Determine required buffer size for RGB888 snapshot */
+  /* Determine required buffer size for RGB565 snapshot */
   uint32_t buf_size = lv_snapshot_buf_size_needed(scr, LV_IMG_CF_TRUE_COLOR);
   if (buf_size == 0) {
     ESP_LOGD(TAG, "grab_lvgl_rgb565: snapshot buffer size is 0");
@@ -325,6 +325,26 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   if (rc == PNG_SUCCESS) {
     ESP_LOGD(TAG, "Finalizing PNG image");
     size_t bytes_written = png_encoder.close();
+    if (this->parent_->sd_spi_card_ != nullptr) {
+      const std::string path = "/sdcard/screenshot.png";
+      bool mounted = this->parent_->sd_spi_card_->is_mounted();
+      if (!mounted) {
+        mounted = this->parent_->sd_spi_card_->mount();
+      }
+      if (!mounted) {
+        ESP_LOGW(TAG, "SD mount failed; skipping write");
+      } else {
+        this->parent_->sd_spi_card_->delete_file(path);
+        bool ok = this->parent_->sd_spi_card_->append_file_chunk(path, png_buf, bytes_written, true);
+        if (!ok) {
+          ESP_LOGW(TAG, "SD write failed: %s", path.c_str());
+        } else {
+          ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+        }
+      }
+    } else {
+      ESP_LOGD(TAG, "sd_spi_card not configured, skipping SD write");
+    }
     send_chunk_with_retry(req, reinterpret_cast<const char *>(png_buf), (ssize_t)bytes_written);
     ESP_LOGD(TAG, "PNG image finalized, %u bytes written", (unsigned)bytes_written);
   }

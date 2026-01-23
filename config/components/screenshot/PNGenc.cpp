@@ -52,11 +52,9 @@ typedef struct PNGENCIMAGE
     int iDataSize; // total output file size
     int iMemPool; // memory allocated out of memory pool
     int iError;
-    PNGFILE PNGFile;
-    // Optional file callback pointers (may be NULL). Present to keep
+        // Optional file callback pointers (may be NULL). Present to keep
     // legacy file-based code compilable, but the public C++ API uses
     // buffer-based output only (`open(uint8_t*, int)`).
-    PNGENC_SEEK_CALLBACK *pfnSeek;
     z_stream c_stream; /* compression stream */
     uint8_t ucPalette[1024];
     uint8_t ucMemPool[sizeof(deflate_state) + (0x40000 >> MEM_SHRINK)]; // RAM needed for deflate
@@ -65,12 +63,20 @@ typedef struct PNGENCIMAGE
     uint8_t ucFileBuf[PNG_FILE_BUF_SIZE]; // holds temp file data
 } PNGENCIMAGE;
 
+#if defined(__cplusplus)
+extern "C" {
+void *my_lvgl_malloc(size_t size);
+void my_lvgl_free(void *ptr);
+void *my_lvgl_realloc(void *ptr, size_t size);
+}
+#endif
+
 PNGenc::PNGenc() :
-    _png(new PNGENCIMAGE)
+    _png((PNGENCIMAGE*) my_lvgl_malloc(sizeof(PNGENCIMAGE)))
 {}
 PNGenc::~PNGenc()
 {
-    delete _png; 
+    my_lvgl_free(_png); 
 }    
 // Macro to simplify writing a big-endian 32-bit value on any CPU
 #define WRITEMOTO32(p, o, val) {uint32_t l = val; p[o] = (unsigned char)(l >> 24); p[o+1] = (unsigned char)(l >> 16); p[o+2] = (unsigned char)(l >> 8); p[o+3] = (unsigned char)l;}

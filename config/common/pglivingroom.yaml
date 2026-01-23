@@ -11,9 +11,9 @@ widgets:
           text_color: 0xFFFFFF
 - obj:  
     align: top_left
-    y: 30
+    y: ${ui_header_height}
     width: 800
-    height: 430
+    height: ${ui_page_height}
     layout:
       type: grid
       grid_row_align: start

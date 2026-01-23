@@ -60,25 +60,9 @@
 // Number of bytes to reserve for current and previous lines
 // Defaults to 640 32-bit pixels max width
 #ifndef PNG_MAX_BUFFERED_PIXELS
-#define PNG_MAX_BUFFERED_PIXELS (640*4 + 1)
+#define PNG_MAX_BUFFERED_PIXELS (1024*4 + 1)
 #endif
 
-#ifndef __PNGDEC__
-// PNG filter type
-enum {
-    PNG_FILTER_NONE=0,
-    PNG_FILTER_SUB,
-    PNG_FILTER_UP,
-    PNG_FILTER_AVG,
-    PNG_FILTER_PAETH,
-    PNG_FILTER_COUNT
-};
-
-// decode options
-enum {
-    PNG_CHECK_CRC = 1,
-    PNG_FAST_PALETTE = 2
-};
 
 // source pixel type
 enum {
@@ -101,23 +85,6 @@ enum {
     PNG_TOO_BIG,
     PNG_NOT_INITIALIZED
 };
-
-typedef struct png_file_tag
-{
-  int32_t iPos; // current file position
-  int32_t iSize; // file size
-  uint8_t *pData; // memory file pointer
-  void * fHandle; // class pointer to File/SdFat or whatever you want
-} PNGFILE;
-
-#endif // !__PNGDEC__
-
-// Callback function prototypes
-typedef int32_t (PNGENC_READ_CALLBACK)(PNGFILE *pFile, uint8_t *pBuf, int32_t iLen);
-typedef int32_t (PNGENC_WRITE_CALLBACK)(PNGFILE *pFile, uint8_t *pBuf, int32_t iLen);
-typedef int32_t (PNGENC_SEEK_CALLBACK)(PNGFILE *pFile, int32_t iPosition);
-typedef void * (PNGENC_OPEN_CALLBACK)(const char *szFilename);
-typedef void (PNGENC_CLOSE_CALLBACK)(PNGFILE *pFile);
 
 
 #ifdef __cplusplus

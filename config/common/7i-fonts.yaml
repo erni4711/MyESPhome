@@ -1,7 +1,7 @@
 font:
   - file: 'fonts/RobotoMono-SemiBold.ttf'    # Monospace font file
     id: font_mono
-    size: 20
+    size: ${ui_header_font_size}
   - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
     id: font_large
     bpp: 4
@@ -17,7 +17,7 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
     id: font_norm
     bpp: 4
-    size: 24
+    size: ${ui_title_font_size}
     glyphsets:
     - GF_Latin_Core
     extras:
@@ -59,7 +59,7 @@ font:
 
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: battery_icons_20
-    size: 20
+    size: ${ui_header_font_size}
     bpp: 4
     glyphs: 
       - ${mdi_battery_10}
@@ -155,7 +155,7 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'
     glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
     id: roboto_reg
-    size: 18
+    size: ${ui_header_font_size}
     bpp: 4
     ignore_missing_glyphs: true
     extras:
@@ -172,7 +172,7 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'
     id: roboto_med
     glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
-    size: 24
+    size: ${ui_title_font_size}
     bpp: 4
     extras:
       - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"

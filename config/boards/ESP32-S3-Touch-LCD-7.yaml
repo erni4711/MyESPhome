@@ -26,7 +26,14 @@ esphome:
   #   - components/PNGenc/PNGenc.h
   # includes:
   #   - include/lv_conf.h
-  
+
+substitutions:
+  ui_header_height: 30
+  ui_footer_height: 30
+  ui_page_height: 420
+  ui_header_font_size: 20
+  ui_title_font_size: 24
+
 external_components:
   - source: components
 

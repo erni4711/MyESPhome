@@ -13,3 +13,5 @@ config/components/screenshot/__pycache__
 config/.venv/
 config/.venv
 config/.mypy_cache/
+config/boot.log
+config/sd_mount.log

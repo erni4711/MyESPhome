@@ -64,16 +64,16 @@ lvgl:
         - obj:
             id: climate_body
             align: top_left
-            y: 30
+            y: ${ui_header_height}
             width: 800
-            height: 420
+            height: ${ui_page_height}
             border_width: 0
             shadow_width: 0
             outline_width: 0
             pad_all: 0
             layout:
               type: grid
-              grid_rows: [ 210px, 210px ]
+              grid_rows: [ fr(1), fr(1) ]
               grid_columns: [ content, content, content ]
               pad_row: 0
               pad_column: 0

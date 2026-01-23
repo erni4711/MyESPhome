@@ -13,9 +13,9 @@ widgets:
   - obj:
       id: ${id}_climate_body
       align: top_left
-      y: 30
+      y: ${ui_header_height}
       width: 100%
-      height: 430
+      height: ${ui_page_height}
       <<: !include 
           file: ../gui/climate.yaml
           vars: 

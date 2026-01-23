@@ -10,6 +10,9 @@
 using String = std::string;
 
 namespace esphome {
+namespace sd_card {
+class SdSpiCard;
+}  // namespace sd_card
 namespace screenshot {
 
 class ScreenshotComponent : public Component {
@@ -17,6 +20,8 @@ class ScreenshotComponent : public Component {
   void setup() override;
   void loop() override;
   void dump_config() override;
+
+  void set_sd_spi_card(::esphome::sd_card::SdSpiCard *card) { this->sd_spi_card_ = card; }
 
   // Call to register the component at runtime (safe after App initialized)
   static void register_component_runtime();
@@ -47,6 +52,7 @@ class ScreenshotComponent : public Component {
   SemaphoreHandle_t capture_done_{nullptr};
   // Resulting snapshot allocated by LVGL; set in main-loop and consumed by handler
   lv_img_dsc_t *capture_result_{nullptr};
+  ::esphome::sd_card::SdSpiCard *sd_spi_card_{nullptr};
 };
 
 }  // namespace screenshot

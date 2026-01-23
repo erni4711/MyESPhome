@@ -49,7 +49,7 @@ widgets:
         height: SIZE_CONTENT
         text_font: font_small
         text_color: gray
-        text: "${mdi_snow} "
+        text: "${mdi_snowy} "
     - label:
         id: forecast_rain_${id}
         height: SIZE_CONTENT

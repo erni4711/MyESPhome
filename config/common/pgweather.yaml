@@ -25,7 +25,7 @@ color:
       hex: 'BDBDBD'
     - id: gray500
       hex: '9E9E9E'
-    - id: gray600
+    - id: grayF30
       hex: '757575'
     - id: gray700
       hex: '616161'
@@ -98,6 +98,7 @@ lvgl:
           - obj:
               align: TOP_MID
               styles: header_footer
+              scrollbar_mode: "OFF"
               widgets:
                   - label:
                       text: "Wettervorhersage 8 Tage"
@@ -106,9 +107,9 @@ lvgl:
                       text_color: 0xFFFFFF
           - obj: # Current weather section
               align: top_left
-              y: 30
+              y: ${ui_header_height}
               width: 100%
-              height: 100%
+              height: ${ui_page_height}
               border_width: 0
               shadow_width: 0
               outline_width: 0
@@ -150,6 +151,7 @@ lvgl:
                           shadow_width: 0
                           outline_width: 0
                           pad_all: 0
+                          scrollbar_mode: "OFF"
                           layout:
                             type: flex
                             flex_flow: COLUMN
@@ -186,6 +188,7 @@ lvgl:
                           shadow_width: 0
                           outline_width: 0
                           pad_all: 0
+                          scrollbar_mode: "OFF"
                           layout:
                             type: flex
                             flex_flow: ROW
@@ -240,6 +243,7 @@ lvgl:
           - obj:
                 align: TOP_MID
                 styles: header_footer
+                scrollbar_mode: "OFF"
                 widgets:
                     - label:
                         text: "Wettervorhersage 48 Stunden"
@@ -248,9 +252,9 @@ lvgl:
                         text_color: 0xFFFFFF
           - obj:
               align: top_left
-              y: 30
+              y: ${ui_header_height}
               width: 100%
-              height: 100%
+              height: ${ui_page_height}
               border_width: 0
               shadow_width: 0
               outline_width: 0

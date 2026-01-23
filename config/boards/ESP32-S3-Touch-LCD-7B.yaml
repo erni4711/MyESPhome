@@ -3,9 +3,14 @@
 esphome:
   name: ${node_name}
   min_version: "2025.4.2"
+  # includes:
+  #   - components/wave7sd/sd_card.h
+  #   - components/wave7sd/sd_web.h
   name_add_mac_suffix: false
   platformio_options:
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
+    # build_flags:
+    #   - -DWAVE7SD_CS_EXPANDER_PIN=4
   #   board_build.flash_mode: qio
   #   board_build.psram_mode: opi
   #   board_upload.maximum_ram_size: 524288
@@ -14,7 +19,14 @@ esphome:
     - logger.log: "ESPHome booted"
     - delay: 5s
     - lvgl.widget.hide: boot_screen
-  
+
+substitutions:
+  ui_header_height: 40
+  ui_footer_height: 40
+  ui_page_height: 520
+  ui_header_font_size: 30
+  ui_title_font_size: 34
+
 esp32:
   board: esp32-s3-devkitc-1
   variant: esp32s3
@@ -42,6 +54,7 @@ preferences:
 
 external_components:
   - source: components
+  #- source: github://n-serrette/esphome_sd_card
   - source: 
       type: git
       url: https://github.com/fuzzybear62/esphome-waveshare_io_ch32v003
@@ -50,9 +63,26 @@ external_components:
     components: [waveshare_io_ch32v003]
    
 waveshare_io_ch32v003:
-  - id: waveshare_io_hub
+  - id: ioexp
     i2c_id: bus_a
     address: 0x24
+
+
+spi: 
+  id: spi2
+  clk_pin: 12
+  mosi_pin: 11
+  miso_pin: 13
+
+sd_spi_card: 
+  id: sdcard
+  cs_pin: 
+    waveshare_io_ch32v003: ioexp
+    number: 4 # SD_CS on CH422G P4
+  spi_id: spi2
+  format_on_mount_failure: false
+
+
 
 deep_sleep:
   touch_wakeup: true
@@ -63,6 +93,9 @@ i2c:
   scan: True
   id: bus_a
 
+sd_file_server:
+  spi_id: sdcard
+  web_server_base_id: my_web_server
 
 #-------------------------------------------
 # LCD Back light
@@ -72,7 +105,7 @@ output:
     id: wave_io_pwm_output
     inverted: true
     zero_means_zero: true
-    waveshare_io_ch32v003_id: waveshare_io_hub
+    waveshare_io_ch32v003_id: ioexp
     # Hardware safety limits (0-255)
     safe_pwm_levels:
       min_value: 0
@@ -159,7 +192,7 @@ switch:
     id: backlight_switch
     internal: true                
     pin:
-      waveshare_io_ch32v003: waveshare_io_hub
+      waveshare_io_ch32v003: ioexp 
       number: 2
       mode: OUTPUT
     restore_mode: ALWAYS_ON 
@@ -194,7 +227,7 @@ touchscreen:
   i2c_id: bus_a
   interrupt_pin: GPIO4
   reset_pin:
-    waveshare_io_ch32v003: waveshare_io_hub
+    waveshare_io_ch32v003: ioexp 
     number: 1
     mode: OUTPUT
   on_release:
@@ -241,7 +274,7 @@ display:
     pclk_pin: 7
     pclk_inverted: true
     reset_pin:
-      waveshare_io_ch32v003: waveshare_io_hub
+      waveshare_io_ch32v003: ioexp 
       number: 3
     hsync_back_porch: 152
     hsync_front_porch: 48
@@ -308,7 +341,7 @@ sensor:
   # Battery level via ADC on waveshare IO ch32v003
   - platform: waveshare_io_ch32v003
     name: "Battery level"
-    waveshare_io_ch32v003_id: waveshare_io_hub
+    waveshare_io_ch32v003_id: ioexp 
     id: wave_adc
     # Calculation: value = adc * 3 * 3.3V / 1023.0
     # Therefore, reference_voltage is set to 9.9 (3 * 3.3)
@@ -342,7 +375,7 @@ sensor:
   - platform: template
     id: battery_percent
     unit_of_measurement: "%"
-    update_interval: 5s
+    update_interval: 20s
     lambda: |-
       float v = id(wave_adc).state;
       if (v > 4.2) v = 4.2;
@@ -351,10 +384,19 @@ sensor:
 
 
 web_server:
+  id: my_web_server
   port: 80
  
 screenshot:
   id: screenshot_component
+  spi_id: sdcard
+
+# SD web UI component (file manager using wave7sd)
+#wave7sd:
+#  id: wave7sd_component
+#  waveshare_io_ch32v003_id: ioexp 
+  
+
 
 text_sensor:
   - platform: version
@@ -429,7 +471,7 @@ lvgl:
       - obj:
           styles: header_footer
           align: top_right
-          width: 220
+          width: SIZE_CONTENT
           layout:
             type: flex
             flex_flow: row
@@ -475,6 +517,7 @@ lvgl:
           styles: header_footer
           pad_all: 0
           outline_width: 0
+          height: ${ui_footer_height}
           id: top_layer
           items:
             styles: header_footer
