@@ -11,6 +11,7 @@ See [ScreenShot](config/components/screenshot/README.md)
 
 ## Hardware
 [ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) from [WAVESHARE](https://www.waveshare.com/)
+[ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) from [WAVESHARE](https://www.waveshare.com/)
 
 ## Prerequisites
 - Python 3 and pip OR Docker, or Home Assistant ESPHome add-on.
@@ -24,7 +25,7 @@ ota_password: "ota_pwd"
 ```
 
 ## Quick build (local CLI)
-From the repository root (where `7i-sample.yaml` lives):
+From the repository root (where `7i-sample.yaml` or '7ib-sample.yaml' lives):
 ```bash
 esphome compile 7i-sample.yaml
 ```
@@ -45,7 +46,7 @@ esphome run 7i-sample.yaml --device /dev/ttyUSB0
 1. Ensure the YAML contains an `ota:` section and the device is on the same network.  
 2. Upload using the device IP or let esphome detect it:
 ```bash
-esphome upload 7i-sample.yaml --upload-port 192.168.1.50
+esphome upload 7i-sample.yaml --upload-port OTA
 # or
 esphome run 7i-sample.yaml
 ```
