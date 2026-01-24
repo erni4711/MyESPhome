@@ -8,7 +8,7 @@
 // Forward-declare sd_card shim type to avoid circular includes
 namespace esphome {
 namespace sd_card {
-class SdSpiCard;
+class SdMmcCard;
 }
 }
 #include <string>
@@ -31,14 +31,14 @@ class SDFileServer : public Component, public AsyncWebHandler {
 
   void set_url_prefix(std::string const &);
   void set_root_path(std::string const &);
-  void set_sd_spi_card(::esphome::sd_card::SdSpiCard *);
+  void set_sd_mmc_card(::esphome::sd_card::SdMmcCard *);
   void set_deletion_enabled(bool);
   void set_download_enabled(bool);
   void set_upload_enabled(bool);
 
  protected:
   web_server::WebServer *base_;
-  ::esphome::sd_card::SdSpiCard *sd_spi_card_;
+  ::esphome::sd_card::SdMmcCard *sd_mmc_card_;
 
   std::string url_prefix_;
   std::string root_path_;

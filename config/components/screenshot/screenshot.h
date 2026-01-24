@@ -5,13 +5,14 @@
 #include "esphome/components/web_server_base/web_server_base.h"
 #include "freertos/semphr.h"
 #include <string>
+#include <vector>
 
 // Some server APIs use `String` in signatures; alias to std::string for ESP-IDF builds
 using String = std::string;
 
 namespace esphome {
 namespace sd_card {
-class SdSpiCard;
+class SdMmcCard;
 }  // namespace sd_card
 namespace screenshot {
 
@@ -21,7 +22,7 @@ class ScreenshotComponent : public Component {
   void loop() override;
   void dump_config() override;
 
-  void set_sd_spi_card(::esphome::sd_card::SdSpiCard *card) { this->sd_spi_card_ = card; }
+  void set_sd_mmc_card(::esphome::sd_card::SdMmcCard *card) { this->sd_mmc_card_ = card; }
 
   // Call to register the component at runtime (safe after App initialized)
   static void register_component_runtime();
@@ -52,7 +53,14 @@ class ScreenshotComponent : public Component {
   SemaphoreHandle_t capture_done_{nullptr};
   // Resulting snapshot allocated by LVGL; set in main-loop and consumed by handler
   lv_img_dsc_t *capture_result_{nullptr};
-  ::esphome::sd_card::SdSpiCard *sd_spi_card_{nullptr};
+  ::esphome::sd_card::SdMmcCard *sd_mmc_card_{nullptr};
+
+  // Cached PNG image data for quick HTTP responses
+  uint8_t *last_png_buf_{nullptr};
+  size_t last_png_size_{0};
+  bool capture_requested_{false};
+  bool capture_in_progress_{false};
+  SemaphoreHandle_t png_mutex_{nullptr};
 };
 
 }  // namespace screenshot

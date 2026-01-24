@@ -4,7 +4,7 @@ from esphome.const import CONF_ID
 
 from esphome.components import web_server_base, web_server
 from esphome.components.web_server_base import CONF_WEB_SERVER_BASE_ID
-from .. import sd_spi_card
+from .. import sd_mmc_card
 
 CONF_URL_PREFIX = "url_prefix"
 CONF_ROOT_PATH = "root_path"
@@ -15,7 +15,7 @@ CONF_ENABLE_UPLOAD = "enable_upload"
 # Accept either the base web server or the regular web_server (some configs
 # use one or the other). Require an `sd_spi_card` id (we provide a local SdMmc
 # shim that delegates to the wave7sd helpers so runtime uses the same SD code).
-AUTO_LOAD = ["web_server_base", "web_server", "sd_spi_card"]
+AUTO_LOAD = ["web_server_base", "web_server", "sd_mmc_card"]
 
 sd_file_server_ns = cg.esphome_ns.namespace("sd_file_server")
 SDFileServer = sd_file_server_ns.class_("SDFileServer", cg.Component)
@@ -26,7 +26,7 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(SDFileServer),
             cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server.WebServer),
-            cv.GenerateID(sd_spi_card.CONF_SPI_ID): cv.use_id(sd_spi_card.SdSpiCard),
+            cv.GenerateID(sd_mmc_card.CONF_SD_MMC_ID): cv.use_id(sd_mmc_card.SdMmcCard),
             cv.Optional(CONF_URL_PREFIX, default="file"): cv.string_strict,
             cv.Optional(CONF_ROOT_PATH, default="/"): cv.string_strict,
             cv.Optional(CONF_ENABLE_DELETION, default=False): cv.boolean,
@@ -40,8 +40,8 @@ async def to_code(config):
     paren = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])
     var = cg.new_Pvariable(config[CONF_ID], paren)
     await cg.register_component(var, config)
-    sdspi = await cg.get_variable(config[sd_spi_card.CONF_SPI_ID])
-    cg.add(var.set_sd_spi_card(sdspi))
+    sdmmc = await cg.get_variable(config[sd_mmc_card.CONF_SD_MMC_ID])
+    cg.add(var.set_sd_mmc_card(sdmmc))
     cg.add(var.set_url_prefix(config[CONF_URL_PREFIX]))
     cg.add(var.set_root_path(config[CONF_ROOT_PATH]))
     cg.add(var.set_deletion_enabled(config[CONF_ENABLE_DELETION]))

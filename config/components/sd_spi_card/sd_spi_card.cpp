@@ -161,10 +161,16 @@ bool mount() {
   sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
   slot_config.host_id = spi->get_interface();
   if (gpio_cs_pin == 255) {
-    ESP_LOGE("sd_spi_card", "gpio_cs_pin not set; SDSPI requires a real GPIO CS pin");
-    return false;
+    if (cs_expander != nullptr && cs_expander_pin != 255) {
+      ESP_LOGW("sd_spi_card", "gpio_cs_pin not set; using GPIO_NUM_NC with expander-only CS");
+      slot_config.gpio_cs = GPIO_NUM_NC;
+    } else {
+      ESP_LOGE("sd_spi_card", "gpio_cs_pin not set; SDSPI requires a real GPIO CS pin");
+      return false;
+    }
+  } else {
+    slot_config.gpio_cs = static_cast<gpio_num_t>(gpio_cs_pin);
   }
-  slot_config.gpio_cs = static_cast<gpio_num_t>(gpio_cs_pin);
 
   esp_err_t err = esp_vfs_fat_sdmmc_mount(MOUNT_POINT, &sdspi_host, &slot_config, &mount_config, &mounted_card);
   if (err != ESP_OK) {

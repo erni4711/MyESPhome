@@ -17,3 +17,4 @@ config/boot.log
 config/sd_mount.log
 config/components/sd_spi_card/__pycache__/__init__.cpython-311.pyc
 config/components/sd_file_server/__pycache__/__init__.cpython-311.pyc
+config/components/sd_mmc_card/__pycache__/__init__.cpython-311.pyc

@@ -200,7 +200,7 @@ lvgl:
                             - label:
                                 id: current_alerts
                                 height: SIZE_CONTENT
-                                text_font: font_norm
+                                text_font: font_small
                                 text_color: crimson
                                 text: ""
                 - obj: # Daily forecast grid

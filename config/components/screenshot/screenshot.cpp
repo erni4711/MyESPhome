@@ -6,13 +6,13 @@
 #include "esphome/core/application.h"
 
 #if defined(__has_include)
-#  if __has_include("esphome/components/sd_spi_card/sd_spi_card.h")
-#    include "esphome/components/sd_spi_card/sd_spi_card.h"
-#    define HAVE_SD_SPI_CARD 1
+#  if __has_include("esphome/components/sd_mmc_card/sd_mmc_card.h")
+#    include "esphome/components/sd_mmc_card/sd_mmc_card.h"
+#    define HAVE_SD_MMC_CARD 1
 #  endif
 #endif
-#ifndef HAVE_SD_SPI_CARD
-#  define HAVE_SD_SPI_CARD 0
+#ifndef HAVE_SD_MMC_CARD
+#  define HAVE_SD_MMC_CARD 0
 #endif
 
 #if defined(__cplusplus)
@@ -24,7 +24,9 @@ void *my_lvgl_realloc(void *ptr, size_t size);
 #endif
 #include <string>
 #include <stdio.h>
+#include <cstring>
 #include <esp_http_server.h>
+#include <esp_task_wdt.h>
 #include <vector>
 #include <esp_err.h>
 #include "freertos/FreeRTOS.h"
@@ -111,6 +113,79 @@ static lv_img_dsc_t *grab_lvgl_rgb565() {
   return dsc;
 }
 
+static bool encode_png_to_buffer(lv_img_dsc_t *img, uint8_t **out_buf, size_t *out_size) {
+  if (!img || !out_buf || !out_size) return false;
+  uint32_t w = img->header.w;
+  uint32_t h = img->header.h;
+  size_t row_bytes = (size_t) w * 3;
+  uint8_t *rowbuf = (uint8_t *) my_lvgl_malloc(row_bytes);
+  if (!rowbuf) {
+    ESP_LOGW(TAG, "Failed to allocate per-row buffer of %u bytes", (unsigned) row_bytes);
+    return false;
+  }
+
+  size_t png_bytes = (size_t) w * (size_t) h; 
+  uint8_t *png_buf = (uint8_t *) my_lvgl_malloc(png_bytes);
+  if (!png_buf) {
+    ESP_LOGW(TAG, "Failed to allocate pngbuf of %u bytes", (unsigned) png_bytes);
+    my_lvgl_free(rowbuf);
+    return false;
+  }
+
+  PNGenc png_encoder;
+  int rc = png_encoder.open(png_buf, png_bytes);
+  if (rc != PNG_SUCCESS) {
+    ESP_LOGW(TAG, "Failed to open PNG encoder: %d", rc);
+    my_lvgl_free(rowbuf);
+    my_lvgl_free(png_buf);
+    return false;
+  }
+  rc = png_encoder.encodeBegin(w, h, PNG_PIXEL_TRUECOLOR, 24, NULL, 1);
+  if (rc != PNG_SUCCESS) {
+    ESP_LOGW(TAG, "Error starting PNG encoding = %d", rc);
+    my_lvgl_free(rowbuf);
+    my_lvgl_free(png_buf);
+    return false;
+  }
+
+  auto black = lv_color_make(0, 0, 0);
+  for (uint32_t y = 0; y < h; ++y) {
+    for (uint32_t x = 0; x < w; ++x) {
+      lv_color_t color = lv_img_buf_get_px_color(img, x, y, black);
+      size_t idx = (size_t) x * 3;
+      auto r = LV_COLOR_GET_R(color);
+      auto g = LV_COLOR_GET_G(color);
+      auto b = LV_COLOR_GET_B(color);
+      rowbuf[idx + 0] = (r << 3) | (r ? 7 : 0);
+      rowbuf[idx + 1] = (g << 2) | (g ? 3 : 0);
+      rowbuf[idx + 2] = (b << 3) | (b ? 7 : 0);
+    }
+    rc = png_encoder.addLine(rowbuf);
+    if (rc != PNG_SUCCESS) {
+      ESP_LOGW(TAG, "Error adding line %u to PNG encoding = %d", (unsigned) y, rc);
+      break;
+    }
+    esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  size_t bytes_written = 0;
+  if (rc == PNG_SUCCESS) {
+    bytes_written = png_encoder.close();
+  }
+
+  my_lvgl_free(rowbuf);
+
+  if (rc != PNG_SUCCESS || bytes_written == 0) {
+    my_lvgl_free(png_buf);
+    return false;
+  }
+
+  *out_buf = png_buf;
+  *out_size = bytes_written;
+  return true;
+}
+
 // Response that owns a buffer and frees it when destroyed.
 class OwnedProgmemResponse : public ::esphome::web_server_idf::AsyncWebServerResponse {
  public:
@@ -166,6 +241,9 @@ void ScreenshotComponent::setup() {
   if (this->capture_done_) {
     ESP_LOGD(TAG, "capture_done_ semaphore created %p", (void *)this->capture_done_);
   }
+  if (this->png_mutex_ == nullptr) {
+    this->png_mutex_ = xSemaphoreCreateMutex();
+  }
   ESP_LOGI(TAG, "Registered /screenshot.png handler with web_server");
 }
 
@@ -179,221 +257,115 @@ static void process_request(AsyncWebServerRequest *request);
 void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request) {
   ESP_LOGI(TAG, "HTTP /screenshot.png request via web_server");
   ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url().c_str(), request->method());
-  // Post capture request to main loop and wait for result.
-  ESP_LOGD(TAG, "Posting capture request to main loop and waiting for result");
-
-  // Ensure semaphore exists
-  if (this->parent_->capture_done_ == nullptr) {
-    this->parent_->capture_done_ = xSemaphoreCreateBinary();
-    if (this->parent_->capture_done_ == nullptr) {
-      ESP_LOGW(TAG, "Failed to create capture semaphore");
-      request->send(500, "text/plain", "Internal error");
-      return;
-    }
-  }
-
-  // Arm request and signal main loop to perform capture
-  this->parent_->capture_result_ = nullptr;
-  this->parent_->processing_ = true;
-  this->parent_->pending_request_ = request;
-  ESP_LOGD(TAG, "Posted capture request to main loop; waiting up to %u ms", (unsigned)2000);
-
-  // Wait for main loop to complete capture (timeout 2s)
-  const TickType_t timeout = pdMS_TO_TICKS(2000);
-  if (xSemaphoreTake(this->parent_->capture_done_, timeout) != pdTRUE) {
-    ESP_LOGW(TAG, "Capture timeout waiting for main loop");
-    this->parent_->processing_ = false;
-    this->parent_->pending_request_ = nullptr;
-    request->send(504, "text/plain", "Capture timeout");
-    return;
-  }
-
-  // Retrieve captured image produced on main thread
-  lv_img_dsc_t *img = this->parent_->capture_result_;
-  // Clear pending state
-  this->parent_->capture_result_ = nullptr;
-  this->parent_->processing_ = false;
-  this->parent_->pending_request_ = nullptr;
-
-  if (!img) {
-    ESP_LOGW(TAG, "Main-loop capture failed");
-    request->send(500, "text/plain", "Could not grab LVGL framebuffer\n");
-    return;
-  }
-  // From here, stream the captured image (reuse streaming code path)
-  ESP_LOGD(TAG, "Processing captured image on HTTP task");
-  ESP_LOGI(TAG, "Captured image: w=%u h=%u cf=%d data=%p", (unsigned)img->header.w, (unsigned)img->header.h,
-           img->header.cf, img->data);
-
-  uint32_t w = img->header.w;
-  uint32_t h = img->header.h;
-  uint32_t pixels = w * h;
-  std::string header = "P6\n" + std::to_string(w) + " " + std::to_string(h) + "\n255\n";
-
-  httpd_req_t *req = *request;
-  httpd_resp_set_status(req, HTTPD_200);
-  char wbuf[16];
-  char hbuf[16];
-  snprintf(wbuf, sizeof(wbuf), "%u", (unsigned)w);
-  snprintf(hbuf, sizeof(hbuf), "%u", (unsigned)h);
-  httpd_resp_set_hdr(req, "X-Image-Width", wbuf);
-  httpd_resp_set_hdr(req, "X-Image-Height", hbuf);
-
-  /* chunked send helper */
-  auto send_chunk_with_retry = [&](httpd_req_t *req, const char *data, ssize_t len) -> esp_err_t {
-    const int max_retries = 3;
-    esp_err_t err = ESP_FAIL;
-    for (int attempt = 0; attempt < max_retries; ++attempt) {
-      err = httpd_resp_send_chunk(req, data, len);
-      if (err == ESP_OK) return err;
-      ESP_LOGW(TAG, "httpd_resp_send_chunk attempt %d failed: 0x%04x (%s)", attempt + 1, (int)err,
-               esp_err_to_name(err));
-      vTaskDelay(pdMS_TO_TICKS(1));
-    }
-    return err;
-  };
-
-  size_t header_len = header.size();
-
-  const uint8_t *src = reinterpret_cast<const uint8_t *>(img->data);
-
-  // Try to initialize PNG encoder first. If that fails we'll fall back to
-  // streaming a PPM and send the PPM header only in that case (avoids
-  // corrupting PNG output with a preceding PPM header).
-  size_t row_bytes = (size_t)w * 3;
-  uint8_t *rowbuf = (uint8_t *)my_lvgl_malloc(row_bytes);
-  if (!rowbuf) {
-    ESP_LOGW(TAG, "Failed to allocate per-row buffer of %u bytes", (unsigned)row_bytes);
-    my_lvgl_free((void *)img->data);
-    my_lvgl_free(img);
-    return;
-  }
-  ESP_LOGD(TAG, "Allocated per-row buffer of %u bytes", (unsigned)row_bytes);
-  
-  size_t png_bytes = (size_t)w * (size_t)h * 3;
-  uint8_t *png_buf = (uint8_t *) my_lvgl_malloc(png_bytes);
-  if (!png_buf) {
-    ESP_LOGW(TAG, "Failed to allocate pngbuf of %u bytes", (unsigned)png_bytes);
-    my_lvgl_free((void *)img->data);
-    my_lvgl_free(img);
-    return;
-  }
-  ESP_LOGD(TAG, "Allocated png buffer of %u bytes", (unsigned)png_bytes);
-  PNGenc png_encoder;
-  int rc = png_encoder.open(png_buf, png_bytes);
-  if (rc != PNG_SUCCESS) {
-    ESP_LOGW(TAG, "Failed to open PNG encoder: %d", rc);
-  }
-  if (rc == PNG_SUCCESS)
-  {
-    rc = png_encoder.encodeBegin(w, h, PNG_PIXEL_TRUECOLOR, 24, NULL, 9);
-    if (rc != PNG_SUCCESS) {
-      ESP_LOGW(TAG, "Error starting PNG encoding = %d\n", rc);
-    } 
-  }
-
-  // Select content-type and send header if falling back to PPM
-  if (rc == PNG_SUCCESS) {
-    httpd_resp_set_type(req, "image/png");
-  } else {
-    httpd_resp_set_type(req, "image/x-portable-pixmap");
-    if (send_chunk_with_retry(req, header.c_str(), (ssize_t)header_len) != ESP_OK) {
-      ESP_LOGW(TAG, "Failed to send PPM header");
-      my_lvgl_free((void *)png_buf);
-      my_lvgl_free((void *)img->data);
-      my_lvgl_free(img);
-      my_lvgl_free(rowbuf);
-      return;
-    }
-  }
-
-  auto black = lv_color_make(0, 0, 0);
-  ESP_LOGD(TAG, "Starting to convert and send image %d rows", (unsigned)h);
-  for (uint32_t y = 0; y < h; ++y) {
-    for (uint32_t x = 0; x < w; ++x) {
-      lv_color_t color = lv_img_buf_get_px_color(img, x, y, black);
-      size_t idx = (size_t)x * 3;
-      auto r = LV_COLOR_GET_R(color);
-      auto g = LV_COLOR_GET_G(color);
-      auto b = LV_COLOR_GET_B(color); 
-      rowbuf[idx + 0] = (r << 3) | (r ? 7 : 0);
-      rowbuf[idx + 1] = (g << 2) | (g ? 3 : 0);
-      rowbuf[idx + 2] = (b << 3) | (b ? 7 : 0);
-    }
-    if (rc == PNG_SUCCESS) {
-      rc = png_encoder.addLine(rowbuf);
-      if (rc != PNG_SUCCESS) {
-        ESP_LOGW(TAG, "Error adding line %u to PNG encoding = %d\n", (unsigned)y,rc);
-      } 
-    } else {
-      if (send_chunk_with_retry(req, reinterpret_cast<const char *>(rowbuf), (ssize_t)row_bytes) != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to send converted row %u", (unsigned)y);
-        break;
-      }
-    }
-  }
-  if (rc == PNG_SUCCESS) {
-    ESP_LOGD(TAG, "Finalizing PNG image");
-    size_t bytes_written = png_encoder.close();
-#if HAVE_SD_SPI_CARD
-    if (this->parent_->sd_spi_card_ != nullptr) {
-      const std::string path = "/sdcard/screenshot.png";
-      bool mounted = this->parent_->sd_spi_card_->is_mounted();
-      if (!mounted) {
-        mounted = this->parent_->sd_spi_card_->mount();
-      }
-      if (!mounted) {
-        ESP_LOGW(TAG, "SD mount failed; skipping write");
-      } else {
-        this->parent_->sd_spi_card_->delete_file(path);
-        bool ok = this->parent_->sd_spi_card_->append_file_chunk(path, png_buf, bytes_written, true);
-        if (!ok) {
-          ESP_LOGW(TAG, "SD write failed: %s", path.c_str());
-        } else {
-          ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+  uint8_t *copy = nullptr;
+  size_t copy_size = 0;
+  if (this->parent_->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->parent_->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      if (this->parent_->last_png_buf_ != nullptr && this->parent_->last_png_size_ > 0) {
+        copy_size = this->parent_->last_png_size_;
+        copy = (uint8_t *) my_lvgl_malloc(copy_size);
+        if (copy != nullptr) {
+          memcpy(copy, this->parent_->last_png_buf_, copy_size);
         }
       }
-    } else {
-      ESP_LOGD(TAG, "sd_spi_card not configured, skipping SD write");
+      xSemaphoreGive(this->parent_->png_mutex_);
     }
-#else
-    ESP_LOGD(TAG, "sd_spi_card support not compiled, skipping SD write");
-#endif
-    send_chunk_with_retry(req, reinterpret_cast<const char *>(png_buf), (ssize_t)bytes_written);
-    ESP_LOGD(TAG, "PNG image finalized, %u bytes written", (unsigned)bytes_written);
   }
-  httpd_resp_send_chunk(req, NULL, 0);
-  ESP_LOGD(TAG, "Completed sending PPM image data");
-  my_lvgl_free((void *)png_buf);
-  my_lvgl_free((void *)img->data);
-  my_lvgl_free(img);
-  my_lvgl_free(rowbuf);
+
+  if (copy != nullptr && copy_size > 0) {
+    httpd_req_t *req = *request;
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "image/png");
+    httpd_resp_send(req, reinterpret_cast<const char *>(copy), (ssize_t)copy_size);
+    my_lvgl_free(copy);
+    return;
+  }
+
+  if (this->parent_->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->parent_->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->parent_->capture_requested_ = true;
+      xSemaphoreGive(this->parent_->png_mutex_);
+    }
+  } else {
+    this->parent_->capture_requested_ = true;
+  }
+  request->send(202, "text/plain", "Capture queued; retry in a moment");
   return;
 }
 
  
 
-// No queued processing — request handling is synchronous in the handler now.
 void ScreenshotComponent::loop() {
-  // If a capture was requested by the HTTP handler, perform it here on the main thread
-  if (!this->processing_)
+  if (!this->capture_requested_ || this->capture_in_progress_)
     return;
 
-  // Perform LVGL capture on the main thread
-  lv_img_dsc_t *img = grab_lvgl_rgb565();
+  this->capture_in_progress_ = true;
+  this->capture_requested_ = false;
 
-  // Store result and signal HTTP task
-  this->capture_result_ = img;
-  this->processing_ = false;
-  if (this->capture_done_) {
-    xSemaphoreGive(this->capture_done_);
-  }
-  if (img) {
-    ESP_LOGD(TAG, "Main-loop capture stored img=%p w=%u h=%u cf=%d", (void *)img, (unsigned)img->header.w,
-             (unsigned)img->header.h, img->header.cf);
-  } else {
+  lv_img_dsc_t *img = grab_lvgl_rgb565();
+  if (!img) {
     ESP_LOGW(TAG, "Main-loop capture returned NULL image");
+    this->capture_in_progress_ = false;
+    return;
   }
+
+  uint8_t *png_buf = nullptr;
+  size_t png_size = 0;
+  bool ok = encode_png_to_buffer(img, &png_buf, &png_size);
+
+  my_lvgl_free((void *) img->data);
+  my_lvgl_free(img);
+
+  if (!ok) {
+    ESP_LOGW(TAG, "PNG encode failed; no cached image updated");
+    this->capture_in_progress_ = false;
+    return;
+  }
+
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(200)) == pdTRUE) {
+      if (this->last_png_buf_ != nullptr) {
+        my_lvgl_free(this->last_png_buf_);
+      }
+      this->last_png_buf_ = png_buf;
+      this->last_png_size_ = png_size;
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    if (this->last_png_buf_ != nullptr) {
+      my_lvgl_free(this->last_png_buf_);
+    }
+    this->last_png_buf_ = png_buf;
+    this->last_png_size_ = png_size;
+  }
+
+#if HAVE_SD_MMC_CARD
+  if (this->sd_mmc_card_ != nullptr) {
+    const std::string path = "/sdcard/screenshot.png";
+    bool mounted = this->sd_mmc_card_->is_mounted();
+    if (!mounted) {
+      mounted = this->sd_mmc_card_->mount();
+    }
+    if (!mounted) {
+      ESP_LOGW(TAG, "SD mount failed; skipping write");
+    } else {
+      this->sd_mmc_card_->delete_file(path);
+      bool wrote = this->sd_mmc_card_->append_file_chunk(path, png_buf, png_size, true);
+      if (!wrote) {
+        ESP_LOGW(TAG, "SD write failed: %s", path.c_str());
+      } else {
+        ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+      }
+    }
+  } else {
+    ESP_LOGD(TAG, "sd_mmc_card not configured, skipping SD write");
+  }
+#else
+  ESP_LOGD(TAG, "sd_mmc_card support not compiled, skipping SD write");
+#endif
+
+  ESP_LOGD(TAG, "PNG image cached, %u bytes", (unsigned) png_size);
+  this->capture_in_progress_ = false;
 }
 
 }  // namespace screenshot

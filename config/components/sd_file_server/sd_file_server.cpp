@@ -1,5 +1,5 @@
 #include "sd_file_server.h"
-#include "esphome/components/sd_spi_card/sd_spi_card.h"
+#include "esphome/components/sd_mmc_card/sd_mmc_card.h"
 #include "esphome/core/log.h"
 #include "esphome/components/network/util.h"
 #include "esphome/components/web_server_base/web_server_base.h"
@@ -65,11 +65,11 @@ void SDFileServer::handleUpload(AsyncWebServerRequest *request, const std::strin
   if (index == 0) {
     ESP_LOGD(TAG, "uploading file %s to %s", file_name.c_str(), path.c_str());
     // remove existing file (ignore result) then start first chunk
-    this->sd_spi_card_->delete_file(file_path);
-    this->sd_spi_card_->append_file_chunk(file_path, data, len, true);
+    this->sd_mmc_card_->delete_file(file_path);
+    this->sd_mmc_card_->append_file_chunk(file_path, data, len, true);
     return;
   }
-  this->sd_spi_card_->append_file_chunk(file_path, data, len, false);
+  this->sd_mmc_card_->append_file_chunk(file_path, data, len, false);
   if (final) {
     auto response = request->beginResponse(201, "text/html", "upload success");
     response->addHeader("Connection", "close");
@@ -82,7 +82,7 @@ void SDFileServer::set_url_prefix(std::string const &prefix) { this->url_prefix_
 
 void SDFileServer::set_root_path(std::string const &path) { this->root_path_ = path; }
 
-void SDFileServer::set_sd_spi_card(::esphome::sd_card::SdSpiCard *card) { this->sd_spi_card_ = card; }
+void SDFileServer::set_sd_mmc_card(::esphome::sd_card::SdMmcCard *card) { this->sd_mmc_card_ = card; }
 
 void SDFileServer::set_deletion_enabled(bool allow) { this->deletion_enabled_ = allow; }
 
@@ -96,7 +96,7 @@ void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
 
   // Try to read file; if successful, treat as file download, otherwise list directory
   std::string file_contents;
-  if (this->sd_spi_card_->read_file_to_string(path, file_contents)) {
+  if (this->sd_mmc_card_->read_file_to_string(path, file_contents)) {
     handle_download(request, path);
     return;
   }
@@ -111,7 +111,7 @@ void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
 // a FileInfo type.
 void SDFileServer::handle_index(AsyncWebServerRequest *request, std::string const &path) const {
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  std::string json = this->sd_spi_card_->list_dir_json(path);
+  std::string json = this->sd_mmc_card_->list_dir_json(path);
   response->print(json.c_str());
   request->send(response);
 }
@@ -125,7 +125,7 @@ void SDFileServer::handle_download(AsyncWebServerRequest *request, std::string c
   }
 
   std::string contents;
-  if (!this->sd_spi_card_->read_file_to_string(path, contents)) {
+  if (!this->sd_mmc_card_->read_file_to_string(path, contents)) {
     request->send(401, "application/json", "{ \"error\": \"failed to read file\" }");
     return;
   }
@@ -233,7 +233,7 @@ void SDFileServer::handle_delete(AsyncWebServerRequest *request) {
   }
   std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
   std::string path = this->build_absolute_path(extracted);
-  bool ok = this->sd_spi_card_->delete_file(path);
+  bool ok = this->sd_mmc_card_->delete_file(path);
   if (!ok) {
     request->send(500, "application/json", "{ \"error\": \"failed to delete\" }");
     return;

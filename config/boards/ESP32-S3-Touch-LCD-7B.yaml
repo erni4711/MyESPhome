@@ -88,12 +88,11 @@ spi:
   mosi_pin: 11
   miso_pin: 13
 
-sd_spi_card: 
+sd_mmc_card:
   id: sdcard
-  cs_pin: 
-    waveshare_io_ch32v003: ioexp
-    number: 4 # SD_CS on CH422G P4
-  spi_id: spi2
+  clk_pin: 12
+  cmd_pin: 11
+  d0_pin: 13
   format_on_mount_failure: false
 
 
@@ -108,7 +107,7 @@ i2c:
   id: bus_a
 
 sd_file_server:
-  spi_id: sdcard
+  sd_mmc_id: sdcard
   web_server_base_id: my_web_server
 
 #-------------------------------------------
@@ -403,7 +402,7 @@ web_server:
  
 screenshot:
   id: screenshot_component
-  spi_id: sdcard
+  sd_mmc_id: sdcard
 
 # SD web UI component (file manager using wave7sd)
 #wave7sd:
