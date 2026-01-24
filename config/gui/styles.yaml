@@ -25,12 +25,9 @@ style_definitions:
     pad_column: 0
     border_color: 0x0080b5
     text_color: 0x000000
-    width: 100%
-    height: 40
-  - id: style_menu_button
-    align: CENTER
-    width: 50
+    width: 50%
     height: ${ui_header_height}
+  - id: style_menu_button
     bg_opa: COVER
     bg_color: ${color_darker_grey}
     shadow_opa: 50%
@@ -39,7 +36,6 @@ style_definitions:
     outline_color: ${color_dark_grey}
   - id: style_menu_button_label
     align: CENTER
-    y: 3
     text_font: roboto_med
   - id: style_circle_button_mini
     bg_color: ${color_dark_grey}
@@ -53,8 +49,6 @@ style_definitions:
     text_color: ${color_white}
     text_align: CENTER
     radius: 10
-    width: ${ui_header_font_size}
-    height: ${ui_header_font_size}
   - id: style_circle_button
     bg_color: ${color_darker_grey}
     shadow_opa: 50%
@@ -62,17 +56,11 @@ style_definitions:
     outline_width: 1
     outline_color: ${color_dark_grey}
     radius: 15
-    width: 30
-    height: 30
   - id: style_mode_button
     bg_opa: COVER 
     radius: 50
     outline_width: 1
-    height: 35
-    width: 60
-    align: BOTTOM_MID
   - id: style_circle_label
     align: center
-    y: 2
     text_align: center
     text_font: roboto_med

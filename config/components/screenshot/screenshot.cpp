@@ -5,6 +5,16 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 
+#if defined(__has_include)
+#  if __has_include("esphome/components/sd_spi_card/sd_spi_card.h")
+#    include "esphome/components/sd_spi_card/sd_spi_card.h"
+#    define HAVE_SD_SPI_CARD 1
+#  endif
+#endif
+#ifndef HAVE_SD_SPI_CARD
+#  define HAVE_SD_SPI_CARD 0
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 void *my_lvgl_malloc(size_t size);
@@ -325,6 +335,7 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   if (rc == PNG_SUCCESS) {
     ESP_LOGD(TAG, "Finalizing PNG image");
     size_t bytes_written = png_encoder.close();
+#if HAVE_SD_SPI_CARD
     if (this->parent_->sd_spi_card_ != nullptr) {
       const std::string path = "/sdcard/screenshot.png";
       bool mounted = this->parent_->sd_spi_card_->is_mounted();
@@ -345,6 +356,9 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
     } else {
       ESP_LOGD(TAG, "sd_spi_card not configured, skipping SD write");
     }
+#else
+    ESP_LOGD(TAG, "sd_spi_card support not compiled, skipping SD write");
+#endif
     send_chunk_with_retry(req, reinterpret_cast<const char *>(png_buf), (ssize_t)bytes_written);
     ESP_LOGD(TAG, "PNG image finalized, %u bytes written", (unsigned)bytes_written);
   }

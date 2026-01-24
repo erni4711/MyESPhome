@@ -1,5 +1,5 @@
 substitutions:
-  node_name: "7B-sample"
+  node_name: "7i-sample"
 
 packages:
   - !include common/subst.yaml
@@ -70,6 +70,7 @@ lvgl:
             border_width: 0
             shadow_width: 0
             outline_width: 0
+            scrollbar_mode: "OFF"
             pad_all: 0
             layout:
               type: grid

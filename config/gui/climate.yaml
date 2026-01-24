@@ -1,32 +1,50 @@
 border_width: 0
 shadow_width: 0
 outline_width: 0
-width: 250
-height: 210
+width: ${ui_climate_width}
+height: ${ui_climate_height}
+scrollbar_mode: "OFF"
 pad_all: 0
+layout:
+  type: GRID
+  grid_columns: [fr(1),fr(3), fr(1)]
+  grid_rows: [fr(1), fr(1), fr(1), fr(1), fr(1), fr(1)]
+  multiple_widgets_per_cell: true
+  pad_column: 0
+  pad_row: 0
 widgets:
   # Arc Outer Ring only for visual effect
   - arc:
       id: ${id}_arc_ring_outer
-      height: 180
-      width: 180
-      y: 10
+      height: ${ui_climate_ring_diameter}
+      width: ${ui_climate_ring_diameter}
+      grid_cell_column_span: 3
+      grid_cell_row_span: 5 
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 1
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       align: CENTER
       arc_color: ${color_light_grey}
       arc_opa: COVER
-      arc_width: 10
+      arc_width: ${ui_climate_ring_width}
       arc_rounded: false
       start_angle: 140
       end_angle: 40
       knob:
         bg_color: ${color_white}
-  # Arc Inner Ring only for visual effect
+  # # Arc Inner Ring only for visual effect
   - obj:
       id: ${id}_arc_ring_inner
-      height: 178
-      width: 178
-      y: 10
-      radius: 90
+      height: ${ui_climate_ring_diameter}
+      width: ${ui_climate_ring_diameter}
+      radius: ${ui_climate_ring_radius}
+      grid_cell_column_span: 3
+      grid_cell_row_span: 5 
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 1
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       align: CENTER
       border_width: 40
       border_color: ${color_dark_grey}
@@ -37,12 +55,17 @@ widgets:
   - meter:
       id: ${id}_meter_ticks
       hidden: true
-      height: 188
-      width: 188
-      y: 10
+      height: ${ui_climate_ring_diameter}
+      width: ${ui_climate_ring_diameter}
+      grid_cell_column_span: 3
+      grid_cell_row_span: 5 
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 1
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       align: CENTER
       bg_opa: TRANSP
-      border_width: 0
+      border_width: 2
       shadow_width: 0
       scales:
         range_from: 160   # 16°C
@@ -72,10 +95,15 @@ widgets:
     # Meter inner Ring only for visual effect
   - obj:
       id: ${id}_meter_ring_inner
-      height: 120
-      width: 120
-      y: 0
-      radius: 80
+      height: ${ui_climate_meter_diameter}
+      width: ${ui_climate_meter_diameter}
+      grid_cell_column_span: 3
+      grid_cell_row_span: 5
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 1
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
+      radius: ${ui_climate_meter_radius}
       align: CENTER
       border_width: 12
       border_color: ${color_dark_grey}
@@ -84,18 +112,23 @@ widgets:
       # end_angle: 45
   # background for mode buttons
   - obj:
-      x: 0
-      y: 80
-      align: CENTER
+      grid_cell_column_pos: 1
+      grid_cell_row_pos: 5
+      grid_cell_x_align: STRETCH
+      grid_cell_y_align: STRETCH
       bg_color: ${color_darker_grey}
-      width: 130
-      height: 40
       border_width: 0
       shadow_width: 0
       outline_width: 0
   # Set temperature knob, should change with the set temperature ticks
   - arc:
       id: ${id}_hvac_temp_knob
+      grid_cell_column_span: 3
+      grid_cell_row_span: 5 
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 1
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       hidden: true
       align: CENTER
       arc_opa: TRANSP
@@ -107,7 +140,6 @@ widgets:
       height: 155
       start_angle: 140
       end_angle: 40
-      y: 10
       arc_width: 10
       change_rate: 30
       indicator:
@@ -129,32 +161,34 @@ widgets:
   # HVAC Modes: OFF, AUTO, HEAT, COOL
   - label:
       id: ${id}_mode_label
+      grid_cell_column_pos: 1
+      grid_cell_row_pos: 2
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       align: CENTER
-      y: -30
       text: "KPR" # HVAC mode to be updated from Home Assistant climate entity
       text_font: roboto_reg
       text_color: ${color_grey}
   # Set Temperature label, should change with the set temperature knob
   - label:
       id: ${id}_hvac_temp_label
+      grid_cell_column_pos: 1
+      grid_cell_row_pos: 3
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       hidden: false
       align: CENTER
-      y: 10
       text_font: roboto_huge
       text: "---" # Set temperature to be updated from Home Assistant climate entity
-  # Celsius label only to show °C
-  - label:
-      id: ${id}_celsius_label
-      align: CENTER
-      x: 60
-      y: 45
-      text: "°C"
   # Current Temperature label, should change with the current temperature needle
   - label:
       id: ${id}_current_temp_label
+      grid_cell_column_pos: 1
+      grid_cell_row_pos: 4
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       hidden: false
       align: CENTER
-      y: 45 
       text: "---" # Current temperature to be updated from Home Assistant climate entity
       text_color: ${color_temp_current}
   # Temperature buttons
@@ -162,9 +196,11 @@ widgets:
   - button:
       id: ${id}_temp_inc_button
       hidden: true
-      x: 90
-      y: -65
-      align: CENTER
+      grid_cell_column_pos: 2
+      grid_cell_row_pos: 1
+      grid_cell_x_align: STRETCH
+      grid_cell_y_align: STRETCH
+      align: TOP_RIGHT
       styles: style_circle_button
       bg_color: ${color_red}
       widgets:
@@ -180,9 +216,11 @@ widgets:
   - button:
       id: ${id}_temp_dec_button
       hidden: true
-      x: 90
-      y: 85
-      align: CENTER
+      grid_cell_column_pos: 2
+      grid_cell_row_pos: 5
+      grid_cell_x_align: STRETCH
+      grid_cell_y_align: STRETCH
+      align: BOTTOM_RIGHT
       styles: style_circle_button
       bg_color: ${color_blue}
       widgets:
@@ -198,9 +236,11 @@ widgets:
   - button:
       id: ${id}_temp_comfort_button
       hidden: true
-      x: -90
-      y: -65
-      align: CENTER
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 1
+      grid_cell_x_align: STRETCH
+      grid_cell_y_align: STRETCH
+      align: TOP_LEFT
       styles: style_menu_button
       bg_color: ${color_red}
       widgets:
@@ -218,9 +258,11 @@ widgets:
   - button:
       id: ${id}_temp_lowering_button
       hidden: true
-      x: -90
-      y: 85
-      align: CENTER
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 5
+      grid_cell_x_align: STRETCH
+      grid_cell_y_align: STRETCH
+      align: BOTTOM_LEFT
       styles: style_menu_button
       bg_color: ${color_blue}
       widgets:
@@ -238,9 +280,11 @@ widgets:
   # POWER
   - button:
       id: ${id}_power_button
-      x: -30  # Leftmost position
-      y: 80
-      align: CENTER
+      grid_cell_column_pos: 1
+      grid_cell_row_pos: 5
+      grid_cell_x_align: START
+      grid_cell_y_align: CENTER
+      align: RIGHT_MID
       bg_opa: TRANSP
       styles: style_mode_button
       widgets:
@@ -268,9 +312,11 @@ widgets:
   # HEAT
   - button:
       id: ${id}_heat_button
-      x: 30
-      y: 80
-      align: CENTER
+      grid_cell_column_pos: 1
+      grid_cell_row_pos: 5
+      grid_cell_x_align: END
+      grid_cell_y_align: CENTER
+      align: BOTTOM_LEFT
       bg_opa: TRANSP
       styles: style_mode_button
       widgets:
@@ -286,10 +332,13 @@ widgets:
               entity_id: ${entity}
               hvac_mode: "heat"
   - label:
-      x: 0
-      y: -90
-      text: ${title}
+      grid_cell_column_pos: 0
+      grid_cell_row_pos: 0
+      grid_cell_column_span: 3
+      grid_cell_x_align: STRETCH
+      grid_cell_y_align: STRETCH
       align: CENTER
+      text: ${title}
       text_align: CENTER
       text_color: ${color_black}
       bg_color: ${color_grey}

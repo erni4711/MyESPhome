@@ -5,7 +5,7 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
     id: font_large
     bpp: 4
-    size: 32
+    size: ${ui_title_font_size}
     glyphsets:
     - GF_Latin_Core
     extras:
@@ -17,7 +17,7 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
     id: font_norm
     bpp: 4
-    size: ${ui_title_font_size}
+    size: ${ui_norm_font_size}
     glyphsets:
     - GF_Latin_Core
     extras:
@@ -29,7 +29,7 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'    # font file
     id: font_small
     bpp: 4
-    size: 16
+    size: ${ui_small_font_size}
     glyphsets:
     - GF_Latin_Core
     ignore_missing_glyphs: true
@@ -76,7 +76,7 @@ font:
       - ${mdi_battery_unknown}
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: weather_symbols_80
-    size: 80
+    size: ${ui_weather_symbol_size}
     bpp: 4
     glyphs:
       - ${mdi_clear_night}
@@ -102,7 +102,7 @@ font:
     ignore_missing_glyphs: true
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: weather_symbols_64
-    size: 64
+    size: ${ui_weather_symbol_smallersize}
     bpp: 4
     glyphs:
       - ${mdi_clear_night}
@@ -128,7 +128,7 @@ font:
     ignore_missing_glyphs: true
   - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
     id: weather_symbols_40
-    size: 40
+    size: ${ui_weather_symbol_smallsize}
     bpp: 4
     glyphs:
       - ${mdi_clear_night}
@@ -187,25 +187,5 @@ font:
   - file: 'fonts/RobotoCondensed-Regular.ttf'
     glyphs: ' -0123456789.°C'
     id: roboto_huge
-    size: 50
+    size: ${ui_huge_font_size}
     bpp: 4 
-  # - file: "fonts/Nunito-SemiBold.ttf"
-  #   id: nunito_24
-  #   size: 24
-  #   bpp: 8
-  # - file: "fonts/Nunito-SemiBold.ttf"
-  #   id: nunito_20
-  #   size: 20
-  #   bpp: 8  
-  # - file: "fonts/Nunito-SemiBold.ttf"
-  #   id: nunito_72
-  #   size: 72
-  #   bpp: 8  
-  # - file: "fonts/Nunito-SemiBold.ttf"
-  #   id: nunito_48
-  #   size: 48
-  #   bpp: 8 
-  # - file: "fonts/Nunito-SemiBold.ttf"
-  #   id: nunito_42
-  #   size: 42
-  #   bpp: 8

@@ -31,8 +31,22 @@ substitutions:
   ui_header_height: 30
   ui_footer_height: 30
   ui_page_height: 420
+  ui_half_page_height: 210
   ui_header_font_size: 20
+  ui_huge_font_size: 45
   ui_title_font_size: 24
+  ui_norm_font_size: 18
+  ui_small_font_size: 14
+  ui_weather_symbol_size: 70
+  ui_weather_symbol_smallersize: 56
+  ui_weather_symbol_smallsize: 38
+  ui_climate_width: 250
+  ui_climate_height: 210
+  ui_climate_ring_diameter: 180
+  ui_climate_ring_radius: 90
+  ui_climate_ring_width: 10
+  ui_climate_meter_diameter: 120
+  ui_climate_meter_radius: 60
 
 external_components:
   - source: components

@@ -24,8 +24,22 @@ substitutions:
   ui_header_height: 40
   ui_footer_height: 40
   ui_page_height: 520
+  ui_half_page_height: 260
   ui_header_font_size: 30
   ui_title_font_size: 34
+  ui_huge_font_size: 50
+  ui_norm_font_size: 26
+  ui_small_font_size: 20
+  ui_weather_symbol_size: 80
+  ui_weather_symbol_smallersize: 64
+  ui_weather_symbol_smallsize: 40
+  ui_climate_width: 325
+  ui_climate_height: 260
+  ui_climate_ring_diameter: 240
+  ui_climate_ring_radius: 120
+  ui_climate_ring_width: 15
+  ui_climate_meter_diameter: 180
+  ui_climate_meter_radius: 90
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -450,6 +464,7 @@ lvgl:
     widgets:
       - obj:
           styles: header_footer
+          bg_opa: COVER
           align: top_left
           width: 40
           layout:
@@ -471,7 +486,8 @@ lvgl:
       - obj:
           styles: header_footer
           align: top_right
-          width: SIZE_CONTENT
+          width: 330
+          bg_opa: COVER
           layout:
             type: flex
             flex_flow: row
@@ -514,10 +530,12 @@ lvgl:
                     - lvgl.widget.show: boot_screen
       - buttonmatrix:
           align: bottom_mid
+          bg_opa: COVER
           styles: header_footer
           pad_all: 0
           outline_width: 0
           height: ${ui_footer_height}
+          width: 100%
           id: top_layer
           items:
             styles: header_footer
@@ -584,8 +602,10 @@ lvgl:
                 y: 160  
                 text: "X"
             - label:
+                border_width: 4
+                border_color: white
                 align: BOTTOM_RIGHT
-                text_font: montserrat_10
+                text_font: font_small
                 text: "based on a template by Bernd Oerding\nhttps://github.com/erni4711/MyESPhome.git"
             - label:
                 align: CENTER

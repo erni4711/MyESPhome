@@ -28,7 +28,7 @@ widgets:
         text: ${mdi_unknown}
     - label:
         id: forecast_description_${id}
-        height: 32
+        height: 42
         text_font: font_small
         text_color: dodgerblue
         text: ""

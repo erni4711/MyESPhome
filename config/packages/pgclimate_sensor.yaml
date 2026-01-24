@@ -24,7 +24,7 @@ sensor:
               - lvgl.label.update:
                   id: ${id}_hvac_temp_label
                   text:
-                    format: "%.1f"
+                    format: "%.1f°C"
                     args: [ 'round(x * 10) / 10' ]
   #      - script.execute: turn_on_screen_light
   # HA Climate current temperature sensor
