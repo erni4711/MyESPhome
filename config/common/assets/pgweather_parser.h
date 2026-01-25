@@ -274,7 +274,7 @@ static inline void pgweather_hourly_parse_attrs(const std::string& json,
   if (doc["temp"].is<double>() || doc["temp"].is<long>()) {
     double t = doc["temp"].as<double>();
     char tb[18];
-    snprintf(tb, sizeof(tb), "%.1f°", t);
+    snprintf(tb, sizeof(tb), " %.1f°", t);
     glyph += tb;
   }
   safe_lv_label_set_text(temp_lbl, glyph.c_str());
@@ -308,10 +308,8 @@ static inline void pgweather_hourly_parse_attrs(const std::string& json,
 
     if (has_rain && rain_amt > 0.0) {
       char rb[32];
-      snprintf(rb, sizeof(rb), "%.1fmm", rain_amt);
-      std::string s = std::string(mdi_rainy);
-      s += rb;
-      safe_lv_label_set_text(rain_lbl, s.c_str());
+      snprintf(rb, sizeof(rb), "%.1f", rain_amt);
+      safe_lv_label_set_text(rain_lbl, rb);
     } else {
       safe_lv_label_set_text(rain_lbl, "");
     }
@@ -336,10 +334,8 @@ static inline void pgweather_hourly_parse_attrs(const std::string& json,
 
     if (has_snow && snow_amt > 0.0) {
       char sb[32];
-      snprintf(sb, sizeof(sb), "%.1fmm", snow_amt);
-      std::string s = std::string(mdi_snowy);
-      s += sb;
-      safe_lv_label_set_text(snow_lbl, s.c_str());
+      snprintf(sb, sizeof(sb), "%.1f", snow_amt);
+      safe_lv_label_set_text(snow_lbl, sb);
     } else {
       safe_lv_label_set_text(snow_lbl, "");
     }
@@ -356,12 +352,10 @@ static inline void pgweather_hourly_parse_attrs(const std::string& json,
       }
       char wb[64];
       if (!dir.empty())
-        snprintf(wb, sizeof(wb), "%.1f㎧%s", ws, dir.c_str());
+        snprintf(wb, sizeof(wb), "%.1f %s", ws, dir.c_str());
       else
-        snprintf(wb, sizeof(wb), "%.1f㎧", ws);
-      std::string s = std::string(mdi_windy);
-      s += wb;
-      safe_lv_label_set_text(wind_lbl, s.c_str());
+        snprintf(wb, sizeof(wb), "%.1f", ws);
+      safe_lv_label_set_text(wind_lbl, wb);
     } else {
       safe_lv_label_set_text(wind_lbl, "");
     }
@@ -386,7 +380,7 @@ static inline void pgweather_hourly_parse_state(const std::string& state,
   if (dt) {
     time_t t = (time_t)dt;
     struct tm* lt = localtime(&t);
-    if (lt) strftime(tsbuf, sizeof(tsbuf), "%H:%M", lt);
+    if (lt) strftime(tsbuf, sizeof(tsbuf), " %H:%M ", lt);
   }
   safe_lv_label_set_text(time_label, tsbuf);
 }

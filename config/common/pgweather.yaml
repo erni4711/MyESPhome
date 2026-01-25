@@ -263,106 +263,114 @@ lvgl:
               layout:
                 type: GRID
                 grid_rows: [ fr(1), fr(1), fr(1), fr(1) ]
-                grid_columns: [ fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1) ]
+                grid_columns: [ CONTENT, fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1), fr(1) ]
                 pad_column: 0
                 pad_row: 0
               widgets:
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 0, id: 0 } }
+                    <<: !include { file: assets/hourly_units_widget.yaml, vars: { row: 0, col: 0 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 1, id: 1 } }
+                    <<: !include { file: assets/hourly_units_widget.yaml, vars: { row: 1, col: 0 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 2, id: 2 } }
+                    <<: !include { file: assets/hourly_units_widget.yaml, vars: { row: 2, col: 0 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 3, id: 3 } }
+                    <<: !include { file: assets/hourly_units_widget.yaml, vars: { row: 3, col: 0 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 4, id: 4 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 1, id: 0 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 5, id: 5 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 2, id: 1 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 6, id: 6 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 3, id: 2 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 7, id: 7 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 4, id: 3 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 8, id: 8 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 5, id: 4 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 9, id: 9 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 6, id: 5 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 10, id: 10 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 7, id: 6 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 11, id: 11 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 8, id: 7 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 0, id: 12 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 9, id: 8 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 1, id: 13 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 10, id: 9 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 2, id: 14 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 11, id: 10 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 3, id: 15 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 0, col: 12, id: 11 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 4, id: 16 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 1, id: 12 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 5, id: 17 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 2, id: 13 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 6, id: 18 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 3, id: 14 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 7, id: 19 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 4, id: 15 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 8, id: 20 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 5, id: 16 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 9, id: 21 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 6, id: 17 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 10, id: 22 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 7, id: 18 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 11, id: 23 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 8, id: 19 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 0, id: 24 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 9, id: 20 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 1, id: 25 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 10, id: 21 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 2, id: 26 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 11, id: 22 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 3, id: 27 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 1, col: 12, id: 23 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 4, id: 28 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 1, id: 24 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 5, id: 29 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 2, id: 25 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 6, id: 30 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 3, id: 26 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 7, id: 31 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 4, id: 27 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 8, id: 32 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 5, id: 28 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 9, id: 33 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 6, id: 29 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 10, id: 34 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 7, id: 30 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 11, id: 35 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 8, id: 31 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 0, id: 36 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 9, id: 32 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 1, id: 37 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 10, id: 33 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 2, id: 38 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 11, id: 34 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 3, id: 39 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 2, col: 12, id: 35 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 4, id: 40 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 1, id: 36 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 5, id: 41 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 2, id: 37 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 6, id: 42 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 3, id: 38 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 7, id: 43 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 4, id: 39 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 8, id: 44 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 5, id: 40 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 9, id: 45 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 6, id: 41 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 10, id: 46 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 7, id: 42 } }
                 - obj:
-                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 11, id: 47 } }
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 8, id: 43 } }
+                - obj:
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 9, id: 44 } }
+                - obj:
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 10, id: 45 } }
+                - obj:
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 11, id: 46 } }
+                - obj:
+                    <<: !include { file: assets/hourly_widget.yaml, vars: { row: 3, col: 12, id: 47 } }
 
 
 text_sensor:

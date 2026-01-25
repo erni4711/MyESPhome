@@ -9,7 +9,7 @@ outline_width: 0
 layout:
   type: flex
   flex_flow: COLUMN
-  flex_align_cross: STRETCH
+  flex_align_cross: START
   flex_align_track: START
   pad_column: 0
   pad_row: 0
@@ -17,46 +17,40 @@ grid_cell_row_pos: ${row}
 grid_cell_column_pos: ${col}
 widgets:
   - label:
-      id: forecast_hourly_time_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
+      text_color: gray
       text: " "
-      bg_color: light_blue
-      bg_opa: COVER
-      text_align: CENTER
+      align: LEFT_MID
   - label:
-      id: forecast_hourly_condition_icon_label_${id}
-      text_font: font_small
-      text: ${mdi_unknown}
-      hidden: true
-      height: SIZE_CONTENT
-      text_color: dodgerblue
-  - label:
-      id: forecast_hourly_temperature_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
-      text: ""
-  - label:
-      id: forecast_hourly_pop_label_${id}
-      height: SIZE_CONTENT
-      text_font: font_small
+      text_color: gray
       hidden: true
       text: ""
   - label:
-      id: forecast_hourly_rain_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "${mdi_rainy} "
+      text: "°C"
   - label:
-      id: forecast_hourly_snow_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "${mdi_snowy} "
+      text: "%"
+      hidden: true
   - label:
-      id: forecast_hourly_wind_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "${mdi_windy} "
+      text: "${mdi_rainy}mm"
+  - label:
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
+      text: "${mdi_snowy}mm"
+  - label:
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
+      text: "${mdi_windy}㎧"
