@@ -341,7 +341,7 @@ void ScreenshotComponent::loop() {
 
 #if HAVE_SD_MMC_CARD
   if (this->sd_mmc_card_ != nullptr) {
-    const std::string path = "/sdcard/screenshot.png";
+    const std::string path = "/sdcard/shot.png";
     bool mounted = this->sd_mmc_card_->is_mounted();
     if (!mounted) {
       mounted = this->sd_mmc_card_->mount();

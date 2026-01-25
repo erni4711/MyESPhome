@@ -4,6 +4,9 @@
 #include "esphome/components/network/util.h"
 #include "esphome/components/web_server_base/web_server_base.h"
 #include "esphome/core/helpers.h"
+#include <esp_heap_caps.h>
+#include <esp_http_server.h>
+#include <esp_task_wdt.h>
 
 namespace esphome {
 namespace sd_file_server {
@@ -94,14 +97,28 @@ void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
   std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
   std::string path = this->build_absolute_path(extracted);
 
-  // Try to read file; if successful, treat as file download, otherwise list directory
-  std::string file_contents;
-  if (this->sd_mmc_card_->read_file_to_string(path, file_contents)) {
-    handle_download(request, path);
+  if (this->sd_mmc_card_ == nullptr) {
+    request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
+    return;
+  }
+  if (!this->sd_mmc_card_->is_mounted()) {
+    if (!this->sd_mmc_card_->mount()) {
+      request->send(500, "application/json", "{ \"error\": \"sd card not mounted\" }");
+      return;
+    }
+  }
+
+  bool is_dir = false;
+  if (this->sd_mmc_card_->stat_file(path, nullptr, &is_dir)) {
+    if (!is_dir) {
+      handle_download(request, path);
+      return;
+    }
+    handle_index(request, path);
     return;
   }
 
-  handle_index(request, path);
+  request->send(404, "application/json", "{ \"error\": \"not found\" }");
 }
 
 // Previously this component tried to render an HTML table using a FileInfo
@@ -124,20 +141,38 @@ void SDFileServer::handle_download(AsyncWebServerRequest *request, std::string c
     return;
   }
 
-  std::string contents;
-  if (!this->sd_mmc_card_->read_file_to_string(path, contents)) {
-    request->send(401, "application/json", "{ \"error\": \"failed to read file\" }");
+  class OwnedBufferResponse : public ::esphome::web_server_idf::AsyncWebServerResponse {
+   public:
+    OwnedBufferResponse(const ::esphome::web_server_idf::AsyncWebServerRequest *req, uint8_t *data, size_t size)
+        : AsyncWebServerResponse(req), data_(data), size_(size) {}
+    ~OwnedBufferResponse() override {
+      if (this->data_ != nullptr) {
+        heap_caps_free(this->data_);
+        this->data_ = nullptr;
+      }
+    }
+    const char *get_content_data() const override { return reinterpret_cast<const char *>(this->data_); }
+    size_t get_content_size() const override { return this->size_; }
+
+   private:
+    uint8_t *data_{};
+    size_t size_{};
+  };
+
+  uint8_t *buf = nullptr;
+  size_t size = 0;
+  if (!this->sd_mmc_card_->read_file_to_buffer(path, &buf, &size)) {
+    request->send(500, "application/json", "{ \"error\": \"failed to read file\" }");
     return;
   }
 
-#ifdef USE_ESP_IDF
-  auto *response = request->beginResponse(200, Path::mime_type(path).c_str(), reinterpret_cast<const uint8_t *>(contents.data()), contents.size());
-#else
-  auto *response = request->beginResponseStream(Path::mime_type(path).c_str(), contents.size());
-  response->write(contents.data(), contents.size());
-#endif
+  httpd_req_t *req = *request;
+  httpd_resp_set_status(req, HTTPD_200);
+  httpd_resp_set_type(req, Path::mime_type(path).c_str());
 
+  auto *response = new OwnedBufferResponse(request, buf, size);
   request->send(response);
+  delete response;
 }
 
 std::string SDFileServer::build_prefix() const {

@@ -109,6 +109,10 @@ i2c:
 sd_file_server:
   sd_mmc_id: sdcard
   web_server_base_id: my_web_server
+  enable_download: true
+  enable_upload: true
+  enable_deletion: true
+
 
 #-------------------------------------------
 # LCD Back light
@@ -434,13 +438,6 @@ interval:
             char buf[16];
             sprintf(buf, "%.0f%%", id(battery_percent).state);
             return std::string(buf);
-      - lambda: |-
-          float p = id(battery_percent).state;
-          lv_color_t color;
-          if (p > 50) color = lv_color_hex(0x00FF00);      // green
-          else if (p > 20) color = lv_color_hex(0xFFFF00); // yellow
-          else color = lv_color_hex(0xFF0000);             // red
-          lv_obj_set_style_text_color(id(battery_text), color, LV_PART_MAIN);
 
 
 lvgl:

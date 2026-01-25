@@ -9,8 +9,8 @@ outline_width: 0
 layout:
   type: flex
   flex_flow: COLUMN
-  flex_align_cross: center
-  flex_align_track: center
+  flex_align_cross: START
+  flex_align_track: START
   pad_column: 0
   pad_row: 0
 grid_cell_row_pos: ${row}
@@ -21,10 +21,12 @@ widgets:
       height: SIZE_CONTENT
       text_font: font_small
       text: ""
+      align: LEFT_MID
   - label:
       id: forecast_hourly_condition_icon_label_${id}
       text_font: font_small
       text: ${mdi_unknown}
+      hidden: true
       height: SIZE_CONTENT
       text_color: dodgerblue
   - label:
@@ -36,4 +38,23 @@ widgets:
       id: forecast_hourly_pop_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
+      hidden: true
       text: ""
+  - label:
+      id: forecast_hourly_rain_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
+      text: "${mdi_rainy} "
+  - label:
+      id: forecast_hourly_snow_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
+      text: "${mdi_snowy} "
+  - label:
+      id: forecast_hourly_wind_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
+      text: "${mdi_windy} "

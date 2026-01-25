@@ -34,8 +34,10 @@ font:
     - GF_Latin_Core
     ignore_missing_glyphs: true
     extras:
+      - file: "fonts/GothicA1-Regular.ttf"
+        glyphs: "㎧㎜"
       - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
-        glyphs: 
+        glyphs:
           - ${mdi_clear_night}
           - ${mdi_cloudy}
           - ${mdi_exceptional}

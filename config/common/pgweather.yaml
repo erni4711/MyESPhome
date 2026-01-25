@@ -259,6 +259,7 @@ lvgl:
               shadow_width: 0
               outline_width: 0
               pad_all: 0
+              scrollbar_mode: "OFF"
               layout:
                 type: GRID
                 grid_rows: [ fr(1), fr(1), fr(1), fr(1) ]
@@ -557,7 +558,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_0), id(forecast_hourly_condition_icon_label_0), id(forecast_hourly_temperature_label_0), id(forecast_hourly_pop_label_0));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_0), id(forecast_hourly_condition_icon_label_0), id(forecast_hourly_temperature_label_0), id(forecast_hourly_pop_label_0), id(forecast_hourly_rain_label_0), id(forecast_hourly_snow_label_0), id(forecast_hourly_wind_label_0));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_1
     id: owm_hourly_1
@@ -572,7 +573,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_1), id(forecast_hourly_condition_icon_label_1), id(forecast_hourly_temperature_label_1), id(forecast_hourly_pop_label_1));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_1), id(forecast_hourly_condition_icon_label_1), id(forecast_hourly_temperature_label_1), id(forecast_hourly_pop_label_1), id(forecast_hourly_rain_label_1), id(forecast_hourly_snow_label_1), id(forecast_hourly_wind_label_1));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_2
     id: owm_hourly_2
@@ -587,7 +588,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_2), id(forecast_hourly_condition_icon_label_2), id(forecast_hourly_temperature_label_2), id(forecast_hourly_pop_label_2));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_2), id(forecast_hourly_condition_icon_label_2), id(forecast_hourly_temperature_label_2), id(forecast_hourly_pop_label_2), id(forecast_hourly_rain_label_2), id(forecast_hourly_snow_label_2), id(forecast_hourly_wind_label_2));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_3
     id: owm_hourly_3
@@ -602,7 +603,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_3), id(forecast_hourly_condition_icon_label_3), id(forecast_hourly_temperature_label_3), id(forecast_hourly_pop_label_3));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_3), id(forecast_hourly_condition_icon_label_3), id(forecast_hourly_temperature_label_3), id(forecast_hourly_pop_label_3), id(forecast_hourly_rain_label_3), id(forecast_hourly_snow_label_3), id(forecast_hourly_wind_label_3));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_4
     id: owm_hourly_4
@@ -617,7 +618,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_4), id(forecast_hourly_condition_icon_label_4), id(forecast_hourly_temperature_label_4), id(forecast_hourly_pop_label_4));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_4), id(forecast_hourly_condition_icon_label_4), id(forecast_hourly_temperature_label_4), id(forecast_hourly_pop_label_4), id(forecast_hourly_rain_label_4), id(forecast_hourly_snow_label_4), id(forecast_hourly_wind_label_4));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_5
     id: owm_hourly_5
@@ -632,7 +633,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_5), id(forecast_hourly_condition_icon_label_5), id(forecast_hourly_temperature_label_5), id(forecast_hourly_pop_label_5));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_5), id(forecast_hourly_condition_icon_label_5), id(forecast_hourly_temperature_label_5), id(forecast_hourly_pop_label_5), id(forecast_hourly_rain_label_5), id(forecast_hourly_snow_label_5), id(forecast_hourly_wind_label_5));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_6
     id: owm_hourly_6
@@ -647,7 +648,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_6), id(forecast_hourly_condition_icon_label_6), id(forecast_hourly_temperature_label_6), id(forecast_hourly_pop_label_6));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_6), id(forecast_hourly_condition_icon_label_6), id(forecast_hourly_temperature_label_6), id(forecast_hourly_pop_label_6), id(forecast_hourly_rain_label_6), id(forecast_hourly_snow_label_6), id(forecast_hourly_wind_label_6));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_7
     id: owm_hourly_7
@@ -662,7 +663,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_7), id(forecast_hourly_condition_icon_label_7), id(forecast_hourly_temperature_label_7), id(forecast_hourly_pop_label_7));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_7), id(forecast_hourly_condition_icon_label_7), id(forecast_hourly_temperature_label_7), id(forecast_hourly_pop_label_7), id(forecast_hourly_rain_label_7), id(forecast_hourly_snow_label_7), id(forecast_hourly_wind_label_7));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_8
     id: owm_hourly_8
@@ -677,7 +678,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_8), id(forecast_hourly_condition_icon_label_8), id(forecast_hourly_temperature_label_8), id(forecast_hourly_pop_label_8));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_8), id(forecast_hourly_condition_icon_label_8), id(forecast_hourly_temperature_label_8), id(forecast_hourly_pop_label_8), id(forecast_hourly_rain_label_8), id(forecast_hourly_snow_label_8), id(forecast_hourly_wind_label_8));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_9
     id: owm_hourly_9
@@ -692,7 +693,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_9), id(forecast_hourly_condition_icon_label_9), id(forecast_hourly_temperature_label_9), id(forecast_hourly_pop_label_9));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_9), id(forecast_hourly_condition_icon_label_9), id(forecast_hourly_temperature_label_9), id(forecast_hourly_pop_label_9), id(forecast_hourly_rain_label_9), id(forecast_hourly_snow_label_9), id(forecast_hourly_wind_label_9));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_10
     id: owm_hourly_10
@@ -707,7 +708,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_10), id(forecast_hourly_condition_icon_label_10), id(forecast_hourly_temperature_label_10), id(forecast_hourly_pop_label_10));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_10), id(forecast_hourly_condition_icon_label_10), id(forecast_hourly_temperature_label_10), id(forecast_hourly_pop_label_10), id(forecast_hourly_rain_label_10), id(forecast_hourly_snow_label_10), id(forecast_hourly_wind_label_10));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_11
     id: owm_hourly_11
@@ -722,7 +723,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_11), id(forecast_hourly_condition_icon_label_11), id(forecast_hourly_temperature_label_11), id(forecast_hourly_pop_label_11));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_11), id(forecast_hourly_condition_icon_label_11), id(forecast_hourly_temperature_label_11), id(forecast_hourly_pop_label_11), id(forecast_hourly_rain_label_11), id(forecast_hourly_snow_label_11), id(forecast_hourly_wind_label_11));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_12
     id: owm_hourly_12
@@ -737,7 +738,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_12), id(forecast_hourly_condition_icon_label_12), id(forecast_hourly_temperature_label_12), id(forecast_hourly_pop_label_12));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_12), id(forecast_hourly_condition_icon_label_12), id(forecast_hourly_temperature_label_12), id(forecast_hourly_pop_label_12), id(forecast_hourly_rain_label_12), id(forecast_hourly_snow_label_12), id(forecast_hourly_wind_label_12));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_13
     id: owm_hourly_13
@@ -752,7 +753,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_13), id(forecast_hourly_condition_icon_label_13), id(forecast_hourly_temperature_label_13), id(forecast_hourly_pop_label_13));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_13), id(forecast_hourly_condition_icon_label_13), id(forecast_hourly_temperature_label_13), id(forecast_hourly_pop_label_13), id(forecast_hourly_rain_label_13), id(forecast_hourly_snow_label_13), id(forecast_hourly_wind_label_13));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_14
     id: owm_hourly_14
@@ -767,7 +768,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_14), id(forecast_hourly_condition_icon_label_14), id(forecast_hourly_temperature_label_14), id(forecast_hourly_pop_label_14));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_14), id(forecast_hourly_condition_icon_label_14), id(forecast_hourly_temperature_label_14), id(forecast_hourly_pop_label_14), id(forecast_hourly_rain_label_14), id(forecast_hourly_snow_label_14), id(forecast_hourly_wind_label_14));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_15
     id: owm_hourly_15
@@ -782,7 +783,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_15), id(forecast_hourly_condition_icon_label_15), id(forecast_hourly_temperature_label_15), id(forecast_hourly_pop_label_15));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_15), id(forecast_hourly_condition_icon_label_15), id(forecast_hourly_temperature_label_15), id(forecast_hourly_pop_label_15), id(forecast_hourly_rain_label_15), id(forecast_hourly_snow_label_15), id(forecast_hourly_wind_label_15));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_16
     id: owm_hourly_16
@@ -797,7 +798,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_16), id(forecast_hourly_condition_icon_label_16), id(forecast_hourly_temperature_label_16), id(forecast_hourly_pop_label_16));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_16), id(forecast_hourly_condition_icon_label_16), id(forecast_hourly_temperature_label_16), id(forecast_hourly_pop_label_16), id(forecast_hourly_rain_label_16), id(forecast_hourly_snow_label_16), id(forecast_hourly_wind_label_16));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_17
     id: owm_hourly_17
@@ -812,7 +813,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_17), id(forecast_hourly_condition_icon_label_17), id(forecast_hourly_temperature_label_17), id(forecast_hourly_pop_label_17));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_17), id(forecast_hourly_condition_icon_label_17), id(forecast_hourly_temperature_label_17), id(forecast_hourly_pop_label_17), id(forecast_hourly_rain_label_17), id(forecast_hourly_snow_label_17), id(forecast_hourly_wind_label_17));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_18
     id: owm_hourly_18
@@ -827,7 +828,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_18), id(forecast_hourly_condition_icon_label_18), id(forecast_hourly_temperature_label_18), id(forecast_hourly_pop_label_18));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_18), id(forecast_hourly_condition_icon_label_18), id(forecast_hourly_temperature_label_18), id(forecast_hourly_pop_label_18), id(forecast_hourly_rain_label_18), id(forecast_hourly_snow_label_18), id(forecast_hourly_wind_label_18));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_19
     id: owm_hourly_19
@@ -842,7 +843,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_19), id(forecast_hourly_condition_icon_label_19), id(forecast_hourly_temperature_label_19), id(forecast_hourly_pop_label_19));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_19), id(forecast_hourly_condition_icon_label_19), id(forecast_hourly_temperature_label_19), id(forecast_hourly_pop_label_19), id(forecast_hourly_rain_label_19), id(forecast_hourly_snow_label_19), id(forecast_hourly_wind_label_19));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_20
     id: owm_hourly_20
@@ -857,7 +858,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_20), id(forecast_hourly_condition_icon_label_20), id(forecast_hourly_temperature_label_20), id(forecast_hourly_pop_label_20));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_20), id(forecast_hourly_condition_icon_label_20), id(forecast_hourly_temperature_label_20), id(forecast_hourly_pop_label_20), id(forecast_hourly_rain_label_20), id(forecast_hourly_snow_label_20), id(forecast_hourly_wind_label_20));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_21
     id: owm_hourly_21
@@ -872,7 +873,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_21), id(forecast_hourly_condition_icon_label_21), id(forecast_hourly_temperature_label_21), id(forecast_hourly_pop_label_21));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_21), id(forecast_hourly_condition_icon_label_21), id(forecast_hourly_temperature_label_21), id(forecast_hourly_pop_label_21), id(forecast_hourly_rain_label_21), id(forecast_hourly_snow_label_21), id(forecast_hourly_wind_label_21));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_22
     id: owm_hourly_22
@@ -887,7 +888,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_22), id(forecast_hourly_condition_icon_label_22), id(forecast_hourly_temperature_label_22), id(forecast_hourly_pop_label_22));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_22), id(forecast_hourly_condition_icon_label_22), id(forecast_hourly_temperature_label_22), id(forecast_hourly_pop_label_22), id(forecast_hourly_rain_label_22), id(forecast_hourly_snow_label_22), id(forecast_hourly_wind_label_22));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_23
     id: owm_hourly_23
@@ -902,7 +903,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_23), id(forecast_hourly_condition_icon_label_23), id(forecast_hourly_temperature_label_23), id(forecast_hourly_pop_label_23));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_23), id(forecast_hourly_condition_icon_label_23), id(forecast_hourly_temperature_label_23), id(forecast_hourly_pop_label_23), id(forecast_hourly_rain_label_23), id(forecast_hourly_snow_label_23), id(forecast_hourly_wind_label_23));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_24
     id: owm_hourly_24
@@ -917,7 +918,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_24), id(forecast_hourly_condition_icon_label_24), id(forecast_hourly_temperature_label_24), id(forecast_hourly_pop_label_24));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_24), id(forecast_hourly_condition_icon_label_24), id(forecast_hourly_temperature_label_24), id(forecast_hourly_pop_label_24), id(forecast_hourly_rain_label_24), id(forecast_hourly_snow_label_24), id(forecast_hourly_wind_label_24));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_25
     id: owm_hourly_25
@@ -932,7 +933,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_25), id(forecast_hourly_condition_icon_label_25), id(forecast_hourly_temperature_label_25), id(forecast_hourly_pop_label_25));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_25), id(forecast_hourly_condition_icon_label_25), id(forecast_hourly_temperature_label_25), id(forecast_hourly_pop_label_25), id(forecast_hourly_rain_label_25), id(forecast_hourly_snow_label_25), id(forecast_hourly_wind_label_25));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_26
     id: owm_hourly_26
@@ -947,7 +948,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_26), id(forecast_hourly_condition_icon_label_26), id(forecast_hourly_temperature_label_26), id(forecast_hourly_pop_label_26));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_26), id(forecast_hourly_condition_icon_label_26), id(forecast_hourly_temperature_label_26), id(forecast_hourly_pop_label_26), id(forecast_hourly_rain_label_26), id(forecast_hourly_snow_label_26), id(forecast_hourly_wind_label_26));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_27
     id: owm_hourly_27
@@ -962,7 +963,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_27), id(forecast_hourly_condition_icon_label_27), id(forecast_hourly_temperature_label_27), id(forecast_hourly_pop_label_27));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_27), id(forecast_hourly_condition_icon_label_27), id(forecast_hourly_temperature_label_27), id(forecast_hourly_pop_label_27), id(forecast_hourly_rain_label_27), id(forecast_hourly_snow_label_27), id(forecast_hourly_wind_label_27));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_28
     id: owm_hourly_28
@@ -977,7 +978,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_28), id(forecast_hourly_condition_icon_label_28), id(forecast_hourly_temperature_label_28), id(forecast_hourly_pop_label_28));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_28), id(forecast_hourly_condition_icon_label_28), id(forecast_hourly_temperature_label_28), id(forecast_hourly_pop_label_28), id(forecast_hourly_rain_label_28), id(forecast_hourly_snow_label_28), id(forecast_hourly_wind_label_28));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_29
     id: owm_hourly_29
@@ -992,7 +993,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_29), id(forecast_hourly_condition_icon_label_29), id(forecast_hourly_temperature_label_29), id(forecast_hourly_pop_label_29));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_29), id(forecast_hourly_condition_icon_label_29), id(forecast_hourly_temperature_label_29), id(forecast_hourly_pop_label_29), id(forecast_hourly_rain_label_29), id(forecast_hourly_snow_label_29), id(forecast_hourly_wind_label_29));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_30
     id: owm_hourly_30
@@ -1007,7 +1008,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_30), id(forecast_hourly_condition_icon_label_30), id(forecast_hourly_temperature_label_30), id(forecast_hourly_pop_label_30));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_30), id(forecast_hourly_condition_icon_label_30), id(forecast_hourly_temperature_label_30), id(forecast_hourly_pop_label_30), id(forecast_hourly_rain_label_30), id(forecast_hourly_snow_label_30), id(forecast_hourly_wind_label_30));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_31
     id: owm_hourly_31
@@ -1022,7 +1023,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_31), id(forecast_hourly_condition_icon_label_31), id(forecast_hourly_temperature_label_31), id(forecast_hourly_pop_label_31));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_31), id(forecast_hourly_condition_icon_label_31), id(forecast_hourly_temperature_label_31), id(forecast_hourly_pop_label_31), id(forecast_hourly_rain_label_31), id(forecast_hourly_snow_label_31), id(forecast_hourly_wind_label_31));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_32
     id: owm_hourly_32
@@ -1037,7 +1038,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_32), id(forecast_hourly_condition_icon_label_32), id(forecast_hourly_temperature_label_32), id(forecast_hourly_pop_label_32));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_32), id(forecast_hourly_condition_icon_label_32), id(forecast_hourly_temperature_label_32), id(forecast_hourly_pop_label_32), id(forecast_hourly_rain_label_32), id(forecast_hourly_snow_label_32), id(forecast_hourly_wind_label_32));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_33
     id: owm_hourly_33
@@ -1052,7 +1053,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_33), id(forecast_hourly_condition_icon_label_33), id(forecast_hourly_temperature_label_33), id(forecast_hourly_pop_label_33));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_33), id(forecast_hourly_condition_icon_label_33), id(forecast_hourly_temperature_label_33), id(forecast_hourly_pop_label_33), id(forecast_hourly_rain_label_33), id(forecast_hourly_snow_label_33), id(forecast_hourly_wind_label_33));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_34
     id: owm_hourly_34
@@ -1067,7 +1068,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_34), id(forecast_hourly_condition_icon_label_34), id(forecast_hourly_temperature_label_34), id(forecast_hourly_pop_label_34));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_34), id(forecast_hourly_condition_icon_label_34), id(forecast_hourly_temperature_label_34), id(forecast_hourly_pop_label_34), id(forecast_hourly_rain_label_34), id(forecast_hourly_snow_label_34), id(forecast_hourly_wind_label_34));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_35
     id: owm_hourly_35
@@ -1082,7 +1083,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_35), id(forecast_hourly_condition_icon_label_35), id(forecast_hourly_temperature_label_35), id(forecast_hourly_pop_label_35));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_35), id(forecast_hourly_condition_icon_label_35), id(forecast_hourly_temperature_label_35), id(forecast_hourly_pop_label_35), id(forecast_hourly_rain_label_35), id(forecast_hourly_snow_label_35), id(forecast_hourly_wind_label_35));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_36
     id: owm_hourly_36
@@ -1097,7 +1098,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_36), id(forecast_hourly_condition_icon_label_36), id(forecast_hourly_temperature_label_36), id(forecast_hourly_pop_label_36));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_36), id(forecast_hourly_condition_icon_label_36), id(forecast_hourly_temperature_label_36), id(forecast_hourly_pop_label_36), id(forecast_hourly_rain_label_36), id(forecast_hourly_snow_label_36), id(forecast_hourly_wind_label_36));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_37
     id: owm_hourly_37
@@ -1112,7 +1113,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_37), id(forecast_hourly_condition_icon_label_37), id(forecast_hourly_temperature_label_37), id(forecast_hourly_pop_label_37));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_37), id(forecast_hourly_condition_icon_label_37), id(forecast_hourly_temperature_label_37), id(forecast_hourly_pop_label_37), id(forecast_hourly_rain_label_37), id(forecast_hourly_snow_label_37), id(forecast_hourly_wind_label_37));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_38
     id: owm_hourly_38
@@ -1127,7 +1128,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_38), id(forecast_hourly_condition_icon_label_38), id(forecast_hourly_temperature_label_38), id(forecast_hourly_pop_label_38));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_38), id(forecast_hourly_condition_icon_label_38), id(forecast_hourly_temperature_label_38), id(forecast_hourly_pop_label_38), id(forecast_hourly_rain_label_38), id(forecast_hourly_snow_label_38), id(forecast_hourly_wind_label_38));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_39
     id: owm_hourly_39
@@ -1142,7 +1143,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_39), id(forecast_hourly_condition_icon_label_39), id(forecast_hourly_temperature_label_39), id(forecast_hourly_pop_label_39));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_39), id(forecast_hourly_condition_icon_label_39), id(forecast_hourly_temperature_label_39), id(forecast_hourly_pop_label_39), id(forecast_hourly_rain_label_39), id(forecast_hourly_snow_label_39), id(forecast_hourly_wind_label_39));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_40
     id: owm_hourly_40
@@ -1157,7 +1158,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_40), id(forecast_hourly_condition_icon_label_40), id(forecast_hourly_temperature_label_40), id(forecast_hourly_pop_label_40));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_40), id(forecast_hourly_condition_icon_label_40), id(forecast_hourly_temperature_label_40), id(forecast_hourly_pop_label_40), id(forecast_hourly_rain_label_40), id(forecast_hourly_snow_label_40), id(forecast_hourly_wind_label_40));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_41
     id: owm_hourly_41
@@ -1172,7 +1173,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_41), id(forecast_hourly_condition_icon_label_41), id(forecast_hourly_temperature_label_41), id(forecast_hourly_pop_label_41));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_41), id(forecast_hourly_condition_icon_label_41), id(forecast_hourly_temperature_label_41), id(forecast_hourly_pop_label_41), id(forecast_hourly_rain_label_41), id(forecast_hourly_snow_label_41), id(forecast_hourly_wind_label_41));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_42
     id: owm_hourly_42
@@ -1187,7 +1188,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_42), id(forecast_hourly_condition_icon_label_42), id(forecast_hourly_temperature_label_42), id(forecast_hourly_pop_label_42));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_42), id(forecast_hourly_condition_icon_label_42), id(forecast_hourly_temperature_label_42), id(forecast_hourly_pop_label_42), id(forecast_hourly_rain_label_42), id(forecast_hourly_snow_label_42), id(forecast_hourly_wind_label_42));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_43
     id: owm_hourly_43
@@ -1202,7 +1203,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_43), id(forecast_hourly_condition_icon_label_43), id(forecast_hourly_temperature_label_43), id(forecast_hourly_pop_label_43));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_43), id(forecast_hourly_condition_icon_label_43), id(forecast_hourly_temperature_label_43), id(forecast_hourly_pop_label_43), id(forecast_hourly_rain_label_43), id(forecast_hourly_snow_label_43), id(forecast_hourly_wind_label_43));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_44
     id: owm_hourly_44
@@ -1217,7 +1218,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_44), id(forecast_hourly_condition_icon_label_44), id(forecast_hourly_temperature_label_44), id(forecast_hourly_pop_label_44));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_44), id(forecast_hourly_condition_icon_label_44), id(forecast_hourly_temperature_label_44), id(forecast_hourly_pop_label_44), id(forecast_hourly_rain_label_44), id(forecast_hourly_snow_label_44), id(forecast_hourly_wind_label_44));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_45
     id: owm_hourly_45
@@ -1232,7 +1233,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_45), id(forecast_hourly_condition_icon_label_45), id(forecast_hourly_temperature_label_45), id(forecast_hourly_pop_label_45));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_45), id(forecast_hourly_condition_icon_label_45), id(forecast_hourly_temperature_label_45), id(forecast_hourly_pop_label_45), id(forecast_hourly_rain_label_45), id(forecast_hourly_snow_label_45), id(forecast_hourly_wind_label_45));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_46
     id: owm_hourly_46
@@ -1247,7 +1248,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_46), id(forecast_hourly_condition_icon_label_46), id(forecast_hourly_temperature_label_46), id(forecast_hourly_pop_label_46));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_46), id(forecast_hourly_condition_icon_label_46), id(forecast_hourly_temperature_label_46), id(forecast_hourly_pop_label_46), id(forecast_hourly_rain_label_46), id(forecast_hourly_snow_label_46), id(forecast_hourly_wind_label_46));
   - platform: homeassistant
     entity_id: sensor.owm_hourly_47
     id: owm_hourly_47
@@ -1262,5 +1263,5 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_47), id(forecast_hourly_condition_icon_label_47), id(forecast_hourly_temperature_label_47), id(forecast_hourly_pop_label_47));
+            pgweather_hourly_parse_attrs(x, id(forecast_hourly_time_label_47), id(forecast_hourly_condition_icon_label_47), id(forecast_hourly_temperature_label_47), id(forecast_hourly_pop_label_47), id(forecast_hourly_rain_label_47), id(forecast_hourly_snow_label_47), id(forecast_hourly_wind_label_47));
 

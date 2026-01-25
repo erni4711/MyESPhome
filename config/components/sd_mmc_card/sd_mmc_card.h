@@ -2,6 +2,7 @@
 
 #include "esphome.h"
 #include "sdmmc_cmd.h"
+#include <functional>
 #include <string>
 
 namespace esphome {
@@ -16,7 +17,11 @@ class SdMmcCard : public Component {
   bool get_capacity_kb(uint64_t *total_kb, uint64_t *available_kb);
   bool is_mounted();
   std::string list_dir_json(const std::string &path);
+  bool stat_file(const std::string &path, size_t *size, bool *is_dir);
   bool read_file_to_string(const std::string &path, std::string &out);
+  bool read_file_to_buffer(const std::string &path, uint8_t **out_buf, size_t *out_size);
+  bool stream_file(const std::string &path, const std::function<bool(const uint8_t *, size_t)> &on_chunk,
+                   size_t chunk_size = 4096);
   bool delete_file(const std::string &path);
   bool append_file_chunk(const std::string &path, const uint8_t *data, size_t len, bool create_if_missing = true);
 

@@ -10,6 +10,10 @@
 #include "esp_err.h"
 #include <cstdio>
 #include <sys/stat.h>
+#include <vector>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <esp_heap_caps.h>
 
 namespace esphome {
 namespace sd_card {
@@ -121,6 +125,16 @@ std::string SdMmcCard::list_dir_json(const std::string &path) {
   return out;
 }
 
+bool SdMmcCard::stat_file(const std::string &path, size_t *size, bool *is_dir) {
+  std::string fatfs_path = to_fatfs_path(path);
+  FILINFO info;
+  FRESULT res = f_stat(fatfs_path.c_str(), &info);
+  if (res != FR_OK) return false;
+  if (size != nullptr) *size = (size_t) info.fsize;
+  if (is_dir != nullptr) *is_dir = (info.fattrib & AM_DIR) != 0;
+  return true;
+}
+
 bool SdMmcCard::read_file_to_string(const std::string &path, std::string &out) {
   std::string fatfs_path = to_fatfs_path(path);
   FILINFO info;
@@ -132,15 +146,96 @@ bool SdMmcCard::read_file_to_string(const std::string &path, std::string &out) {
   out.clear();
   if (info.fsize > 0) {
     out.resize((size_t) info.fsize);
-    UINT br = 0;
-    res = f_read(&file, &out[0], (UINT) out.size(), &br);
-    if (res != FR_OK || br != out.size()) {
-      f_close(&file);
-      return false;
+    size_t offset = 0;
+    const size_t chunk_size = 4096;
+    while (offset < out.size()) {
+      UINT br = 0;
+      size_t to_read = out.size() - offset;
+      if (to_read > chunk_size) to_read = chunk_size;
+      res = f_read(&file, &out[offset], (UINT) to_read, &br);
+      if (res != FR_OK || br != to_read) {
+        f_close(&file);
+        return false;
+      }
+      offset += br;
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
   f_close(&file);
   return true;
+}
+
+bool SdMmcCard::read_file_to_buffer(const std::string &path, uint8_t **out_buf, size_t *out_size) {
+  if (out_buf == nullptr || out_size == nullptr) return false;
+  *out_buf = nullptr;
+  *out_size = 0;
+  std::string fatfs_path = to_fatfs_path(path);
+  FILINFO info;
+  FRESULT res = f_stat(fatfs_path.c_str(), &info);
+  if (res != FR_OK) return false;
+  if (info.fsize == 0) return false;
+
+  FIL file;
+  res = f_open(&file, fatfs_path.c_str(), FA_READ);
+  if (res != FR_OK) return false;
+
+  size_t total = (size_t) info.fsize;
+  uint8_t *buf = (uint8_t *) heap_caps_malloc(total, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (buf == nullptr) {
+    buf = (uint8_t *) heap_caps_malloc(total, MALLOC_CAP_8BIT);
+  }
+  if (buf == nullptr) {
+    f_close(&file);
+    return false;
+  }
+
+  size_t offset = 0;
+  const size_t chunk_size = 4096;
+  while (offset < total) {
+    UINT br = 0;
+    size_t to_read = total - offset;
+    if (to_read > chunk_size) to_read = chunk_size;
+    res = f_read(&file, buf + offset, (UINT) to_read, &br);
+    if (res != FR_OK || br != to_read) {
+      f_close(&file);
+      heap_caps_free(buf);
+      return false;
+    }
+    offset += br;
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  f_close(&file);
+  *out_buf = buf;
+  *out_size = total;
+  return true;
+}
+
+bool SdMmcCard::stream_file(const std::string &path, const std::function<bool(const uint8_t *, size_t)> &on_chunk,
+                            size_t chunk_size) {
+  if (chunk_size == 0) return false;
+  std::string fatfs_path = to_fatfs_path(path);
+  FIL file;
+  FRESULT res = f_open(&file, fatfs_path.c_str(), FA_READ);
+  if (res != FR_OK) return false;
+  std::vector<uint8_t> buffer;
+  buffer.resize(chunk_size);
+  bool ok = true;
+  for (;;) {
+    UINT br = 0;
+    res = f_read(&file, buffer.data(), (UINT) buffer.size(), &br);
+    if (res != FR_OK) {
+      ok = false;
+      break;
+    }
+    if (br == 0) break;
+    if (!on_chunk(buffer.data(), (size_t) br)) {
+      ok = false;
+      break;
+    }
+  }
+  f_close(&file);
+  return ok;
 }
 
 bool SdMmcCard::delete_file(const std::string &path) {
