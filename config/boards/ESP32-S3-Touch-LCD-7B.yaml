@@ -3,17 +3,14 @@
 esphome:
   name: ${node_name}
   min_version: "2025.4.2"
-  # includes:
-  #   - components/wave7sd/sd_card.h
-  #   - components/wave7sd/sd_web.h
   name_add_mac_suffix: false
   platformio_options:
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
     # build_flags:
     #   - -DWAVE7SD_CS_EXPANDER_PIN=4
-  #   board_build.flash_mode: qio
-  #   board_build.psram_mode: opi
-  #   board_upload.maximum_ram_size: 524288
+    #   board_build.flash_mode: qio
+    #   board_build.psram_mode: opi
+    #   board_upload.maximum_ram_size: 524288
    
   on_boot:
     - logger.log: "ESPHome booted"
@@ -418,12 +415,6 @@ web_server:
 screenshot:
   id: screenshot_component
   sd_mmc_id: sdcard
-
-# SD web UI component (file manager using wave7sd)
-#wave7sd:
-#  id: wave7sd_component
-#  waveshare_io_ch32v003_id: ioexp 
-  
 
 
 text_sensor:

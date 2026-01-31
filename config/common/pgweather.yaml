@@ -1,5 +1,8 @@
 # Styles for Weather forecast
 
+substitutions:
+  ui_language_entity: input_select.ui_language
+
 color:
     - id: burnt_sienna
       hex: 'CC5E14'
@@ -101,7 +104,8 @@ lvgl:
               scrollbar_mode: "OFF"
               widgets:
                   - label:
-                      text: "Wettervorhersage 8 Tage"
+                      id: weather_page_daily_title_label
+                      text: "8-day forecast"
                       align: CENTER
                       text_align: CENTER
                       text_color: 0xFFFFFF
@@ -246,7 +250,8 @@ lvgl:
                 scrollbar_mode: "OFF"
                 widgets:
                     - label:
-                        text: "Wettervorhersage 48 Stunden"
+                        id: weather_page_hourly_title_label
+                        text: "48-hour forecast"
                         align: CENTER
                         text_align: CENTER
                         text_color: 0xFFFFFF
@@ -374,6 +379,16 @@ lvgl:
 
 
 text_sensor:
+
+  # UI language selector (Home Assistant input_select)
+  - platform: homeassistant
+    entity_id: ${ui_language_entity}
+    id: ui_language
+    on_value:
+      then:
+        - lambda: |-
+            pgweather_set_language(x, id(weather_page_daily_title_label), id(weather_page_hourly_title_label));
+        - lvgl.widget.redraw:
 
   # Per-day Home Assistant compact JSON sensors: owm_daily_0 .. owm_daily_7
   # Each sensor contains a compact JSON object for a single day. Parse and publish

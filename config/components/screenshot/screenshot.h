@@ -65,6 +65,10 @@ class ScreenshotComponent : public Component {
   bool capture_in_progress_{false};
   SemaphoreHandle_t png_mutex_{nullptr};
   bool save_requested_{false};
+  bool last_save_ok_{false};
+  std::string last_save_path_{};
+  uint32_t last_save_epoch_{0};
+  uint32_t last_capture_epoch_{0};
 
   bool write_png_to_sd_(const uint8_t *png_buf, size_t png_size);
 };

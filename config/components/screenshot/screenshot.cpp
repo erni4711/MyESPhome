@@ -79,6 +79,29 @@ namespace screenshot {
 
 static const char *TAG = "screenshot";
 
+static std::string get_query_string(AsyncWebServerRequest *request) {
+  httpd_req_t *req = *request;
+  size_t qlen = httpd_req_get_url_query_len(req);
+  if (qlen == 0) return std::string();
+  std::string query;
+  query.resize(qlen + 1);
+  if (httpd_req_get_url_query_str(req, &query[0], query.size()) == ESP_OK) {
+    if (!query.empty() && query.back() == '\0') query.pop_back();
+    return query;
+  }
+  return std::string();
+}
+
+static bool query_has_key(const std::string &query, const std::string &key) {
+  if (query.empty()) return false;
+  if (query == key) return true;
+  if (query.find(key + "=") != std::string::npos) return true;
+  if (query.find(key + "&") != std::string::npos) return true;
+  if (query.find("&" + key + "=") != std::string::npos) return true;
+  if (query.find("&" + key + "&") != std::string::npos) return true;
+  return false;
+}
+
 // When using LVGL snapshot API we can avoid copying by using the image's data
 // pointer and freeing the lv_img_dsc_t when done. Store the last snapshot here.
 // (no fallback contiguous buffer)
@@ -269,8 +292,49 @@ static void process_request(AsyncWebServerRequest *request);
 void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request) {
   ESP_LOGI(TAG, "HTTP /screenshot.png request via web_server");
   ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url().c_str(), request->method());
+  std::string query = get_query_string(request);
+
+  if (query_has_key(query, "status")) {
+    bool ready = false;
+    bool saved = false;
+    bool in_progress = false;
+    uint32_t last_save_epoch = 0;
+    uint32_t last_capture_epoch = 0;
+    std::string last_path;
+    if (this->parent_->png_mutex_ != nullptr) {
+      if (xSemaphoreTake(this->parent_->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+        ready = this->parent_->last_png_buf_ != nullptr && this->parent_->last_png_size_ > 0;
+        saved = this->parent_->last_save_ok_;
+        last_save_epoch = this->parent_->last_save_epoch_;
+        last_capture_epoch = this->parent_->last_capture_epoch_;
+        last_path = this->parent_->last_save_path_;
+        in_progress = this->parent_->capture_in_progress_;
+        xSemaphoreGive(this->parent_->png_mutex_);
+      }
+    } else {
+      ready = this->parent_->last_png_buf_ != nullptr && this->parent_->last_png_size_ > 0;
+      saved = this->parent_->last_save_ok_;
+      last_save_epoch = this->parent_->last_save_epoch_;
+      last_capture_epoch = this->parent_->last_capture_epoch_;
+      last_path = this->parent_->last_save_path_;
+      in_progress = this->parent_->capture_in_progress_;
+    }
+
+    char body[256];
+    snprintf(body, sizeof(body),
+             "{ \"ready\": %s, \"in_progress\": %s, \"saved\": %s, \"last_save_epoch\": %u, "
+             "\"last_capture_epoch\": %u, \"last_path\": \"%s\" }",
+             ready ? "true" : "false", in_progress ? "true" : "false", saved ? "true" : "false",
+             (unsigned) last_save_epoch, (unsigned) last_capture_epoch, last_path.c_str());
+    request->send(200, "application/json", body);
+    return;
+  }
+
   uint8_t *copy = nullptr;
   size_t copy_size = 0;
+  bool saved = false;
+  uint32_t last_save_epoch = 0;
+  std::string last_path;
   if (this->parent_->png_mutex_ != nullptr) {
     if (xSemaphoreTake(this->parent_->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
       if (this->parent_->last_png_buf_ != nullptr && this->parent_->last_png_size_ > 0) {
@@ -280,6 +344,9 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
           memcpy(copy, this->parent_->last_png_buf_, copy_size);
         }
       }
+      saved = this->parent_->last_save_ok_;
+      last_save_epoch = this->parent_->last_save_epoch_;
+      last_path = this->parent_->last_save_path_;
       xSemaphoreGive(this->parent_->png_mutex_);
     }
   }
@@ -305,6 +372,14 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
     httpd_req_t *req = *request;
     httpd_resp_set_status(req, HTTPD_200);
     httpd_resp_set_type(req, "image/png");
+    httpd_resp_set_hdr(req, "X-Screenshot-Ready", "1");
+    httpd_resp_set_hdr(req, "X-Screenshot-Saved", saved ? "1" : "0");
+    if (!last_path.empty()) {
+      httpd_resp_set_hdr(req, "X-Screenshot-Path", last_path.c_str());
+    }
+    char epoch_buf[16];
+    snprintf(epoch_buf, sizeof(epoch_buf), "%u", (unsigned) last_save_epoch);
+    httpd_resp_set_hdr(req, "X-Screenshot-Save-Epoch", epoch_buf);
     httpd_resp_send(req, reinterpret_cast<const char *>(copy), (ssize_t)copy_size);
     my_lvgl_free(copy);
     return;
@@ -318,7 +393,9 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   } else {
     this->parent_->capture_requested_ = true;
   }
-  request->send(202, "text/plain", "Capture queued; retry in a moment");
+  request->send(202, "application/json",
+                "{ \"ready\": false, \"in_progress\": true, \"saved\": false, "
+                "\"message\": \"Capture queued; retry in a moment\" }");
   return;
 }
 
@@ -356,48 +433,80 @@ bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_si
   char path_buf[96];
   snprintf(path_buf, sizeof(path_buf), "/sdcard/screenshot_%s.png", safe_ts);
   const std::string path = path_buf;
+  bool wrote = false;
+  bool attempted = false;
 #if HAVE_SD_SPI_CARD
   if (this->sd_spi_card_ != nullptr) {
+    attempted = true;
     bool mounted = this->sd_spi_card_->is_mounted();
     if (!mounted) {
       mounted = this->sd_spi_card_->mount();
     }
     if (!mounted) {
       ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
-      return false;
+      wrote = false;
+    } else {
+      this->sd_spi_card_->delete_file(path);
+      wrote = this->sd_spi_card_->append_file_chunk(path, png_buf, png_size, true);
+      if (!wrote) {
+        ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
+      } else {
+        ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+      }
     }
-    this->sd_spi_card_->delete_file(path);
-    bool wrote = this->sd_spi_card_->append_file_chunk(path, png_buf, png_size, true);
-    if (!wrote) {
-      ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
-      return false;
-    }
-    ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
-    return true;
   }
 #endif
-  if (this->sd_mmc_card_ != nullptr) {
+  if (!attempted && this->sd_mmc_card_ != nullptr) {
+    attempted = true;
     bool mounted = this->sd_mmc_card_->is_mounted();
     if (!mounted) {
       mounted = this->sd_mmc_card_->mount();
     }
     if (!mounted) {
       ESP_LOGW(TAG, "SD MMC mount failed; skipping write");
-      return false;
+      wrote = false;
+    } else {
+      this->sd_mmc_card_->delete_file(path);
+      wrote = this->sd_mmc_card_->append_file_chunk(path, png_buf, png_size, true);
+      if (!wrote) {
+        ESP_LOGW(TAG, "SD MMC write failed: %s", path.c_str());
+      } else {
+        ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+      }
     }
-    this->sd_mmc_card_->delete_file(path);
-    bool wrote = this->sd_mmc_card_->append_file_chunk(path, png_buf, png_size, true);
-    if (!wrote) {
-      ESP_LOGW(TAG, "SD MMC write failed: %s", path.c_str());
-      return false;
-    }
-    ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
-    return true;
   }
-  ESP_LOGD(TAG, "sd card not configured, skipping SD write");
-  return false;
+  if (!attempted) {
+    ESP_LOGD(TAG, "sd card not configured, skipping SD write");
+    wrote = false;
+  }
+
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->last_save_ok_ = wrote;
+      this->last_save_path_ = wrote ? path : "";
+      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    this->last_save_ok_ = wrote;
+    this->last_save_path_ = wrote ? path : "";
+    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  }
+  return wrote;
 #else
   ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->last_save_ok_ = false;
+      this->last_save_path_.clear();
+      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    this->last_save_ok_ = false;
+    this->last_save_path_.clear();
+    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  }
   return false;
 #endif
 }
@@ -457,6 +566,7 @@ void ScreenshotComponent::loop() {
       }
       this->last_png_buf_ = png_buf;
       this->last_png_size_ = png_size;
+      this->last_capture_epoch_ = static_cast<uint32_t>(::time(nullptr));
       xSemaphoreGive(this->png_mutex_);
     }
   } else {
@@ -465,6 +575,7 @@ void ScreenshotComponent::loop() {
     }
     this->last_png_buf_ = png_buf;
     this->last_png_size_ = png_size;
+    this->last_capture_epoch_ = static_cast<uint32_t>(::time(nullptr));
   }
 
   this->write_png_to_sd_(png_buf, png_size);

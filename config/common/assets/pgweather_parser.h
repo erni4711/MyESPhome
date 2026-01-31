@@ -14,6 +14,35 @@ static inline void safe_lv_label_set_text(lv_obj_t* label, const char* txt) {
   lv_label_set_text(label, txt);
 }
 
+static std::string pgweather_lang = "en";
+
+static inline std::string pgweather_to_lower(const std::string &in) {
+  std::string out;
+  out.reserve(in.size());
+  for (char c : in) {
+    out.push_back(static_cast<char>(::tolower(static_cast<unsigned char>(c))));
+  }
+  return out;
+}
+
+
+static inline void pgweather_set_language(const std::string &lang, lv_obj_t* daily_page, lv_obj_t* hourly_page) {
+  if (!lang.empty()) pgweather_lang = lang;
+  bool de = !lang.empty() && (lang.rfind("de", 0) == 0 || lang == "Deutsch" || lang == "DE");
+  safe_lv_label_set_text(daily_page,
+    de ? "Wettervorhersage 8 Tage" : "8-day forecast");
+  safe_lv_label_set_text(hourly_page,
+    de ? "Wettervorhersage 48 Stunden" : "48-hour forecast");
+}
+
+static inline bool pgweather_is_german() {
+  std::string l = pgweather_to_lower(pgweather_lang);
+  if (l.rfind("de", 0) == 0) return true;
+  if (l.find("deutsch") != std::string::npos) return true;
+  if (l == "german") return true;
+  return false;
+}
+
 
 static const char* mdi_clear_night = "\U0000F34F";
 static const char* mdi_cloudy = "\U0000E2BD";
@@ -54,14 +83,14 @@ static inline std::string icon_code_to_glyph(const std::string& icon_code) {
 }
 
 static inline std::string wind_deg_to_dir(double deg) {
-  // German-style abbreviations: N, NNO, NO, ONO, O, OSO, SO, SSO, S, SSW, SW, WSW, W, WNW, NW, NNW
-  static const char* dirs[] = {"N","NNO","NO","ONO","O","OSO","SO","SSO","S","SSW","SW","WSW","W","WNW","NW","NNW"};
+  static const char* dirs_de[] = {"N","NNO","NO","ONO","O","OSO","SO","SSO","S","SSW","SW","WSW","W","WNW","NW","NNW"};
+  static const char* dirs_en[] = {"N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"};
   if (std::isnan(deg)) return std::string("");
   // Normalize
   while (deg < 0) deg += 360.0;
   while (deg >= 360.0) deg -= 360.0;
   int idx = (int)((deg + 11.25) / 22.5) % 16;
-  return std::string(dirs[idx]);
+  return std::string(pgweather_is_german() ? dirs_de[idx] : dirs_en[idx]);
 }
 
 static inline void pgweather_daily_parse_attrs(
@@ -226,16 +255,12 @@ static inline void pgweather_daily_parse_state(const std::string& state,
   if (dt) {
     time_t t = (time_t)dt;
     struct tm* lt = localtime(&t);
-    if (lt) {    
-      switch (lt->tm_wday) {
-        case 0: strftime(daybuf, sizeof(daybuf), "Son", lt); break;
-        case 1: strftime(daybuf, sizeof(daybuf), "Mon", lt); break;
-        case 2: strftime(daybuf, sizeof(daybuf), "Die", lt); break;
-        case 3: strftime(daybuf, sizeof(daybuf), "Mit", lt); break;
-        case 4: strftime(daybuf, sizeof(daybuf), "Don", lt); break;
-        case 5: strftime(daybuf, sizeof(daybuf), "Fre", lt); break;
-        case 6: strftime(daybuf, sizeof(daybuf), "Sam", lt); break;
-        default: break;
+    if (lt) {
+      static const char* days_de[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+      static const char* days_en[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+      const char **days = pgweather_is_german() ? days_de : days_en;
+      if (lt->tm_wday >= 0 && lt->tm_wday <= 6) {
+        snprintf(daybuf, sizeof(daybuf), "%s", days[lt->tm_wday]);
       }
     }
   }

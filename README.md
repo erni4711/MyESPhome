@@ -11,7 +11,13 @@ See [ScreenShot](config/components/screenshot/README.md)
 
 ## Hardware
 [ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) from [WAVESHARE](https://www.waveshare.com/)
+
 [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) from [WAVESHARE](https://www.waveshare.com/)
+
+## Software feature
+- Widget for heating control
+- sd card via webserver
+- openweathermap, 8-day and 48-hour forecast pages
 
 ## Prerequisites
 - Python 3 and pip OR Docker, or Home Assistant ESPHome add-on.
@@ -79,6 +85,15 @@ Add `7i-sample.yaml` to the ESPHome add-on / dashboard and use the web UI to com
 
 ### Device screenshots
 
+#### About
 ![About](images/about.png)
+
+#### Heating Control
 ![Heating-Control](images/heating-control.png)
-![7B-8day-forecast](images/7b-8day-forecast.png)
+
+#### openweathermap.org
+https://openweathermap.org/api#one_call_3
+
+![8-day forecast](images/8-day%20forecast.png)
+
+![48-hour forecast](images/48-hour%20forecast.png)

@@ -15,8 +15,11 @@
           - lvgl.label.update:
               id: mode_label
               text: !lambda |-
-                if (mode == "off") return "OFF";
-                return "OFFLINE";
+                if (!id(ui_language).has_state()) return "OFF";
+                auto lang = id(ui_language).state;
+                bool de = !lang.empty() && (lang.rfind("de", 0) == 0 || lang == "Deutsch" || lang == "DE");
+                if (mode == "off") return de ? "AUS" : "OFF";
+                return de ? "OFFLINE" : "OFFLINE";
           - lvgl.label.update:
               id: power_button_label
               text_color: ${color_red}
@@ -38,7 +41,11 @@
         then:
           - lvgl.label.update:
               id: mode_label
-              text: "HEAT"
+              text: !lambda |-
+                if (!id(ui_language).has_state()) return "HEAT";
+                auto lang = id(ui_language).state;
+                bool de = !lang.empty() && (lang.rfind("de", 0) == 0 || lang == "Deutsch" || lang == "DE");
+                return de ? "HEIZEN" : "HEAT";
           - lvgl.label.update:
               id: heat_button_label
               text_color: ${color_heat}
