@@ -43,6 +43,12 @@ widgets:
       hidden: true
       text: ""
   - label:
+      id: forecast_hourly_wind_label_${id}
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
+      text: "${mdi_windy} "
+  - label:
       id: forecast_hourly_rain_label_${id}
       height: SIZE_CONTENT
       text_font: font_small
@@ -54,9 +60,3 @@ widgets:
       text_font: font_small
       text_color: gray
       text: "${mdi_snowy} "
-  - label:
-      id: forecast_hourly_wind_label_${id}
-      height: SIZE_CONTENT
-      text_font: font_small
-      text_color: gray
-      text: "${mdi_windy} "

@@ -2,8 +2,15 @@
 
 #include "esphome.h"
 #include "sdmmc_cmd.h"
+#include "ff.h"
 #include <functional>
 #include <string>
+
+namespace esphome {
+namespace waveshare_io_ch32v003 {
+class WaveshareIOCH32V003Component;
+}  // namespace waveshare_io_ch32v003
+}  // namespace esphome
 
 namespace esphome {
 namespace sd_card {
@@ -24,19 +31,31 @@ class SdMmcCard : public Component {
                    size_t chunk_size = 4096);
   bool delete_file(const std::string &path);
   bool append_file_chunk(const std::string &path, const uint8_t *data, size_t len, bool create_if_missing = true);
+  bool begin_write(const std::string &path);
+  bool write_chunk(const uint8_t *data, size_t len);
+  bool end_write();
 
   void set_format_on_mount_failure(bool v) { this->format_on_mount_failure_ = v; }
   void set_clk_pin(uint8_t pin) { this->clk_pin_ = pin; }
   void set_cmd_pin(uint8_t pin) { this->cmd_pin_ = pin; }
   void set_d0_pin(uint8_t pin) { this->d0_pin_ = pin; }
+  void set_cs_expander(waveshare_io_ch32v003::WaveshareIOCH32V003Component *expander, uint8_t pin) {
+    this->cs_expander_ = expander;
+    this->cs_expander_pin_ = pin;
+  }
 
  protected:
   bool format_on_mount_failure_{false};
   uint8_t clk_pin_{255};
   uint8_t cmd_pin_{255};
   uint8_t d0_pin_{255};
+  waveshare_io_ch32v003::WaveshareIOCH32V003Component *cs_expander_{};
+  uint8_t cs_expander_pin_{255};
   bool mounted_{false};
   sdmmc_card_t *mounted_card_{nullptr};
+  FIL write_file_{};
+  bool write_file_open_{false};
+  std::string write_path_{};
 };
 
 }  // namespace sd_card

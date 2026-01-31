@@ -4,6 +4,9 @@
 #include "driver/sdmmc_host.h"
 #include "ff.h"
 #include "driver/gpio.h"
+#include "esphome/components/waveshare_io_ch32v003/waveshare_io_ch32v003.h"
+#include "esphome/core/hal.h"
+#include "esphome/core/application.h"
 #include "esphome/core/log.h"
 #include <cerrno>
 #include <cstring>
@@ -11,6 +14,7 @@
 #include <cstdio>
 #include <sys/stat.h>
 #include <vector>
+#include <algorithm>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <esp_heap_caps.h>
@@ -45,6 +49,13 @@ void SdMmcCard::setup() {
 bool SdMmcCard::mount() {
   if (this->mounted_) return true;
 
+  if (this->cs_expander_ != nullptr && this->cs_expander_pin_ != 255) {
+    this->cs_expander_->pin_mode(this->cs_expander_pin_, esphome::gpio::FLAG_OUTPUT);
+    // Match the demo: keep CS/power deasserted (high) when idle.
+    this->cs_expander_->digital_write(this->cs_expander_pin_, true);
+    delay(50);
+  }
+
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
   host.flags = SDMMC_HOST_FLAG_1BIT;
   sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
@@ -56,6 +67,11 @@ bool SdMmcCard::mount() {
   slot_config.d2 = GPIO_NUM_NC;
   slot_config.d3 = GPIO_NUM_NC;
   slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+  // Ensure pull-ups are applied on CMD/D0 for reliable card init
+  gpio_set_pull_mode(static_cast<gpio_num_t>(this->cmd_pin_), GPIO_PULLUP_ONLY);
+  gpio_set_pull_mode(static_cast<gpio_num_t>(this->d0_pin_), GPIO_PULLUP_ONLY);
+  gpio_set_pull_mode(static_cast<gpio_num_t>(this->clk_pin_), GPIO_FLOATING);
 
   esp_vfs_fat_sdmmc_mount_config_t mount_config = {
       .format_if_mount_failed = this->format_on_mount_failure_,
@@ -80,6 +96,9 @@ void SdMmcCard::unmount() {
       this->mounted_card_ = nullptr;
     }
     this->mounted_ = false;
+  }
+  if (this->cs_expander_ != nullptr && this->cs_expander_pin_ != 255) {
+    this->cs_expander_->digital_write(this->cs_expander_pin_, true);
   }
 }
 
@@ -218,23 +237,29 @@ bool SdMmcCard::stream_file(const std::string &path, const std::function<bool(co
   FIL file;
   FRESULT res = f_open(&file, fatfs_path.c_str(), FA_READ);
   if (res != FR_OK) return false;
-  std::vector<uint8_t> buffer;
-  buffer.resize(chunk_size);
+  uint8_t *buffer = static_cast<uint8_t *>(heap_caps_malloc(chunk_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+  if (buffer == nullptr) {
+    ESP_LOGW(TAG, "stream_file buffer alloc failed (%u bytes)", (unsigned) chunk_size);
+    f_close(&file);
+    return false;
+  }
   bool ok = true;
   for (;;) {
     UINT br = 0;
-    res = f_read(&file, buffer.data(), (UINT) buffer.size(), &br);
+    res = f_read(&file, buffer, (UINT) chunk_size, &br);
     if (res != FR_OK) {
       ok = false;
       break;
     }
     if (br == 0) break;
-    if (!on_chunk(buffer.data(), (size_t) br)) {
+    if (!on_chunk(buffer, (size_t) br)) {
       ok = false;
       break;
     }
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
   f_close(&file);
+  heap_caps_free(buffer);
   return ok;
 }
 
@@ -262,14 +287,63 @@ bool SdMmcCard::append_file_chunk(const std::string &path, const uint8_t *data, 
     f_close(&file);
     return false;
   }
-  UINT bw = 0;
-  res = f_write(&file, data, (UINT) len, &bw);
-  if (res != FR_OK || bw != len) {
-    ESP_LOGW(TAG, "write failed for %s: %d (wrote %u of %u)", fatfs_path.c_str(), (int) res, (unsigned) bw,
-             (unsigned) len);
+  bool ok = true;
+  size_t offset = 0;
+  while (offset < len) {
+    UINT bw = 0;
+    size_t to_write = std::min<size_t>(len - offset, 512);
+    res = f_write(&file, data + offset, (UINT) to_write, &bw);
+    if (res != FR_OK || bw != to_write) {
+      ESP_LOGW(TAG, "write failed for %s: %d (wrote %u of %u)", fatfs_path.c_str(), (int) res, (unsigned) bw,
+               (unsigned) to_write);
+      ok = false;
+      break;
+    }
+    offset += bw;
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
   f_close(&file);
-  return res == FR_OK && bw == len;
+  return ok;
+}
+
+bool SdMmcCard::begin_write(const std::string &path) {
+  if (this->write_file_open_) {
+    f_close(&this->write_file_);
+    this->write_file_open_ = false;
+    this->write_path_.clear();
+  }
+  std::string fatfs_path = to_fatfs_path(path);
+  FRESULT res = f_open(&this->write_file_, fatfs_path.c_str(), FA_WRITE | FA_CREATE_ALWAYS);
+  if (res != FR_OK) {
+    ESP_LOGW(TAG, "open failed for %s: %d", fatfs_path.c_str(), (int) res);
+    return false;
+  }
+  this->write_file_open_ = true;
+  this->write_path_ = fatfs_path;
+  return true;
+}
+
+bool SdMmcCard::write_chunk(const uint8_t *data, size_t len) {
+  if (!this->write_file_open_) {
+    ESP_LOGW(TAG, "write_chunk called without open file");
+    return false;
+  }
+  UINT bw = 0;
+  FRESULT res = f_write(&this->write_file_, data, (UINT) len, &bw);
+  if (res != FR_OK || bw != len) {
+    ESP_LOGW(TAG, "write failed for %s: %d (wrote %u of %u)", this->write_path_.c_str(), (int) res,
+             (unsigned) bw, (unsigned) len);
+    return false;
+  }
+  return true;
+}
+
+bool SdMmcCard::end_write() {
+  if (!this->write_file_open_) return true;
+  f_close(&this->write_file_);
+  this->write_file_open_ = false;
+  this->write_path_.clear();
+  return true;
 }
 
 }  // namespace sd_card

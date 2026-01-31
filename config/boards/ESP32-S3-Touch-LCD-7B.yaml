@@ -50,6 +50,14 @@ esp32:
     advanced:
       execute_from_psram: true
 
+    sdkconfig_options:
+      CONFIG_FATFS_LFN: y
+      CONFIG_FATFS_LFN_HEAP: y
+      CONFIG_FATFS_MAX_LFN: "255"
+      CONFIG_ESP_INT_WDT: n
+      CONFIG_ESP_INT_WDT_TIMEOUT_MS: "20000"
+      CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"
+
     # sdkconfig_options:
     #   CONFIG_ESP32S3_SPIRAM_SUPPORT: y
     #   CONFIG_SPIRAM: y
@@ -82,7 +90,7 @@ waveshare_io_ch32v003:
     address: 0x24
 
 
-spi: 
+spi:
   id: spi2
   clk_pin: 12
   mosi_pin: 11

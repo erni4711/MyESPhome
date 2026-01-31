@@ -15,6 +15,16 @@
 #  define HAVE_SD_MMC_CARD 0
 #endif
 
+#if defined(__has_include)
+#  if __has_include("esphome/components/sd_spi_card/sd_spi_card.h")
+#    include "esphome/components/sd_spi_card/sd_spi_card.h"
+#    define HAVE_SD_SPI_CARD 1
+#  endif
+#endif
+#ifndef HAVE_SD_SPI_CARD
+#  define HAVE_SD_SPI_CARD 0
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 void *my_lvgl_malloc(size_t size);
@@ -27,6 +37,8 @@ void *my_lvgl_realloc(void *ptr, size_t size);
 #include <cstring>
 #include <esp_http_server.h>
 #include <esp_task_wdt.h>
+#include <esp_timer.h>
+#include <time.h>
 #include <vector>
 #include <esp_err.h>
 #include "freertos/FreeRTOS.h"
@@ -165,7 +177,7 @@ static bool encode_png_to_buffer(lv_img_dsc_t *img, uint8_t **out_buf, size_t *o
       ESP_LOGW(TAG, "Error adding line %u to PNG encoding = %d", (unsigned) y, rc);
       break;
     }
-    esp_task_wdt_reset();
+    App.feed_wdt();
     vTaskDelay(pdMS_TO_TICKS(1));
   }
 
@@ -273,6 +285,23 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   }
 
   if (copy != nullptr && copy_size > 0) {
+    this->parent_->save_requested_ = true;
+    if (this->parent_->png_mutex_ != nullptr) {
+      if (xSemaphoreTake(this->parent_->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (this->parent_->last_png_buf_ != nullptr) {
+          my_lvgl_free(this->parent_->last_png_buf_);
+        }
+        this->parent_->last_png_buf_ = nullptr;
+        this->parent_->last_png_size_ = 0;
+        xSemaphoreGive(this->parent_->png_mutex_);
+      }
+    } else {
+      if (this->parent_->last_png_buf_ != nullptr) {
+        my_lvgl_free(this->parent_->last_png_buf_);
+      }
+      this->parent_->last_png_buf_ = nullptr;
+      this->parent_->last_png_size_ = 0;
+    }
     httpd_req_t *req = *request;
     httpd_resp_set_status(req, HTTPD_200);
     httpd_resp_set_type(req, "image/png");
@@ -293,9 +322,108 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   return;
 }
 
+bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_size) {
+#if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
+  if (png_buf == nullptr || png_size == 0) return false;
+  char ts_buf[32] = {0};
+  bool have_wall_time = false;
+  ::time_t now = ::time(nullptr);
+  if (now > 0) {
+    ::tm lt;
+    if (::localtime_r(&now, &lt) != nullptr) {
+      if (lt.tm_year >= 120) {  // year >= 2020
+        ::strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%d %H:%M:%S", &lt);
+        have_wall_time = ts_buf[0] != '\0';
+      }
+    }
+  }
+  if (!have_wall_time) {
+    const uint64_t now_us = esp_timer_get_time();
+    const unsigned long long now_s = static_cast<unsigned long long>(now_us / 1000000ULL);
+    snprintf(ts_buf, sizeof(ts_buf), "uptime_%llus", now_s);
+  }
+
+  char safe_ts[32] = {0};
+  size_t safe_len = 0;
+  for (size_t i = 0; ts_buf[i] != '\0' && safe_len + 1 < sizeof(safe_ts); ++i) {
+    char c = ts_buf[i];
+    if (c == ':') c = '-';
+    if (c == ' ') c = '_';
+    safe_ts[safe_len++] = c;
+  }
+  safe_ts[safe_len] = '\0';
+
+  char path_buf[96];
+  snprintf(path_buf, sizeof(path_buf), "/sdcard/screenshot_%s.png", safe_ts);
+  const std::string path = path_buf;
+#if HAVE_SD_SPI_CARD
+  if (this->sd_spi_card_ != nullptr) {
+    bool mounted = this->sd_spi_card_->is_mounted();
+    if (!mounted) {
+      mounted = this->sd_spi_card_->mount();
+    }
+    if (!mounted) {
+      ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
+      return false;
+    }
+    this->sd_spi_card_->delete_file(path);
+    bool wrote = this->sd_spi_card_->append_file_chunk(path, png_buf, png_size, true);
+    if (!wrote) {
+      ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
+      return false;
+    }
+    ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+    return true;
+  }
+#endif
+  if (this->sd_mmc_card_ != nullptr) {
+    bool mounted = this->sd_mmc_card_->is_mounted();
+    if (!mounted) {
+      mounted = this->sd_mmc_card_->mount();
+    }
+    if (!mounted) {
+      ESP_LOGW(TAG, "SD MMC mount failed; skipping write");
+      return false;
+    }
+    this->sd_mmc_card_->delete_file(path);
+    bool wrote = this->sd_mmc_card_->append_file_chunk(path, png_buf, png_size, true);
+    if (!wrote) {
+      ESP_LOGW(TAG, "SD MMC write failed: %s", path.c_str());
+      return false;
+    }
+    ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
+    return true;
+  }
+  ESP_LOGD(TAG, "sd card not configured, skipping SD write");
+  return false;
+#else
+  ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
+  return false;
+#endif
+}
+
  
 
 void ScreenshotComponent::loop() {
+  if (this->save_requested_ && !this->capture_in_progress_ && !this->capture_requested_) {
+    uint8_t *buf = nullptr;
+    size_t size = 0;
+    if (this->png_mutex_ != nullptr) {
+      if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(200)) == pdTRUE) {
+        buf = this->last_png_buf_;
+        size = this->last_png_size_;
+        xSemaphoreGive(this->png_mutex_);
+      }
+    } else {
+      buf = this->last_png_buf_;
+      size = this->last_png_size_;
+    }
+    if (buf != nullptr && size > 0) {
+      this->write_png_to_sd_(buf, size);
+    }
+    this->save_requested_ = false;
+  }
+
   if (!this->capture_requested_ || this->capture_in_progress_)
     return;
 
@@ -339,30 +467,7 @@ void ScreenshotComponent::loop() {
     this->last_png_size_ = png_size;
   }
 
-#if HAVE_SD_MMC_CARD
-  if (this->sd_mmc_card_ != nullptr) {
-    const std::string path = "/sdcard/shot.png";
-    bool mounted = this->sd_mmc_card_->is_mounted();
-    if (!mounted) {
-      mounted = this->sd_mmc_card_->mount();
-    }
-    if (!mounted) {
-      ESP_LOGW(TAG, "SD mount failed; skipping write");
-    } else {
-      this->sd_mmc_card_->delete_file(path);
-      bool wrote = this->sd_mmc_card_->append_file_chunk(path, png_buf, png_size, true);
-      if (!wrote) {
-        ESP_LOGW(TAG, "SD write failed: %s", path.c_str());
-      } else {
-        ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
-      }
-    }
-  } else {
-    ESP_LOGD(TAG, "sd_mmc_card not configured, skipping SD write");
-  }
-#else
-  ESP_LOGD(TAG, "sd_mmc_card support not compiled, skipping SD write");
-#endif
+  this->write_png_to_sd_(png_buf, png_size);
 
   ESP_LOGD(TAG, "PNG image cached, %u bytes", (unsigned) png_size);
   this->capture_in_progress_ = false;

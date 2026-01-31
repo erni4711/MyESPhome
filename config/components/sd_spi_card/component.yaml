@@ -1,6 +1,0 @@
-# Minimal component.yaml so the build picks up the C++ sources
-dependencies: []
-sources:
-  - sd_spi_card.cpp
-headers:
-  - sd_spi_card.h

@@ -13,6 +13,7 @@ using String = std::string;
 namespace esphome {
 namespace sd_card {
 class SdMmcCard;
+class SdSpiCard;
 }  // namespace sd_card
 namespace screenshot {
 
@@ -23,6 +24,7 @@ class ScreenshotComponent : public Component {
   void dump_config() override;
 
   void set_sd_mmc_card(::esphome::sd_card::SdMmcCard *card) { this->sd_mmc_card_ = card; }
+  void set_sd_spi_card(::esphome::sd_card::SdSpiCard *card) { this->sd_spi_card_ = card; }
 
   // Call to register the component at runtime (safe after App initialized)
   static void register_component_runtime();
@@ -54,6 +56,7 @@ class ScreenshotComponent : public Component {
   // Resulting snapshot allocated by LVGL; set in main-loop and consumed by handler
   lv_img_dsc_t *capture_result_{nullptr};
   ::esphome::sd_card::SdMmcCard *sd_mmc_card_{nullptr};
+  ::esphome::sd_card::SdSpiCard *sd_spi_card_{nullptr};
 
   // Cached PNG image data for quick HTTP responses
   uint8_t *last_png_buf_{nullptr};
@@ -61,6 +64,9 @@ class ScreenshotComponent : public Component {
   bool capture_requested_{false};
   bool capture_in_progress_{false};
   SemaphoreHandle_t png_mutex_{nullptr};
+  bool save_requested_{false};
+
+  bool write_png_to_sd_(const uint8_t *png_buf, size_t png_size);
 };
 
 }  // namespace screenshot
