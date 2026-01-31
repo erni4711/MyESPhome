@@ -101,6 +101,9 @@ sd_mmc_card:
   clk_pin: 12
   cmd_pin: 11
   d0_pin: 13
+  cs_pin:
+    waveshare_io_ch32v003: ioexp
+    number: 4
   format_on_mount_failure: false
 
 

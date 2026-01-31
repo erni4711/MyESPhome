@@ -7,9 +7,7 @@
 #include <string>
 
 namespace esphome {
-namespace waveshare_io_ch32v003 {
-class WaveshareIOCH32V003Component;
-}  // namespace waveshare_io_ch32v003
+class GPIOPin;
 }  // namespace esphome
 
 namespace esphome {
@@ -39,18 +37,14 @@ class SdMmcCard : public Component {
   void set_clk_pin(uint8_t pin) { this->clk_pin_ = pin; }
   void set_cmd_pin(uint8_t pin) { this->cmd_pin_ = pin; }
   void set_d0_pin(uint8_t pin) { this->d0_pin_ = pin; }
-  void set_cs_expander(waveshare_io_ch32v003::WaveshareIOCH32V003Component *expander, uint8_t pin) {
-    this->cs_expander_ = expander;
-    this->cs_expander_pin_ = pin;
-  }
+  void set_cs_pin(GPIOPin *pin) { this->cs_pin_ = pin; }
 
  protected:
   bool format_on_mount_failure_{false};
   uint8_t clk_pin_{255};
   uint8_t cmd_pin_{255};
   uint8_t d0_pin_{255};
-  waveshare_io_ch32v003::WaveshareIOCH32V003Component *cs_expander_{};
-  uint8_t cs_expander_pin_{255};
+  GPIOPin *cs_pin_{nullptr};
   bool mounted_{false};
   sdmmc_card_t *mounted_card_{nullptr};
   FIL write_file_{};

@@ -4,7 +4,6 @@
 #include "driver/sdmmc_host.h"
 #include "ff.h"
 #include "driver/gpio.h"
-#include "esphome/components/waveshare_io_ch32v003/waveshare_io_ch32v003.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
@@ -49,10 +48,11 @@ void SdMmcCard::setup() {
 bool SdMmcCard::mount() {
   if (this->mounted_) return true;
 
-  if (this->cs_expander_ != nullptr && this->cs_expander_pin_ != 255) {
-    this->cs_expander_->pin_mode(this->cs_expander_pin_, esphome::gpio::FLAG_OUTPUT);
+  if (this->cs_pin_ != nullptr) {
+    this->cs_pin_->setup();
+    this->cs_pin_->pin_mode(esphome::gpio::FLAG_OUTPUT);
     // Match the demo: keep CS/power deasserted (high) when idle.
-    this->cs_expander_->digital_write(this->cs_expander_pin_, true);
+    this->cs_pin_->digital_write(true);
     delay(50);
   }
 
@@ -97,8 +97,8 @@ void SdMmcCard::unmount() {
     }
     this->mounted_ = false;
   }
-  if (this->cs_expander_ != nullptr && this->cs_expander_pin_ != 255) {
-    this->cs_expander_->digital_write(this->cs_expander_pin_, true);
+  if (this->cs_pin_ != nullptr) {
+    this->cs_pin_->digital_write(true);
   }
 }
 
