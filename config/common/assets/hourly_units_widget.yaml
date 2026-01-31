@@ -43,14 +43,14 @@ widgets:
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
+      text: "${mdi_windy}㎧"
+  - label:
+      height: SIZE_CONTENT
+      text_font: font_small
+      text_color: gray
       text: "${mdi_rainy}mm"
   - label:
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
       text: "${mdi_snowy}mm"
-  - label:
-      height: SIZE_CONTENT
-      text_font: font_small
-      text_color: gray
-      text: "${mdi_windy}㎧"
