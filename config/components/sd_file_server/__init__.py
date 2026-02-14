@@ -16,6 +16,17 @@ CONF_ENABLE_DELETION = "enable_deletion"
 CONF_ENABLE_DOWNLOAD = "enable_download"
 CONF_ENABLE_UPLOAD = "enable_upload"
 
+SD_MMC_ID_KEY = getattr(
+    sd_mmc_card,
+    "CONF_SD_MMC_ID",
+    getattr(sd_mmc_card, "CONF_SD_MMC_CARD_ID", "sd_mmc_id"),
+)
+SD_MMC_CLASS = getattr(
+    sd_mmc_card,
+    "SdMmc",
+    getattr(sd_mmc_card, "SdMmcCard", cg.Component),
+)
+
 # Accept either the base web server or the regular web_server (some configs
 # use one or the other). Allow either sd_mmc_card or sd_spi_card when present.
 AUTO_LOAD = ["web_server_base", "web_server", "sd_mmc_card"]
@@ -29,7 +40,7 @@ schema = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(SDFileServer),
         cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server.WebServer),
-        cv.Optional(sd_mmc_card.CONF_SD_MMC_ID): cv.use_id(sd_mmc_card.SdMmcCard),
+        cv.Optional(SD_MMC_ID_KEY): cv.use_id(SD_MMC_CLASS),
         cv.Optional(CONF_URL_PREFIX, default="file"): cv.string_strict,
         cv.Optional(CONF_ROOT_PATH, default="/"): cv.string_strict,
         cv.Optional(CONF_ENABLE_DELETION, default=False): cv.boolean,
@@ -46,8 +57,8 @@ CONFIG_SCHEMA = cv.All(
     cv.require_esphome_version(2025,7,0),
     schema.extend(cv.COMPONENT_SCHEMA),
     cv.has_exactly_one_key(
-        sd_mmc_card.CONF_SD_MMC_ID,
-        sd_spi_card.CONF_SD_SPI_ID if sd_spi_card is not None else sd_mmc_card.CONF_SD_MMC_ID,
+        SD_MMC_ID_KEY,
+        sd_spi_card.CONF_SD_SPI_ID if sd_spi_card is not None else SD_MMC_ID_KEY,
     ),
 )
 
@@ -55,8 +66,8 @@ async def to_code(config):
     paren = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])
     var = cg.new_Pvariable(config[CONF_ID], paren)
     await cg.register_component(var, config)
-    if sd_mmc_card.CONF_SD_MMC_ID in config:
-        sdmmc = await cg.get_variable(config[sd_mmc_card.CONF_SD_MMC_ID])
+    if SD_MMC_ID_KEY in config:
+        sdmmc = await cg.get_variable(config[SD_MMC_ID_KEY])
         cg.add(var.set_sd_mmc_card(sdmmc))
     if sd_spi_card is not None and sd_spi_card.CONF_SD_SPI_ID in config:
         sdspi = await cg.get_variable(config[sd_spi_card.CONF_SD_SPI_ID])

@@ -12,8 +12,10 @@ using String = std::string;
 
 namespace esphome {
 namespace sd_card {
-class SdMmcCard;
 class SdSpiCard;
+}  // namespace sd_card
+namespace sd_card {
+class SdMmcCard;
 }  // namespace sd_card
 namespace screenshot {
 

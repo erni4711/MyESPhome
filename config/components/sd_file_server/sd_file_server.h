@@ -8,8 +8,10 @@
 // Forward-declare sd_card shim type to avoid circular includes
 namespace esphome {
 namespace sd_card {
-class SdMmcCard;
 class SdSpiCard;
+}
+namespace sd_card {
+class SdMmcCard;
 }
 }
 #include <string>

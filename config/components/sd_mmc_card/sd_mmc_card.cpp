@@ -7,6 +7,15 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
+#if defined(CONFIG_SDMMC_ENABLE_POWER_CONTROL) && __has_include("sd_pwr_ctrl_by_on_chip_ldo.h")
+#include "sd_pwr_ctrl_by_on_chip_ldo.h"
+#define ESPHOME_SDMMC_HAS_PWR_CTRL 1
+#else
+#define ESPHOME_SDMMC_HAS_PWR_CTRL 0
+#endif
+#ifdef INIT_SD_AFTER_WIFI_INIT
+#include "esphome/components/wifi/wifi_component.h"
+#endif
 #include <cerrno>
 #include <cstring>
 #include "esp_err.h"
@@ -37,11 +46,53 @@ static std::string to_fatfs_path(const std::string &path) {
 }
 
 void SdMmcCard::setup() {
+#ifdef INIT_SD_AFTER_WIFI_INIT
+  if (wifi::global_wifi_component != nullptr) {
+    if (wifi::global_wifi_component->is_connected()) {
+      this->mount_at_ms_ = millis() + 10000;
+      this->mount_scheduled_ = true;
+      ESP_LOGI(TAG, "SDMMC mount scheduled 10s after WiFi is up");
+      return;
+    }
+    this->waiting_for_wifi_ = true;
+    ESP_LOGI(TAG, "Waiting for WiFi before SDMMC mount");
+    return;
+  }
+#endif
+
   bool ok = this->mount();
   if (ok) {
     ESP_LOGI(TAG, "SD card mounted");
   } else {
     ESP_LOGW(TAG, "SD card mount failed");
+  }
+}
+
+void SdMmcCard::loop() {
+  if (this->mounted_) return;
+
+#ifdef INIT_SD_AFTER_WIFI_INIT
+  if (this->waiting_for_wifi_) {
+    if (wifi::global_wifi_component != nullptr && wifi::global_wifi_component->is_connected()) {
+      this->waiting_for_wifi_ = false;
+      this->mount_at_ms_ = millis() + 10000;
+      this->mount_scheduled_ = true;
+      ESP_LOGI(TAG, "WiFi is up; SDMMC mount scheduled in 10s");
+    }
+  }
+#endif
+
+  if (this->mount_scheduled_) {
+    const uint32_t now = millis();
+    if ((int32_t) (now - this->mount_at_ms_) >= 0) {
+      this->mount_scheduled_ = false;
+      bool ok = this->mount();
+      if (ok) {
+        ESP_LOGI(TAG, "SD card mounted");
+      } else {
+        ESP_LOGW(TAG, "SD card mount failed");
+      }
+    }
   }
 }
 
@@ -57,28 +108,55 @@ bool SdMmcCard::mount() {
   }
 
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-  host.flags = SDMMC_HOST_FLAG_1BIT;
+  host.slot = SDMMC_HOST_SLOT_0;
+  host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+  esp_err_t err = ESP_OK;
+#if ESPHOME_SDMMC_HAS_PWR_CTRL
+  sd_pwr_ctrl_ldo_config_t ldo_config = {
+      .ldo_chan_id = 4,
+  };
+  sd_pwr_ctrl_handle_t pwr_ctrl_handle = nullptr;
+  err = sd_pwr_ctrl_new_on_chip_ldo(&ldo_config, &pwr_ctrl_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to create a new on-chip LDO power control driver");
+    return false;
+  }
+  host.pwr_ctrl_handle = pwr_ctrl_handle;
+#endif
+  
   sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-  slot_config.width = 1;
+  if (this->mode_1bit_) {
+    host.flags = SDMMC_HOST_FLAG_1BIT;
+    slot_config.width = 1;
+  } else {
+    host.flags = SDMMC_HOST_FLAG_4BIT;
+    slot_config.width = 4;
+  }
+  ESP_LOGI(TAG, "SDMMC bus width: %ubit", this->mode_1bit_ ? 1U : 4U);
   slot_config.clk = static_cast<gpio_num_t>(this->clk_pin_);
   slot_config.cmd = static_cast<gpio_num_t>(this->cmd_pin_);
   slot_config.d0 = static_cast<gpio_num_t>(this->d0_pin_);
-  slot_config.d1 = GPIO_NUM_NC;
-  slot_config.d2 = GPIO_NUM_NC;
-  slot_config.d3 = GPIO_NUM_NC;
+  slot_config.d1 = this->mode_1bit_ ? GPIO_NUM_NC : static_cast<gpio_num_t>(this->d1_pin_);
+  slot_config.d2 = this->mode_1bit_ ? GPIO_NUM_NC : static_cast<gpio_num_t>(this->d2_pin_);
+  slot_config.d3 = this->mode_1bit_ ? GPIO_NUM_NC : static_cast<gpio_num_t>(this->d3_pin_);
   slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
   // Ensure pull-ups are applied on CMD/D0 for reliable card init
   gpio_set_pull_mode(static_cast<gpio_num_t>(this->cmd_pin_), GPIO_PULLUP_ONLY);
   gpio_set_pull_mode(static_cast<gpio_num_t>(this->d0_pin_), GPIO_PULLUP_ONLY);
+  if (!this->mode_1bit_) {
+    gpio_set_pull_mode(static_cast<gpio_num_t>(this->d1_pin_), GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(static_cast<gpio_num_t>(this->d2_pin_), GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(static_cast<gpio_num_t>(this->d3_pin_), GPIO_PULLUP_ONLY);
+  }
   gpio_set_pull_mode(static_cast<gpio_num_t>(this->clk_pin_), GPIO_FLOATING);
 
   esp_vfs_fat_sdmmc_mount_config_t mount_config = {
       .format_if_mount_failed = this->format_on_mount_failure_,
       .max_files = 5,
-      .allocation_unit_size = 16 * 1024};
+      .allocation_unit_size = 64 * 1024};
 
-  esp_err_t err = esp_vfs_fat_sdmmc_mount(MOUNT_POINT, &host, &slot_config, &mount_config, &this->mounted_card_);
+  err = esp_vfs_fat_sdmmc_mount(MOUNT_POINT, &host, &slot_config, &mount_config, &this->mounted_card_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "SDMMC mount failed: %s", esp_err_to_name(err));
     this->mounted_card_ = nullptr;
@@ -269,6 +347,11 @@ bool SdMmcCard::delete_file(const std::string &path) {
   if (res == FR_OK) return true;
   ESP_LOGW(TAG, "delete_file failed for %s: %d", fatfs_path.c_str(), (int) res);
   return false;
+}
+
+bool SdMmcCard::append_file(const char *path, const uint8_t *data, size_t len) {
+  if (path == nullptr || data == nullptr) return false;
+  return this->append_file_chunk(path, data, len, true);
 }
 
 bool SdMmcCard::append_file_chunk(const std::string &path, const uint8_t *data, size_t len, bool create_if_missing) {

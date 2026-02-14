@@ -14,6 +14,8 @@ See [ScreenShot](config/components/screenshot/README.md)
 
 [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) from [WAVESHARE](https://www.waveshare.com/)
 
+[ESP32-P4-WIFI6-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B)
+
 ## Software feature
 - Widget for heating control
 - sd card via webserver

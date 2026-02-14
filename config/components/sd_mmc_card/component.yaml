@@ -1,0 +1,8 @@
+name: "sd_mmc_card"
+version: "0.1"
+
+files:
+  - sd_mmc_card.cpp
+  - sd_mmc_card.h
+includes:
+  - sd_mmc_card.h

@@ -458,22 +458,10 @@ bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_si
 #endif
   if (!attempted && this->sd_mmc_card_ != nullptr) {
     attempted = true;
-    bool mounted = this->sd_mmc_card_->is_mounted();
-    if (!mounted) {
-      mounted = this->sd_mmc_card_->mount();
-    }
-    if (!mounted) {
-      ESP_LOGW(TAG, "SD MMC mount failed; skipping write");
-      wrote = false;
-    } else {
-      this->sd_mmc_card_->delete_file(path);
-      wrote = this->sd_mmc_card_->append_file_chunk(path, png_buf, png_size, true);
-      if (!wrote) {
-        ESP_LOGW(TAG, "SD MMC write failed: %s", path.c_str());
-      } else {
-        ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
-      }
-    }
+    this->sd_mmc_card_->delete_file(path);
+    this->sd_mmc_card_->append_file(path.c_str(), png_buf, png_size);
+    wrote = true;
+    ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
   }
   if (!attempted) {
     ESP_LOGD(TAG, "sd card not configured, skipping SD write");
