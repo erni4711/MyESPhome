@@ -20,9 +20,6 @@ esphome:
 # We won't need this once this board is added to ESPhome
 external_components:
   - source: components
-  - source: github://pr#11886
-    components: [mipi_dsi]
-    refresh: 1h
   # source: github://pr#7639
   #   components: [camera, camera_encoder, camera_pipeline, camera_sensor, esp32_camera]
   #   refresh: 1h
@@ -135,6 +132,8 @@ display:
   - platform: mipi_dsi
     id: main_display
     model: WAVESHARE-ESP32-P4-WIFI6-TOUCH-LCD-7B
+    color_order: RGB
+    byte_order: little_endian
     reset_pin:
       number: 33
     rotation: 180
@@ -396,6 +395,7 @@ image:
     id: boot_logo
     resize: 200x200
     type: RGB565
+    byte_order: little_endian
     transparency: alpha_channel
 
 

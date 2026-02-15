@@ -1,5 +1,6 @@
 substitutions:
   node_name: "esp32s3-7b-sample"
+  friendly_name: s37b2
 
 packages:
   - !include common/subst.yaml
