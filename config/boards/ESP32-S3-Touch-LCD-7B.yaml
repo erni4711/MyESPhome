@@ -418,6 +418,13 @@ screenshot:
 
 
 text_sensor:
+  - platform: wifi_info
+    ip_address:
+      id: wifi_ip
+      name: "IP Address"
+    ssid:
+      id: wifi_ssid
+      name: "WiFi SSID"
   - platform: version
     id: esphome_version
     name: "ESPHome Version"
@@ -439,6 +446,33 @@ interval:
           text: !lambda |-
             char buf[16];
             sprintf(buf, "%.0f%%", id(battery_percent).state);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: boot_network_label
+          text: !lambda |-
+            std::string ssid = id(wifi_ssid).state;
+            std::string ip = id(wifi_ip).state;
+            if (ssid.empty() && ip.empty()) {
+              return std::string("Network: disconnected");
+            }
+            if (ssid.empty()) ssid = "unknown";
+            if (ip.empty()) ip = "no ip";
+            return std::string("Network: ") + ssid + " (" + ip + ")";
+      - lvgl.label.update:
+          id: boot_sd_label
+          text: !lambda |-
+            if (!id(sdcard).is_mounted()) {
+              return std::string("SD: not mounted");
+            }
+            uint64_t total_kb = 0;
+            uint64_t free_kb = 0;
+            if (!id(sdcard).get_capacity_kb(&total_kb, &free_kb)) {
+              return std::string("SD: mount ok, size unknown");
+            }
+            const double total_gb = total_kb / (1024.0 * 1024.0);
+            const double free_gb = free_kb / (1024.0 * 1024.0);
+            char buf[64];
+            snprintf(buf, sizeof(buf), "SD: %.1f GB free / %.1f GB", free_gb, total_gb);
             return std::string(buf);
 
 
@@ -600,6 +634,18 @@ lvgl:
                 y: 160  
                 text: "X"
             - label:
+                id: boot_network_label
+                align: CENTER
+                y: 195
+                text_font: font_small
+                text: "Network: connecting"
+            - label:
+                id: boot_sd_label
+                align: CENTER
+                y: 220
+                text_font: font_small
+                text: "SD: checking"
+            - label:
                 border_width: 4
                 border_color: white
                 align: BOTTOM_RIGHT
@@ -607,7 +653,7 @@ lvgl:
                 text: "based on a template by Bernd Oerding\nhttps://github.com/erni4711/MyESPhome.git"
             - label:
                 align: CENTER
-                y: 220  
+                y: 250
                 text: "Touch to close"
             
           on_press:

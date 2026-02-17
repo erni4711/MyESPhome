@@ -20,3 +20,9 @@ config/components/sd_file_server/__pycache__/__init__.cpython-311.pyc
 config/components/sd_mmc_card/__pycache__/__init__.cpython-311.pyc
 config/components/sd_file_server/__pycache__/__init__.cpython-313.pyc
 config/components/sd_mmc_card/__pycache__/__init__.cpython-313.pyc
+config/components/mipi_dsi/__pycache__/__init__.cpython-311.pyc
+config/components/mipi_dsi/__pycache__/display.cpython-311.pyc
+config/components/mipi_dsi/models/__pycache__/__init__.cpython-311.pyc
+config/components/mipi_dsi/models/__pycache__/guition.cpython-311.pyc
+config/components/mipi_dsi/models/__pycache__/m5stack.cpython-311.pyc
+config/components/mipi_dsi/models/__pycache__/waveshare.cpython-311.pyc

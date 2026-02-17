@@ -482,16 +482,18 @@ sensor:
         return 0;
       }
     update_interval: 2s
-
   # Example configuration entry I2C
-  # - platform: bme280_i2c
-  #   address: 0x76
-  #   temperature:
-  #     name: "BME280 Temperature"
-  #   pressure:
-  #     name: "BME280 Pressure"
-  #   humidity:
-  #     name: "BME280 Humidity"
+  - platform: bme280_i2c
+    address: 0x76
+    temperature:
+      id: bme_temperature
+      name: "BME280 Temperature"
+    pressure:
+      id: bme_pressure
+      name: "BME280 Pressure"
+    humidity:
+      id: bme_humidity
+      name: "BME280 Humidity"
   - platform: wifi_signal
     name: "WiFi Signal Strength"
   - platform: adc
@@ -593,6 +595,33 @@ interval:
             const double free_gb = free_kb / (1024.0 * 1024.0);
             char buf[64];
             snprintf(buf, sizeof(buf), "SD: %.1f GB free / %.1f GB", free_gb, total_gb);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: boot_bme_temp_label
+          text: !lambda |-
+            if (!id(bme_temperature).has_state()) {
+              return std::string("Temp: --.- C");
+            }
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Temp: %.1f C", id(bme_temperature).state);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: boot_bme_hum_label
+          text: !lambda |-
+            if (!id(bme_humidity).has_state()) {
+              return std::string("Hum: --.- %%");
+            }
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Hum: %.1f %%", id(bme_humidity).state);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: boot_bme_pres_label
+          text: !lambda |-
+            if (!id(bme_pressure).has_state()) {
+              return std::string("Pres: ----.- hPa");
+            }
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Pres: %.1f hPa", id(bme_pressure).state);
             return std::string(buf);
 
 # LVGL settings required for this display
@@ -753,6 +782,27 @@ lvgl:
                 align: CENTER
                 y: 160  
                 text: "X"
+            - label:
+                id: boot_bme_temp_label
+                align: TOP_RIGHT
+                x: -10
+                y: 10
+                text_font: font_small
+                text: "Temp: --.- C"
+            - label:
+                id: boot_bme_hum_label
+                align: TOP_RIGHT
+                x: -10
+                y: 30
+                text_font: font_small
+                text: "Hum: --.- %"
+            - label:
+                id: boot_bme_pres_label
+                align: TOP_RIGHT
+                x: -10
+                y: 50
+                text_font: font_small
+                text: "Pres: ----.- hPa"
             - label:
                 id: boot_network_label
                 align: CENTER
