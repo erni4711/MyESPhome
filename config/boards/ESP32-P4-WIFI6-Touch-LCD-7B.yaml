@@ -40,6 +40,7 @@ esp32:
       CONFIG_FATFS_LFN_STACK: "n"
       CONFIG_FATFS_MAX_LFN: "255"
       CONFIG_VFS_SUPPORT_DIR: "y"
+      CONFIG_WIFI_RMT_NVS_ENABLED: "n"
   flash_size: 32MB
   cpu_frequency: 360MHz
 
