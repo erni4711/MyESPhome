@@ -2,7 +2,7 @@
 
 #include "esphome.h"
 #include "sdmmc_cmd.h"
-#include "ff.h"
+#include <cstdio>
 #include <functional>
 #include <string>
 
@@ -60,7 +60,7 @@ class SdMmcCard : public Component {
   GPIOPin *cs_pin_{nullptr};
   bool mounted_{false};
   sdmmc_card_t *mounted_card_{nullptr};
-  FIL write_file_{};
+  FILE *write_file_{nullptr};
   bool write_file_open_{false};
   std::string write_path_{};
 };

@@ -2,6 +2,7 @@ from esphome import pins
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
+from esphome.components.esp32 import include_builtin_idf_component
 
 sd_card_ns = cg.esphome_ns.namespace("sd_card")
 SdMmcCard = sd_card_ns.class_("SdMmcCard", cg.Component)
@@ -56,6 +57,7 @@ CONFIG_SCHEMA = cv.All(
 
 
 async def to_code(config):
+    include_builtin_idf_component("fatfs")
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     cg.add(var.set_clk_pin(config[CONF_CLK_PIN]))

@@ -3,7 +3,7 @@
 esphome:
   name: ${node_name}
   friendly_name: ${friendly_name}
-  min_version: 2025.11.0
+  min_version: 2026.2.0
   project:
     name: "Waveshare.ESP32-P4-WIFI6-Touch-LCD-7B"
     version: "1.0.0"
@@ -35,9 +35,11 @@ esp32:
     advanced:
       enable_idf_experimental_features: true
     sdkconfig_options:
-      CONFIG_FATFS_LFN: "y"
+      CONFIG_FATFS_LFN_NONE: "n"
       CONFIG_FATFS_LFN_HEAP: "y"
+      CONFIG_FATFS_LFN_STACK: "n"
       CONFIG_FATFS_MAX_LFN: "255"
+      CONFIG_VFS_SUPPORT_DIR: "y"
   flash_size: 32MB
   cpu_frequency: 360MHz
 
@@ -51,6 +53,23 @@ esp32_hosted:
   d2_pin: GPIO16
   d3_pin: GPIO17
   active_high: true
+
+update:
+  - platform: esp32_hosted
+    type: embedded
+    id: c6_hosted_update
+    name: ESP32 C6 Hosted Firmware
+    path: firmware/esp32c6_hosted.bin
+    sha256: 0ec2d27db910051ad11ad5e26703af1544b7ac16fee1401f763e92907dce96c1
+
+button:
+  - platform: template
+    name: ESP32 C6 Hosted Flash
+    icon: mdi:chip
+    on_press:
+      - update.perform:
+          id: c6_hosted_update
+          force_update: true
 
 psram:
   mode: hex
@@ -92,7 +111,21 @@ touchscreen:
             - lvgl.resume:
             - lvgl.widget.redraw:
             - light.turn_on: display_backlight
-
+    # Swipe handlers removed — `touchscreen.gt911` does not support
+    # `on_swipe_left` / `on_swipe_right` at this level. If gesture handling
+    # is required, implement it via LVGL gestures or a supported touchscreen
+    # event handler. The following commented example may help for future
+    # reference:
+    # on_swipe_left:
+    #   then:
+    #     - lvgl.page.next:
+    #   animation: OUT_LEFT
+    #   time: 300ms
+    # on_swipe_right:
+    #   then:
+    #     - lvgl.page.previous:
+    #   animation: OUT_RIGHT
+    #   time: 300ms
 
       # on_touch:
             # - logger.log:
