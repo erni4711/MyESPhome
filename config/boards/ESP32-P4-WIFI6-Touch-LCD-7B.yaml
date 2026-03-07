@@ -3,7 +3,7 @@
 esphome:
   name: ${node_name}
   friendly_name: ${friendly_name}
-  min_version: 2026.2.0
+  min_version: 2026.2.3
   project:
     name: "Waveshare.ESP32-P4-WIFI6-Touch-LCD-7B"
     version: "1.0.0"
@@ -19,7 +19,10 @@ esphome:
 
 # We won't need this once this board is added to ESPhome
 external_components:
-  - source: components
+  - source:
+      type: local
+      path: components
+
   # source: github://pr#7639
   #   components: [camera, camera_encoder, camera_pipeline, camera_sensor, esp32_camera]
   #   refresh: 1h
@@ -93,11 +96,31 @@ i2c:
     frequency: 400kHz
     scan: true
 
+tab5_camera:
+  id: ov5647_camera
+  name: OV5647 Camera
+  i2c_id: bus_a
+  external_clock_pin: 36
+  frequency: 24000000
+  address_sensor_ov5647: 0x36
+  resolution: FHD
+  pixel_format: RGB565
+  framerate: 30
+  flip_mirror: false
+
+lvgl_camera_display:
+  id: camera_display
+  camera_id: ov5647_camera
+  canvas_id: camera_canvas
+  update_interval: 33ms
+
 touchscreen:
   - platform: gt911
     id: my_touchscreen
+    display: main_display
     i2c_id: bus_a
     reset_pin: GPIO23
+    # interrupt_pin: TP1  # INT not wired on this board
     update_interval: 50ms
     transform:
       swap_xy: false
@@ -107,38 +130,10 @@ touchscreen:
       - if:
           condition: lvgl.is_paused
           then:
-            - logger.log: "LVGL resuming"
             - switch.turn_off: switch_antiburn
             - lvgl.resume:
             - lvgl.widget.redraw:
             - light.turn_on: display_backlight
-    # Swipe handlers removed — `touchscreen.gt911` does not support
-    # `on_swipe_left` / `on_swipe_right` at this level. If gesture handling
-    # is required, implement it via LVGL gestures or a supported touchscreen
-    # event handler. The following commented example may help for future
-    # reference:
-    # on_swipe_left:
-    #   then:
-    #     - lvgl.page.next:
-    #   animation: OUT_LEFT
-    #   time: 300ms
-    # on_swipe_right:
-    #   then:
-    #     - lvgl.page.previous:
-    #   animation: OUT_RIGHT
-    #   time: 300ms
-
-      # on_touch:
-            # - logger.log:
-            # format: Touch at (%d, %d)
-            # args: [touch.x, touch.y]
-            # - lambda: |-
-                # ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-                # touch.x,
-                # touch.y,
-                # touch.x_raw,
-                # touch.y_raw
-                # );
 
 # -------------------------------------------
 # Backlight
@@ -168,8 +163,8 @@ display:
     model: WAVESHARE-ESP32-P4-WIFI6-TOUCH-LCD-7B
     color_order: RGB
     byte_order: little_endian
-    reset_pin:
-      number: 33
+    # reset_pin:
+    #   number: GPIO33
     rotation: 180
     update_interval: never
     auto_clear_enabled: false
@@ -252,6 +247,17 @@ switch:
     name: "Audio Amplifier"
     id: audio_amplifier
     restore_mode: ALWAYS_OFF
+  - platform: template
+    id: camera_stream
+    name: Camera Stream
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - lambda: |-
+          id(ov5647_camera).start_streaming();
+    turn_off_action:
+      - lambda: |-
+          id(ov5647_camera).stop_streaming();
   - platform: template
     name: Antiburn
     id: switch_antiburn
@@ -345,7 +351,7 @@ media_player:
 micro_wake_word:
   id: my_wake_word
   models:
-    - model: "hey_jarvis"
+    - model: "okay_nabu"
   on_wake_word_detected:
     then:
       - logger.log: "Wake word detected"
@@ -562,6 +568,7 @@ web_server:
 screenshot:
   id: screenshot_component
   sd_mmc_id: sdcard
+  camera_id: ov5647_camera
 
 text_sensor:
   - platform: wifi_info
@@ -657,6 +664,21 @@ interval:
             char buf[32];
             snprintf(buf, sizeof(buf), "Pres: %.1f hPa", id(bme_pressure).state);
             return std::string(buf);
+  - interval: 2s
+    then:
+      - lambda: |-
+          static bool started = false;
+          if (started) {
+            return;
+          }
+          if (id(camera_canvas) == nullptr) {
+            return;
+          }
+          id(camera_display).configure_canvas(id(camera_canvas));
+          if (id(camera_stream).state) {
+            id(ov5647_camera).start_streaming();
+          }
+          started = true;
 
 # LVGL settings required for this display
 lvgl:
@@ -862,3 +884,30 @@ lvgl:
             
           on_press:
             - lvgl.widget.hide: boot_screen
+  pages:
+    - id: camera_page
+      widgets:
+        - obj:
+            id: camera_root
+            align: TOP_LEFT
+            width: 100%
+            height: 100%
+            border_width: 0
+            shadow_width: 0
+            outline_width: 0
+            pad_all: 0
+            widgets:
+              - button:
+                  id: camera_toggle
+                  align: TOP_LEFT
+                  x: 8
+                  y: 38
+                  text: "Cam"
+                  # on_press:
+                  #   then:
+                  #     - switch.toggle: camera_stream
+              - canvas:
+                  id: camera_canvas
+                  align: CENTER
+                  width: 800
+                  height: 640

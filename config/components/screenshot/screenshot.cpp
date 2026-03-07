@@ -44,6 +44,16 @@ void *my_lvgl_realloc(void *ptr, size_t size);
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+// JPEG encoder (ESP32-P4 hardware accelerated)
+#if defined(__has_include)
+#  if __has_include("driver/jpeg_encode.h")
+#    include "driver/jpeg_encode.h"
+#    define HAVE_HW_JPEG_ENCODER 1
+#  endif
+#endif
+#ifndef HAVE_HW_JPEG_ENCODER
+#  define HAVE_HW_JPEG_ENCODER 0
+#endif
 // JPEG encoder removed; keep PPM path only
 
 // libpng streaming removed; use zlib-based writer or stb fallback instead
@@ -55,6 +65,54 @@ void *my_lvgl_realloc(void *ptr, size_t size);
 #    define HAVE_ZLIB 1
 #  endif
 #endif
+
+// --- Hardware JPEG helper (ESP32-P4) -------------------------------------
+#if HAVE_HW_JPEG_ENCODER
+static bool encode_raw_rgb565_to_jpeg(const uint8_t *src, size_t src_size, uint16_t width, uint16_t height,
+                                      uint8_t **out_buf, size_t *out_size, uint8_t quality = 80, uint16_t timeout_ms = 200) {
+  if (!src || src_size == 0 || !out_buf || !out_size) return false;
+
+  jpeg_encode_engine_cfg_t eng_cfg = {
+      .intr_priority = 0,
+      .timeout_ms = timeout_ms,
+  };
+  jpeg_encoder_handle_t handle = NULL;
+  esp_err_t err = jpeg_new_encoder_engine(&eng_cfg, &handle);
+  if (err != ESP_OK) return false;
+
+  size_t out_guess = src_size;
+  jpeg_encode_memory_alloc_cfg_t mem_cfg = {
+      .buffer_direction = JPEG_ENC_ALLOC_OUTPUT_BUFFER,
+  };
+  size_t actual_size = 0;
+  uint8_t *buf = (uint8_t *)jpeg_alloc_encoder_mem(out_guess, &mem_cfg, &actual_size);
+  if (!buf) {
+    jpeg_del_encoder_engine(handle);
+    return false;
+  }
+
+    jpeg_encode_cfg_t cfg = {
+      .height = height,
+      .width = width,
+      .src_type = JPEG_ENCODE_IN_FORMAT_RGB565,
+      .sub_sample = JPEG_DOWN_SAMPLING_YUV422,
+      .image_quality = quality,
+    };
+
+  uint32_t bytes_written = 0;
+  err = jpeg_encoder_process(handle, &cfg, (uint8_t *)src, src_size, buf, actual_size ? actual_size : out_guess, &bytes_written);
+  jpeg_del_encoder_engine(handle);
+  if (err != ESP_OK) {
+    free(buf);
+    return false;
+  }
+
+  *out_buf = buf;
+  *out_size = bytes_written;
+  return true;
+}
+#endif
+// --------------------------------------------------------------------------
 
 // try to use heap_caps_malloc() when available (PSRAM)
 #if defined(__has_include)
@@ -269,6 +327,17 @@ void ScreenshotComponent::setup() {
 
   this->handler_ = new Handler(this);
   web_server_base::global_web_server_base->add_handler(this->handler_);
+#if HAVE_CAMERA
+  // Register /capture handler for camera captures
+  this->capture_handler_ = new CaptureHandler(this);
+  web_server_base::global_web_server_base->add_handler(this->capture_handler_);
+  // Register /snapshot.jpg handler — synchronous high-res JPEG delivery
+  this->snapshot_handler_ = new SnapshotHandler(this);
+  web_server_base::global_web_server_base->add_handler(this->snapshot_handler_);
+  // Register /video handler — MJPEG live stream
+  this->video_handler_ = new VideoHandler(this);
+  web_server_base::global_web_server_base->add_handler(this->video_handler_);
+#endif
   // Create binary semaphore for synchronous capture signalling
   if (this->capture_done_ == nullptr) {
     this->capture_done_ = xSemaphoreCreateBinary();
@@ -279,7 +348,10 @@ void ScreenshotComponent::setup() {
   if (this->png_mutex_ == nullptr) {
     this->png_mutex_ = xSemaphoreCreateMutex();
   }
-  ESP_LOGI(TAG, "Registered /screenshot.png handler with web_server");
+  if (this->snapshot_done_ == nullptr) {
+    this->snapshot_done_ = xSemaphoreCreateBinary();
+  }
+  ESP_LOGI(TAG, "Registered /screenshot.png, /snapshot.jpg and /video handlers with web_server");
 }
 
 void ScreenshotComponent::dump_config() {
@@ -398,6 +470,198 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
                 "\"message\": \"Capture queued; retry in a moment\" }");
   return;
 }
+#if HAVE_CAMERA
+void ScreenshotComponent::CaptureHandler::handleRequest(AsyncWebServerRequest *request) {
+  ESP_LOGI(TAG, "HTTP /capture request via web_server");
+  std::string query = get_query_string(request);
+  // Queue a camera capture for the main loop to process
+  if (this->parent_->camera_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->parent_->camera_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->parent_->camera_capture_requested_ = true;
+      xSemaphoreGive(this->parent_->camera_mutex_);
+    }
+  } else {
+    this->parent_->camera_capture_requested_ = true;
+  }
+
+  request->send(202, "application/json",
+                "{ \"ready\": false, \"in_progress\": true, \"message\": \"Camera capture queued; check /capture?status\" }");
+}
+
+void ScreenshotComponent::SnapshotHandler::handleRequest(AsyncWebServerRequest *request) {
+  ESP_LOGI(TAG, "HTTP /snapshot.jpg request");
+
+  // Reject concurrent snapshots
+  if (this->parent_->snapshot_in_progress_) {
+    request->send(503, "text/plain", "Snapshot already in progress; please retry.");
+    return;
+  }
+  if (this->parent_->camera_ == nullptr) {
+    request->send(503, "text/plain", "No camera configured.");
+    return;
+  }
+
+  // Reset result state and queue capture on main loop
+  this->parent_->snapshot_jpeg_buf_ = nullptr;
+  this->parent_->snapshot_jpeg_size_ = 0;
+  this->parent_->snapshot_in_progress_ = true;
+  this->parent_->snapshot_requested_ = true;
+
+  // Block until loop() signals completion (up to 10 s: 2 s frame-wait + encode)
+  bool got_sem = (this->parent_->snapshot_done_ != nullptr) &&
+                 (xSemaphoreTake(this->parent_->snapshot_done_, pdMS_TO_TICKS(10000)) == pdTRUE);
+
+  if (got_sem && this->parent_->snapshot_jpeg_buf_ != nullptr && this->parent_->snapshot_jpeg_size_ > 0) {
+    // Send JPEG directly to client using low-level httpd API
+    httpd_req_t *req = *request;
+    char len_buf[24];
+    snprintf(len_buf, sizeof(len_buf), "%u", (unsigned)this->parent_->snapshot_jpeg_size_);
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "image/jpeg");
+    httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=\"snapshot.jpg\"");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    httpd_resp_send(req, reinterpret_cast<const char *>(this->parent_->snapshot_jpeg_buf_),
+                    (ssize_t)this->parent_->snapshot_jpeg_size_);
+    // Free buffer now that it has been sent
+    free(this->parent_->snapshot_jpeg_buf_);
+    this->parent_->snapshot_jpeg_buf_ = nullptr;
+    this->parent_->snapshot_jpeg_size_ = 0;
+    ESP_LOGI(TAG, "/snapshot.jpg: sent %s bytes", len_buf);
+  } else if (!got_sem) {
+    // loop() never signaled within 20 s
+    this->parent_->snapshot_requested_ = false;  // cancel pending request
+    request->send(503, "text/plain", "Snapshot timed out (no frame within 20 s).");
+  } else {
+    // loop() ran but capture failed
+    request->send(500, "text/plain", "Snapshot capture failed.");
+  }
+
+  this->parent_->snapshot_in_progress_ = false;
+}
+
+// ---------------------------------------------------------------------------
+// /video  —  MJPEG live stream (multipart/x-mixed-replace)
+// ---------------------------------------------------------------------------
+void ScreenshotComponent::VideoHandler::handleRequest(AsyncWebServerRequest *request) {
+  ESP_LOGI(TAG, "HTTP /video request");
+
+  if (this->parent_->camera_ == nullptr) {
+    request->send(503, "text/plain", "No camera configured.");
+    return;
+  }
+  // Reject second concurrent client
+  if (this->parent_->video_streaming_) {
+    request->send(503, "text/plain", "Video stream already active; only one client supported.");
+    return;
+  }
+  this->parent_->video_streaming_ = true;
+
+  httpd_req_t *req = *request;
+
+  // MJPEG stream headers
+  httpd_resp_set_status(req, "200 OK");
+  httpd_resp_set_type(req, "multipart/x-mixed-replace; boundary=frame");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_set_hdr(req, "Connection", "close");
+
+  auto cam = this->parent_->camera_;
+  bool was_streaming = cam->is_streaming();
+  if (!was_streaming) {
+    cam->start_streaming();
+    vTaskDelay(pdMS_TO_TICKS(200));  // allow sensor to produce first frames
+  }
+
+  ESP_LOGI(TAG, "/video: streaming %ux%u MJPEG to client",
+           (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+
+  uint32_t frames_sent = 0;
+  unsigned consecutive_errors = 0;
+
+  while (consecutive_errors < 8) {
+    // Wait for next frame (up to 1 s at 30 fps)
+    uint32_t t0 = millis();
+    bool got = false;
+    while ((millis() - t0) < 1000) {
+      if (cam->capture_frame()) { got = true; break; }
+      vTaskDelay(pdMS_TO_TICKS(5));
+    }
+    if (!got) {
+      consecutive_errors++;
+      ESP_LOGW(TAG, "/video: no frame within 1 s (errors=%u)", consecutive_errors);
+      continue;
+    }
+    consecutive_errors = 0;
+
+    uint8_t *img = cam->get_image_data();
+    size_t isz   = cam->get_image_size();
+    uint16_t w   = cam->get_image_width();
+    uint16_t h   = cam->get_image_height();
+
+    if (!img || isz == 0) continue;
+
+    uint8_t *jpeg_buf = nullptr;
+    size_t   jpeg_size = 0;
+    bool     owned = false;
+
+    if (isz >= 2 && img[0] == 0xFF && img[1] == 0xD8) {
+      // Sensor delivered native JPEG
+      jpeg_buf  = img;
+      jpeg_size = isz;
+    } else {
+#if HAVE_HW_JPEG_ENCODER
+      if (!encode_raw_rgb565_to_jpeg(img, isz, w, h, &jpeg_buf, &jpeg_size, 80, 300)) {
+        ESP_LOGW(TAG, "/video: JPEG encode failed");
+        continue;
+      }
+      owned = true;
+#else
+      ESP_LOGW(TAG, "/video: no HW JPEG encoder, cannot stream");
+      break;
+#endif
+    }
+
+    // Build MJPEG frame header
+    char hdr[128];
+    int hdr_len = snprintf(hdr, sizeof(hdr),
+        "--frame\r\n"
+        "Content-Type: image/jpeg\r\n"
+        "Content-Length: %u\r\n"
+        "\r\n",
+        (unsigned)jpeg_size);
+
+    esp_err_t err = httpd_resp_send_chunk(req, hdr, hdr_len);
+    if (err == ESP_OK)
+      err = httpd_resp_send_chunk(req, reinterpret_cast<const char *>(jpeg_buf), (ssize_t)jpeg_size);
+    if (err == ESP_OK)
+      err = httpd_resp_send_chunk(req, "\r\n", 2);
+
+    if (owned) free(jpeg_buf);
+
+    if (err != ESP_OK) {
+      // Client disconnected
+      ESP_LOGI(TAG, "/video: client disconnected after %u frames", frames_sent);
+      break;
+    }
+
+    frames_sent++;
+    if (frames_sent % 100 == 0)
+      ESP_LOGI(TAG, "/video: %u frames streamed", frames_sent);
+
+    App.feed_wdt();
+  }
+
+  // End chunked transfer
+  httpd_resp_send_chunk(req, nullptr, 0);
+
+  // NOTE: intentionally do NOT stop the camera here even if we started it.
+  // esp_cam_ctlr_start() after stop() is unreliable on ESP32-P4 and causes
+  // subsequent captures (snapshot, etc.) to hang waiting for frames.
+  // Camera streaming state is managed by the "Camera Stream" template switch.
+  this->parent_->video_streaming_ = false;
+  ESP_LOGI(TAG, "/video: stream ended (%u frames total, was_streaming=%d)", frames_sent, was_streaming ? 1 : 0);
+}
+#endif  // HAVE_CAMERA
 
 bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_size) {
 #if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
@@ -498,6 +762,175 @@ bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_si
   return false;
 #endif
 }
+#if HAVE_CAMERA  
+bool ScreenshotComponent::write_camera_png_to_sd_(const uint8_t *rgb565_buf, uint16_t width, uint16_t height) {
+  if (!rgb565_buf || width == 0 || height == 0) return false;
+  // Convert RGB565 to RGB888 per-row and use PNGenc similar to encode_png_to_buffer
+  size_t row_bytes = (size_t)width * 3;
+  uint8_t *rowbuf = (uint8_t *) my_lvgl_malloc(row_bytes);
+  if (!rowbuf) {
+    ESP_LOGW(TAG, "write_camera_png_to_sd_: failed to allocate row buffer %u", (unsigned) row_bytes);
+    return false;
+  }
+
+  size_t png_bytes = (size_t) width * (size_t) height;
+  uint8_t *png_buf = (uint8_t *) my_lvgl_malloc(png_bytes);
+  if (!png_buf) {
+    ESP_LOGW(TAG, "write_camera_png_to_sd_: failed to allocate png buffer %u", (unsigned) png_bytes);
+    my_lvgl_free(rowbuf);
+    return false;
+  }
+
+  PNGenc png_encoder;
+  int rc = png_encoder.open(png_buf, png_bytes);
+  if (rc != PNG_SUCCESS) {
+    ESP_LOGW(TAG, "write_camera_png_to_sd_: PNG open failed %d", rc);
+    my_lvgl_free(rowbuf);
+    my_lvgl_free(png_buf);
+    return false;
+  }
+  rc = png_encoder.encodeBegin(width, height, PNG_PIXEL_TRUECOLOR, 24, NULL, 1);
+  if (rc != PNG_SUCCESS) {
+    ESP_LOGW(TAG, "write_camera_png_to_sd_: PNG encodeBegin failed %d", rc);
+    my_lvgl_free(rowbuf);
+    my_lvgl_free(png_buf);
+    return false;
+  }
+
+  // rgb565_buf is assumed row-major, 2 bytes per pixel
+  const uint16_t *src = reinterpret_cast<const uint16_t *>(rgb565_buf);
+  for (uint32_t y = 0; y < height; ++y) {
+    for (uint32_t x = 0; x < width; ++x) {
+      uint16_t pix = src[y * width + x];
+      uint8_t r = ((pix >> 11) & 0x1F) << 3;
+      uint8_t g = ((pix >> 5) & 0x3F) << 2;
+      uint8_t b = (pix & 0x1F) << 3;
+      size_t idx = (size_t)x * 3;
+      rowbuf[idx + 0] = r ? r : 0;
+      rowbuf[idx + 1] = g ? g : 0;
+      rowbuf[idx + 2] = b ? b : 0;
+    }
+    rc = png_encoder.addLine(rowbuf);
+    if (rc != PNG_SUCCESS) {
+      ESP_LOGW(TAG, "write_camera_png_to_sd_: PNG addLine failed y=%u rc=%d", (unsigned)y, rc);
+      break;
+    }
+    App.feed_wdt();
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  size_t bytes_written = 0;
+  if (rc == PNG_SUCCESS) bytes_written = png_encoder.close();
+  my_lvgl_free(rowbuf);
+
+  if (rc != PNG_SUCCESS || bytes_written == 0) {
+    my_lvgl_free(png_buf);
+    return false;
+  }
+
+  bool ok = this->write_png_to_sd_(png_buf, bytes_written);
+  // write_png_to_sd_ will copy path info into last_save_* fields
+  // png_buf is owned by write_png_to_sd_ call? it expects to be provided as a buffer; our helper used my_lvgl_malloc
+  // But write_png_to_sd_ will not free png_buf; we must free after write
+  my_lvgl_free(png_buf);
+  return ok;
+}
+
+bool ScreenshotComponent::write_camera_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size) {
+  if (!jpeg_buf || jpeg_size == 0) return false;
+#if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
+  char ts_buf[32] = {0};
+  bool have_wall_time = false;
+  ::time_t now = ::time(nullptr);
+  if (now > 0) {
+    ::tm lt;
+    if (::localtime_r(&now, &lt) != nullptr) {
+      if (lt.tm_year >= 120) {
+        ::strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%d %H:%M:%S", &lt);
+        have_wall_time = ts_buf[0] != '\0';
+      }
+    }
+  }
+  if (!have_wall_time) {
+    const uint64_t now_us = esp_timer_get_time();
+    const unsigned long long now_s = static_cast<unsigned long long>(now_us / 1000000ULL);
+    snprintf(ts_buf, sizeof(ts_buf), "uptime_%llus", now_s);
+  }
+
+  char safe_ts[32] = {0};
+  size_t safe_len = 0;
+  for (size_t i = 0; ts_buf[i] != '\0' && safe_len + 1 < sizeof(safe_ts); ++i) {
+    char c = ts_buf[i];
+    if (c == ':') c = '-';
+    if (c == ' ') c = '_';
+    safe_ts[safe_len++] = c;
+  }
+  safe_ts[safe_len] = '\0';
+
+  char path_buf[96];
+  snprintf(path_buf, sizeof(path_buf), "/sdcard/capture_%s.jpg", safe_ts);
+  const std::string path = path_buf;
+  bool wrote = false;
+  bool attempted = false;
+#if HAVE_SD_SPI_CARD
+  if (this->sd_spi_card_ != nullptr) {
+    attempted = true;
+    bool mounted = this->sd_spi_card_->is_mounted();
+    if (!mounted) mounted = this->sd_spi_card_->mount();
+    if (!mounted) {
+      ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
+      wrote = false;
+    } else {
+      this->sd_spi_card_->delete_file(path);
+      wrote = this->sd_spi_card_->append_file_chunk(path, jpeg_buf, jpeg_size, true);
+      if (!wrote) ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
+      else ESP_LOGD(TAG, "Wrote JPEG to %s", path.c_str());
+    }
+  }
+#endif
+  if (!attempted && this->sd_mmc_card_ != nullptr) {
+    attempted = true;
+    this->sd_mmc_card_->delete_file(path);
+    this->sd_mmc_card_->append_file(path.c_str(), jpeg_buf, jpeg_size);
+    wrote = true;
+    ESP_LOGD(TAG, "Wrote JPEG to %s", path.c_str());
+  }
+  if (!attempted) {
+    ESP_LOGD(TAG, "sd card not configured, skipping SD write");
+    wrote = false;
+  }
+
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->last_save_ok_ = wrote;
+      this->last_save_path_ = wrote ? path : "";
+      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    this->last_save_ok_ = wrote;
+    this->last_save_path_ = wrote ? path : "";
+    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  }
+  return wrote;
+#else
+  ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->last_save_ok_ = false;
+      this->last_save_path_.clear();
+      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    this->last_save_ok_ = false;
+    this->last_save_path_.clear();
+    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  }
+  return false;
+#endif
+}
+#endif
 
  
 
@@ -519,8 +952,190 @@ void ScreenshotComponent::loop() {
       this->write_png_to_sd_(buf, size);
     }
     this->save_requested_ = false;
-  }
+  } 
 
+
+#if HAVE_CAMERA
+    // Camera capture flow: stop streaming, switch to QSXGA, capture, revert to SVGA
+    if (this->camera_capture_requested_ && !this->camera_capture_in_progress_) {
+      this->camera_capture_in_progress_ = true;
+      this->camera_capture_requested_ = false;
+      ESP_LOGI(TAG, "Starting camera capture task");
+      if (this->camera_ != nullptr) {
+        auto cam = this->camera_;
+        bool was_streaming = cam->is_streaming();
+        ESP_LOGD(TAG, "Camera was_streaming=%d before capture", was_streaming ? 1 : 0);
+        if (was_streaming) cam->stop_streaming();
+
+        // Switch to FHD (1920×1080 RAW10) using official Espressif OV5647 register table
+        ESP_LOGD(TAG, "Requesting camera resolution FHD (1920x1080 RAW10) for capture");
+        cam->set_pixel_format(::esphome::tab5_camera::PIXEL_FORMAT_RGB565);
+        cam->set_resolution(::esphome::tab5_camera::RESOLUTION_FHD);
+        cam->reconfigure_resolution(::esphome::tab5_camera::RESOLUTION_FHD);
+
+        // Log immediate config state
+        ESP_LOGD(TAG, "Post-reconfigure (pre-start): image_size=%u width=%u height=%u",
+                 (unsigned)cam->get_image_size(), (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+
+        // Start streaming to get a fresh frame (driver may provide compressed JPEG)
+        cam->start_streaming();
+        ESP_LOGD(TAG, "After start_streaming: image_size=%u width=%u height=%u",
+           (unsigned)cam->get_image_size(), (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+
+        ESP_LOGD(TAG, "Camera reconfigured to FHD 1920x1080 RAW10@30fps");
+        // Wait for a new frame (timeout 15s)
+        uint32_t start_ms = millis();
+        bool got = false;
+        unsigned attempts = 0;
+        while ((millis() - start_ms) < 15000) {
+          ++attempts;
+          if (cam->capture_frame()) { got = true; break; }
+          if ((attempts & 0x1F) == 0) { // every 32 attempts (~640ms) log a heartbeat
+            ESP_LOGD(TAG, "capture_frame still false after %u attempts; image_size=%u width=%u height=%u",
+                     attempts, (unsigned)cam->get_image_size(), (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+          }
+          App.feed_wdt();
+          vTaskDelay(pdMS_TO_TICKS(20));
+        }
+
+        if (got) {
+          uint8_t *imgbuf = cam->get_image_data();
+          size_t img_size = cam->get_image_size();
+          bool wrote = false;
+          if (imgbuf != nullptr && img_size > 0) {
+            // Quick heuristic: check for JPEG SOI 0xFF 0xD8
+            if (img_size >= 2 && imgbuf[0] == 0xFF && imgbuf[1] == 0xD8) {
+              ESP_LOGI(TAG, "Captured buffer appears to be JPEG (size=%u)", (unsigned)img_size);
+              wrote = this->write_camera_jpeg_to_sd_(imgbuf, img_size);
+            } else {
+              uint16_t w = cam->get_image_width();
+              uint16_t h = cam->get_image_height();
+              ESP_LOGW(TAG, "Captured buffer missing JPEG SOI; treating as raw RGB565 %ux%u size=%u",
+                       (unsigned)w, (unsigned)h, (unsigned)img_size);
+              // Dump first bytes for diagnostics
+              unsigned dump_len = img_size < 16 ? (unsigned)img_size : 16u;
+              char hexbuf[64];
+              size_t pos = 0;
+              for (unsigned i = 0; i < dump_len && pos + 4 < sizeof(hexbuf); ++i) {
+                pos += snprintf(hexbuf + pos, sizeof(hexbuf) - pos, "%02X ", imgbuf[i]);
+              }
+              ESP_LOGD(TAG, "First %u bytes: %s", dump_len, hexbuf);
+              // Fallback: try hardware JPEG encode (ESP32-P4) then PNG
+#if HAVE_HW_JPEG_ENCODER
+              uint8_t *hw_jpeg = nullptr;
+              size_t hw_jpeg_size = 0;
+              if (encode_raw_rgb565_to_jpeg(imgbuf, img_size, w, h, &hw_jpeg, &hw_jpeg_size)) {
+                ESP_LOGD(TAG, "On-device JPEG encode succeeded size=%u", (unsigned)hw_jpeg_size);
+                wrote = this->write_camera_jpeg_to_sd_(hw_jpeg, hw_jpeg_size);
+                free(hw_jpeg);
+              } else {
+                ESP_LOGW(TAG, "On-device JPEG encode failed; falling back to PNG");
+                wrote = this->write_camera_png_to_sd_(imgbuf, cam->get_image_width(), cam->get_image_height());
+              }
+#else
+              wrote = this->write_camera_png_to_sd_(imgbuf, cam->get_image_width(), cam->get_image_height());
+#endif
+            }
+          } else {
+            ESP_LOGW(TAG, "Captured frame buffer is null or empty (size=%u)", (unsigned)img_size);
+          }
+          if (this->camera_mutex_ != nullptr) {
+            if (xSemaphoreTake(this->camera_mutex_, pdMS_TO_TICKS(200)) == pdTRUE) {
+              this->last_camera_save_ok_ = wrote;
+              this->last_camera_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+              xSemaphoreGive(this->camera_mutex_);
+            }
+          } else {
+            this->last_camera_save_ok_ = wrote;
+            this->last_camera_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+          }
+        } else {
+          ESP_LOGW(TAG, "Camera capture timed out after %u attempts (elapsed ms=%u); final image_size=%u width=%u height=%u",
+                   attempts, (unsigned)(millis() - start_ms), (unsigned)cam->get_image_size(), (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+        }
+        // Stop and revert to previous streaming/resolution and pixel format
+        cam->stop_streaming();
+        cam->set_pixel_format(::esphome::tab5_camera::PIXEL_FORMAT_RGB565);
+        cam->set_resolution(::esphome::tab5_camera::RESOLUTION_SVGA);
+        cam->reconfigure_resolution(::esphome::tab5_camera::RESOLUTION_SVGA);
+        if (was_streaming) cam->start_streaming();
+      }
+
+      this->camera_capture_in_progress_ = false;
+    }
+
+    // ---- /snapshot.jpg: capture current SVGA streaming frame -> JPEG ----
+    // We no longer attempt a QSXGA resolution switch because the CSI/ISP
+    // hardware cannot be reliably re-initialized at a different resolution at
+    // runtime on this platform.  Instead we grab the next SVGA (800x640) RGB565
+    // frame that the sensor is already delivering and encode it to JPEG using
+    // the ESP32-P4 hardware JPEG accelerator.  At 50 fps a frame arrives every
+    // ~20 ms, so the whole operation completes in well under 500 ms.
+    if (this->snapshot_requested_) {
+      this->snapshot_requested_ = false;
+      this->snapshot_jpeg_buf_  = nullptr;
+      this->snapshot_jpeg_size_ = 0;
+
+      if (this->camera_ != nullptr) {
+        auto cam = this->camera_;
+        bool was_streaming = cam->is_streaming();
+
+        // Ensure streaming is active
+        if (!was_streaming) {
+          cam->start_streaming();
+          vTaskDelay(pdMS_TO_TICKS(150));  // allow sensor to produce first frame
+        }
+
+        ESP_LOGI(TAG, "/snapshot.jpg: grabbing SVGA %ux%u frame",
+                 (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+
+        // Wait up to 2 s for a fresh frame — allow extra time on first start
+        // (30 fps = new frame every ~33 ms; 2 s budget handles sensor settle)
+        uint32_t snap_start = millis();
+        bool snap_got = false;
+        while ((millis() - snap_start) < 2000) {
+          if (cam->capture_frame()) { snap_got = true; break; }
+          App.feed_wdt();
+          vTaskDelay(pdMS_TO_TICKS(10));
+        }
+
+        if (snap_got) {
+          uint8_t *img  = cam->get_image_data();
+          size_t   isz  = cam->get_image_size();
+          uint16_t sw   = cam->get_image_width();
+          uint16_t sh   = cam->get_image_height();
+
+          if (img && isz > 0) {
+            if (isz >= 2 && img[0] == 0xFF && img[1] == 0xD8) {
+              // Sensor delivered native JPEG
+              ESP_LOGI(TAG, "/snapshot.jpg: native JPEG %u bytes", (unsigned)isz);
+              uint8_t *copy = (uint8_t *)heap_caps_malloc(isz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+              if (!copy) copy = (uint8_t *)malloc(isz);
+              if (copy) { memcpy(copy, img, isz); this->snapshot_jpeg_buf_ = copy; this->snapshot_jpeg_size_ = isz; }
+            } else {
+              // RGB565 raw frame -> HW JPEG encode
+              ESP_LOGI(TAG, "/snapshot.jpg: HW-encoding %ux%u RGB565 frame (%u bytes)",
+                       (unsigned)sw, (unsigned)sh, (unsigned)isz);
+#if HAVE_HW_JPEG_ENCODER
+              encode_raw_rgb565_to_jpeg(img, isz, sw, sh,
+                                        &this->snapshot_jpeg_buf_, &this->snapshot_jpeg_size_);
+#else
+              ESP_LOGW(TAG, "/snapshot.jpg: no HW JPEG encoder available");
+#endif
+            }
+          }
+        } else {
+          ESP_LOGW(TAG, "/snapshot.jpg: no frame received within 500 ms");
+        }
+
+        if (!was_streaming) {
+          cam->stop_streaming();
+        }
+      }
+      // Signal waiting HTTP handler
+      if (this->snapshot_done_) xSemaphoreGive(this->snapshot_done_);
+    }
+#endif  // HAVE_CAMERA
   if (!this->capture_requested_ || this->capture_in_progress_)
     return;
 

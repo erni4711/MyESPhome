@@ -45,10 +45,6 @@ packages:
         entity: climate.schlafzimmer
   - !include common/pgweather.yaml
 
-
-
-
-
 lvgl:
   pages:
 #    - <<: !include common/pglivingroom.yaml
