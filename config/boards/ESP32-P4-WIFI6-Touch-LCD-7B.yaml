@@ -111,7 +111,7 @@ tab5_camera:
 lvgl_camera_display:
   id: camera_display
   camera_id: ov5647_camera
-  canvas_id: camera_canvas
+  # canvas_id: camera_canvas  # camera page is currently commented out
   update_interval: 33ms
 
 touchscreen:
@@ -671,10 +671,8 @@ interval:
           if (started) {
             return;
           }
-          if (id(camera_canvas) == nullptr) {
-            return;
-          }
-          id(camera_display).configure_canvas(id(camera_canvas));
+          // camera_canvas not available (camera page commented out)
+          // id(camera_display).configure_canvas(id(camera_canvas));
           if (id(camera_stream).state) {
             id(ov5647_camera).start_streaming();
           }
@@ -885,29 +883,29 @@ lvgl:
           on_press:
             - lvgl.widget.hide: boot_screen
   pages:
-    - id: camera_page
-      widgets:
-        - obj:
-            id: camera_root
-            align: TOP_LEFT
-            width: 100%
-            height: 100%
-            border_width: 0
-            shadow_width: 0
-            outline_width: 0
-            pad_all: 0
-            widgets:
-              - button:
-                  id: camera_toggle
-                  align: TOP_LEFT
-                  x: 8
-                  y: 38
-                  text: "Cam"
-                  # on_press:
-                  #   then:
-                  #     - switch.toggle: camera_stream
-              - canvas:
-                  id: camera_canvas
-                  align: CENTER
-                  width: 800
-                  height: 640
+    # - id: camera_page
+    #   widgets:
+    #     - obj:
+    #         id: camera_root
+    #         align: TOP_LEFT
+    #         width: 100%
+    #         height: 100%
+    #         border_width: 0
+    #         shadow_width: 0
+    #         outline_width: 0
+    #         pad_all: 0
+    #         widgets:
+    #           - button:
+    #               id: camera_toggle
+    #               align: TOP_LEFT
+    #               x: 8
+    #               y: 38
+    #               text: "Cam"
+    #               # on_press:
+    #               #   then:
+    #               #     - switch.toggle: camera_stream
+    #           - canvas:
+    #               id: camera_canvas
+    #               align: CENTER
+    #               width: 800
+    #               height: 640
