@@ -160,6 +160,33 @@ static bool query_has_key(const std::string &query, const std::string &key) {
   return false;
 }
 
+static bool query_get_u32(const std::string &query, const std::string &key, uint32_t *out) {
+  if (out == nullptr || query.empty() || key.empty()) return false;
+
+  std::string needle = key + "=";
+  size_t pos = query.find(needle);
+  if (pos == std::string::npos) {
+    pos = query.find("&" + needle);
+    if (pos == std::string::npos) return false;
+    pos += 1;  // skip '&'
+  }
+
+  size_t val_start = pos + needle.size();
+  size_t val_end = query.find('&', val_start);
+  if (val_end == std::string::npos) val_end = query.size();
+  if (val_end <= val_start) return false;
+
+  uint32_t value = 0;
+  for (size_t i = val_start; i < val_end; i++) {
+    char c = query[i];
+    if (c < '0' || c > '9') return false;
+    value = value * 10U + static_cast<uint32_t>(c - '0');
+  }
+
+  *out = value;
+  return true;
+}
+
 // When using LVGL snapshot API we can avoid copying by using the image's data
 // pointer and freeing the lv_img_dsc_t when done. Store the last snapshot here.
 // (no fallback contiguous buffer)
@@ -545,6 +572,19 @@ void ScreenshotComponent::SnapshotHandler::handleRequest(AsyncWebServerRequest *
 void ScreenshotComponent::VideoHandler::handleRequest(AsyncWebServerRequest *request) {
   ESP_LOGI(TAG, "HTTP /video request");
 
+  // /video behaves as a finite endpoint by default.
+  // Optional query params:
+  //   max_frames=<n>   (default: 120)
+  //   max_ms=<n>       (default: 15000)
+  //   continuous=1     (disable endpoint limits; legacy behavior)
+  std::string query = get_query_string(request);
+  uint32_t max_frames = 120;
+  uint32_t max_stream_ms = 15000;
+  bool continuous = query_has_key(query, "continuous");
+  uint32_t tmp = 0;
+  if (query_get_u32(query, "max_frames", &tmp) && tmp > 0) max_frames = tmp;
+  if (query_get_u32(query, "max_ms", &tmp) && tmp > 0) max_stream_ms = tmp;
+
   if (this->parent_->camera_ == nullptr) {
     request->send(503, "text/plain", "No camera configured.");
     return;
@@ -567,18 +607,31 @@ void ScreenshotComponent::VideoHandler::handleRequest(AsyncWebServerRequest *req
 
   auto cam = this->parent_->camera_;
   bool was_streaming = cam->is_streaming();
+  bool started_by_video = false;
   if (!was_streaming) {
-    cam->start_streaming();
+    started_by_video = cam->start_streaming();
     vTaskDelay(pdMS_TO_TICKS(200));  // allow sensor to produce first frames
   }
 
   ESP_LOGI(TAG, "/video: streaming %ux%u MJPEG to client",
            (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
+  const uint32_t stream_start = millis();
 
   uint32_t frames_sent = 0;
   unsigned consecutive_errors = 0;
 
   while (consecutive_errors < 8) {
+    if (!continuous) {
+      if ((millis() - stream_start) >= max_stream_ms) {
+        ESP_LOGI(TAG, "/video: endpoint complete after %u ms", (unsigned)max_stream_ms);
+        break;
+      }
+      if (frames_sent >= max_frames) {
+        ESP_LOGI(TAG, "/video: endpoint complete after %u frames", (unsigned)max_frames);
+        break;
+      }
+    }
+
     // Wait for next frame (up to 1 s at 30 fps)
     uint32_t t0 = millis();
     bool got = false;
@@ -654,12 +707,14 @@ void ScreenshotComponent::VideoHandler::handleRequest(AsyncWebServerRequest *req
   // End chunked transfer
   httpd_resp_send_chunk(req, nullptr, 0);
 
-  // NOTE: intentionally do NOT stop the camera here even if we started it.
-  // esp_cam_ctlr_start() after stop() is unreliable on ESP32-P4 and causes
-  // subsequent captures (snapshot, etc.) to hang waiting for frames.
-  // Camera streaming state is managed by the "Camera Stream" template switch.
+  // Stop camera only if this /video request started it.
+  // If streaming was already active before, keep previous state untouched.
+  if (started_by_video) {
+    cam->stop_streaming();
+  }
   this->parent_->video_streaming_ = false;
-  ESP_LOGI(TAG, "/video: stream ended (%u frames total, was_streaming=%d)", frames_sent, was_streaming ? 1 : 0);
+  ESP_LOGI(TAG, "/video: stream ended (%u frames total, was_streaming=%d, continuous=%d)",
+           frames_sent, was_streaming ? 1 : 0, continuous ? 1 : 0);
 }
 #endif  // HAVE_CAMERA
 
@@ -930,6 +985,101 @@ bool ScreenshotComponent::write_camera_jpeg_to_sd_(const uint8_t *jpeg_buf, size
   return false;
 #endif
 }
+
+bool ScreenshotComponent::write_snapshot_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size) {
+  if (!jpeg_buf || jpeg_size == 0) return false;
+#if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
+  char ts_buf[32] = {0};
+  bool have_wall_time = false;
+  ::time_t now = ::time(nullptr);
+  if (now > 0) {
+    ::tm lt;
+    if (::localtime_r(&now, &lt) != nullptr) {
+      if (lt.tm_year >= 120) {
+        ::strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%d %H:%M:%S", &lt);
+        have_wall_time = ts_buf[0] != '\0';
+      }
+    }
+  }
+  if (!have_wall_time) {
+    const uint64_t now_us = esp_timer_get_time();
+    const unsigned long long now_s = static_cast<unsigned long long>(now_us / 1000000ULL);
+    snprintf(ts_buf, sizeof(ts_buf), "uptime_%llus", now_s);
+  }
+
+  char safe_ts[32] = {0};
+  size_t safe_len = 0;
+  for (size_t i = 0; ts_buf[i] != '\0' && safe_len + 1 < sizeof(safe_ts); ++i) {
+    char c = ts_buf[i];
+    if (c == ':') c = '-';
+    if (c == ' ') c = '_';
+    safe_ts[safe_len++] = c;
+  }
+  safe_ts[safe_len] = '\0';
+
+  char path_buf[96];
+  snprintf(path_buf, sizeof(path_buf), "/sdcard/screenshot_%s.jpg", safe_ts);
+  const std::string path = path_buf;
+  bool wrote = false;
+  bool attempted = false;
+#if HAVE_SD_SPI_CARD
+  if (this->sd_spi_card_ != nullptr) {
+    attempted = true;
+    bool mounted = this->sd_spi_card_->is_mounted();
+    if (!mounted) mounted = this->sd_spi_card_->mount();
+    if (!mounted) {
+      ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
+      wrote = false;
+    } else {
+      this->sd_spi_card_->delete_file(path);
+      wrote = this->sd_spi_card_->append_file_chunk(path, jpeg_buf, jpeg_size, true);
+      if (!wrote) ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
+      else ESP_LOGD(TAG, "Wrote snapshot JPEG to %s", path.c_str());
+    }
+  }
+#endif
+  if (!attempted && this->sd_mmc_card_ != nullptr) {
+    attempted = true;
+    this->sd_mmc_card_->delete_file(path);
+    this->sd_mmc_card_->append_file(path.c_str(), jpeg_buf, jpeg_size);
+    wrote = true;
+    ESP_LOGD(TAG, "Wrote snapshot JPEG to %s", path.c_str());
+  }
+  if (!attempted) {
+    ESP_LOGD(TAG, "sd card not configured, skipping SD write");
+    wrote = false;
+  }
+
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->last_save_ok_ = wrote;
+      this->last_save_path_ = wrote ? path : "";
+      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    this->last_save_ok_ = wrote;
+    this->last_save_path_ = wrote ? path : "";
+    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  }
+  return wrote;
+#else
+  ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
+  if (this->png_mutex_ != nullptr) {
+    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
+      this->last_save_ok_ = false;
+      this->last_save_path_.clear();
+      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+      xSemaphoreGive(this->png_mutex_);
+    }
+  } else {
+    this->last_save_ok_ = false;
+    this->last_save_path_.clear();
+    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  }
+  return false;
+#endif
+}
 #endif
 
  
@@ -1122,6 +1272,10 @@ void ScreenshotComponent::loop() {
 #else
               ESP_LOGW(TAG, "/snapshot.jpg: no HW JPEG encoder available");
 #endif
+            }
+
+            if (this->snapshot_jpeg_buf_ != nullptr && this->snapshot_jpeg_size_ > 0) {
+              this->write_snapshot_jpeg_to_sd_(this->snapshot_jpeg_buf_, this->snapshot_jpeg_size_);
             }
           }
         } else {

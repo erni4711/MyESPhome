@@ -108,12 +108,6 @@ tab5_camera:
   framerate: 30
   flip_mirror: false
 
-lvgl_camera_display:
-  id: camera_display
-  camera_id: ov5647_camera
-  # canvas_id: camera_canvas  # camera page is currently commented out
-  update_interval: 33ms
-
 touchscreen:
   - platform: gt911
     id: my_touchscreen
@@ -343,7 +337,7 @@ media_player:
             not:
               voice_assistant.is_running:
           then:
-            - micro_wake_word.start
+            - logger.log: "Wake word test mode: auto-start disabled"
 
 
 
@@ -361,7 +355,6 @@ micro_wake_word:
 voice_assistant:
   microphone: esp32_microphone
   media_player: speaker_media_player
-  micro_wake_word: my_wake_word
   noise_suppression_level: 2
   auto_gain: 31dBFS
   volume_multiplier: 2.0
@@ -379,11 +372,11 @@ voice_assistant:
                 media_player.is_announcing:
             - not:
                 media_player.is_playing:
-    - micro_wake_word.start:
+    - logger.log: "Wake word test mode: restart after VA end disabled"
   on_client_connected:
-    - micro_wake_word.start:
+    - logger.log: "Wake word test mode: start on client connect disabled"
   on_client_disconnected:
-    - micro_wake_word.stop:
+    - logger.log: "Wake word test mode: stop on client disconnect disabled"
 
 substitutions:
   ui_header_height: 40

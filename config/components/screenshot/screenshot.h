@@ -159,6 +159,7 @@ class ScreenshotComponent : public Component {
   bool write_png_to_sd_(const uint8_t *png_buf, size_t png_size);
   bool write_camera_png_to_sd_(const uint8_t *rgb565_buf, uint16_t width, uint16_t height);
   bool write_camera_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size);
+  bool write_snapshot_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size);
 };
 
 }  // namespace screenshot
