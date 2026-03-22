@@ -1108,11 +1108,28 @@ bool Tab5Camera::start_streaming() {
   
   ESP_LOGI(TAG, "Starting streaming");
   
-  // Check the configured resolution
   CameraResolutionInfo res = this->get_resolution_info_();
   ESP_LOGI(TAG, "Active resolution: %ux%u", res.width, res.height);
   
-  // Démarrer le capteur
+  // If CSI/ISP were torn down by a previous stop_streaming(), rebuild
+  // them so the D-PHY and ISP pipeline are in a clean initial state.
+  if (!this->csi_handle_) {
+    ESP_LOGI(TAG, "Reinitializing CSI+ISP for restart");
+    if (!this->init_csi_()) {
+      ESP_LOGE(TAG, "CSI reinit failed");
+      return false;
+    }
+    if (!this->init_isp_()) {
+      ESP_LOGE(TAG, "ISP reinit failed");
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+
+  // Clear any stale frame-ready flag before starting DMA
+  this->frame_ready_ = false;
+
+  // Start sensor — MIPI data begins flowing
   if (this->sensor_device_) {
     int enable = 1;
     esp_err_t ret = esp_cam_sensor_ioctl(
@@ -1124,23 +1141,25 @@ bool Tab5Camera::start_streaming() {
       ESP_LOGE(TAG, "Failed to start sensor: %d", ret);
       return false;
     }
-    
-    // Delay for sensor to fully start
-    delay(100);
   }
   
-  // Clear any stale frame-ready flag before starting DMA
-  this->frame_ready_ = false;
+  // Allow sensor to stabilize MIPI output before starting DMA
+  vTaskDelay(pdMS_TO_TICKS(100));
 
-  // Start CSI
+  // Start CSI DMA
   esp_err_t ret = esp_cam_ctlr_start(this->csi_handle_);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "Start CSI failed: %d", ret);
+    // Roll back sensor
+    if (this->sensor_device_) {
+      int disable = 0;
+      esp_cam_sensor_ioctl(this->sensor_device_, 0x04000004, &disable);
+    }
     return false;
   }
   
   this->streaming_ = true;
-  ESP_LOGI(TAG, "✅ Streaming active (%ux%u)", res.width, res.height);
+  ESP_LOGI(TAG, "Streaming active (%ux%u)", res.width, res.height);
   return true;
 }
 
@@ -1149,15 +1168,27 @@ bool Tab5Camera::stop_streaming() {
     return true;
   }
   
-  esp_cam_ctlr_stop(this->csi_handle_);
-  
+  // Stop sensor first so MIPI lanes return to LP state
   if (this->sensor_device_) {
     int enable = 0;
     esp_cam_sensor_ioctl(this->sensor_device_, 0x04000004, &enable);
   }
   
+  // Let the sensor finish any in-progress frame and settle to LP
+  vTaskDelay(pdMS_TO_TICKS(30));
+  
+  // Stop CSI DMA
+  esp_cam_ctlr_stop(this->csi_handle_);
+  
+  // Full teardown of CSI and ISP so the D-PHY is completely destroyed.
+  // A simple disable/enable cycle is not enough on ESP32-P4 to reset
+  // the D-PHY receiver state.  The next start_streaming() will recreate
+  // them from scratch, which guarantees a clean D-PHY sync.
+  this->deinit_isp_();
+  this->deinit_csi_();
+  
   this->streaming_ = false;
-  ESP_LOGI(TAG, "⏹ Streaming stopped");
+  ESP_LOGI(TAG, "Streaming stopped (CSI+ISP torn down for clean restart)");
   return true;
 }
 
