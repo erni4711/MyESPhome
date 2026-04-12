@@ -45,14 +45,46 @@ packages:
         entity: climate.schlafzimmer
   - !include common/pgweather.yaml
 
+select:
+  - platform: template
+    name: LVGL Page
+    id: lvgl_page_select
+    optimistic: true
+    options:
+      - Climate
+      - Weather Daily
+      - Weather Hourly
+    initial_option: Climate
+    set_action:
+      - if:
+          condition:
+            lambda: return x == "Climate";
+          then:
+            - lvgl.page.show: main_page
+      - if:
+          condition:
+            lambda: return x == "Weather Daily";
+          then:
+            - lvgl.page.show: weather_page_daily
+      - if:
+          condition:
+            lambda: return x == "Weather Hourly";
+          then:
+            - lvgl.page.show: weather_page_hourly
+
 
 
 
 
 lvgl:
+  on_boot:
+    - lvgl.page.show: main_page
   pages:
 #    - <<: !include common/pglivingroom.yaml
     - id: main_page
+      on_load:
+        - lambda: |-
+            id(lvgl_page_select).publish_state("Climate");
       widgets:
         - obj:
             id: climate_header

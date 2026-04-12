@@ -97,6 +97,9 @@ lvgl:
 # Main Page
   pages:
       - id: weather_page_daily
+        on_load:
+          - lambda: |-
+              id(lvgl_page_select).publish_state("Weather Daily");
         widgets:
           - obj:
               align: TOP_MID
@@ -243,6 +246,9 @@ lvgl:
 
     # hourly weather page
       - id: weather_page_hourly
+        on_load:
+          - lambda: |-
+              id(lvgl_page_select).publish_state("Weather Hourly");
         widgets:
           - obj:
                 align: TOP_MID

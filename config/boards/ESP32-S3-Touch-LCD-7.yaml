@@ -31,6 +31,7 @@ substitutions:
   ui_header_height: 30
   ui_footer_height: 30
   ui_page_height: 420
+  ui_page_width: 800
   ui_half_page_height: 210
   ui_header_font_size: 20
   ui_huge_font_size: 45

@@ -279,8 +279,10 @@ switch:
 
 media_player:
   - platform: speaker
-    name: "Media Player"
+    name: "${friendly_name} Speaker"
     id: speaker_media_player
+    internal: false
+    disabled_by_default: false
     codec_support_enabled: true
     # buffer_size: 2000000
     # task_stack_in_psram: true
@@ -310,6 +312,13 @@ media_player:
           duration: 0.0s
       - switch.turn_on: audio_amplifier
       - delay: 100ms
+    on_turn_on:
+      - switch.turn_on: audio_amplifier
+      - delay: 100ms
+    on_turn_off:
+      - media_player.stop: speaker_media_player
+      - delay: 100ms
+      - switch.turn_off: audio_amplifier
     on_state:
       if:
         condition:
@@ -337,28 +346,42 @@ media_player:
             not:
               voice_assistant.is_running:
           then:
-            - logger.log: "Wake word test mode: auto-start disabled"
+            - script.execute: start_micro_wake_word
 
 
 
 
 micro_wake_word:
   id: my_wake_word
+  vad:
   models:
     - model: "okay_nabu"
   on_wake_word_detected:
     then:
       - logger.log: "Wake word detected"
+      - switch.turn_off: switch_antiburn
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - light.turn_on: display_backlight
+      - lvgl.page.show: voice_page
       - voice_assistant.start:
           wake_word: !lambda return wake_word;
 
 voice_assistant:
   microphone: esp32_microphone
   media_player: speaker_media_player
+  micro_wake_word: my_wake_word
   noise_suppression_level: 2
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   conversation_timeout: 300s
+  on_start:
+    - text_sensor.template.publish:
+        id: voice_spoken_sentence
+        state: ""
   on_end:
     # Wait a short amount of time to see if an announcement starts
     - wait_until:
@@ -372,16 +395,21 @@ voice_assistant:
                 media_player.is_announcing:
             - not:
                 media_player.is_playing:
-    - logger.log: "Wake word test mode: restart after VA end disabled"
+    - script.execute: start_micro_wake_word
+  on_stt_end:
+    - text_sensor.template.publish:
+        id: voice_spoken_sentence
+        state: !lambda return x;
   on_client_connected:
-    - logger.log: "Wake word test mode: start on client connect disabled"
+    - script.execute: start_micro_wake_word
   on_client_disconnected:
-    - logger.log: "Wake word test mode: stop on client disconnect disabled"
+    - script.execute: stop_micro_wake_word
 
 substitutions:
   ui_header_height: 40
   ui_footer_height: 40
   ui_page_height: 520
+  ui_page_width: 1024
   ui_half_page_height: 260
   ui_header_font_size: 30
   ui_title_font_size: 34
@@ -502,6 +530,31 @@ script:
           id: clock_label
           text:
             time_format: "%H:%M:%S"
+  - id: start_micro_wake_word
+    then:
+      - if:
+          condition:
+            and:
+              - voice_assistant.connected:
+              - not:
+                  voice_assistant.is_running:
+              - not:
+                  media_player.is_announcing:
+              - not:
+                  media_player.is_playing:
+              - not:
+                  micro_wake_word.is_running:
+          then:
+            - logger.log: "Starting wake word detection"
+            - micro_wake_word.start
+  - id: stop_micro_wake_word
+    then:
+      - if:
+          condition:
+            micro_wake_word.is_running:
+          then:
+            - logger.log: "Stopping wake word detection"
+            - micro_wake_word.stop
 
 <<: !include ../common/7i-fonts.yaml
 
@@ -571,6 +624,20 @@ text_sensor:
     ssid:
       id: wifi_ssid
       name: "WiFi SSID"
+  - platform: template
+    id: voice_spoken_sentence
+    internal: true
+    update_interval: never
+    lambda: return {""};
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: voice_transcript_label
+            text: !lambda |-
+              if (x.empty()) {
+                return std::string("Waiting for speech...");
+              }
+              return x;
   - platform: template
     name: "Voice Assistant Status"
     id: voice_status

@@ -7,6 +7,7 @@
 #include "../tab5_camera/tab5_camera.h"
 #endif
 #include "freertos/semphr.h"
+#include <array>
 #include <string>
 #include <vector>
 
@@ -43,7 +44,8 @@ class ScreenshotComponent : public Component {
    public:
     explicit Handler(ScreenshotComponent *parent) : parent_(parent) {}
     bool canHandle(AsyncWebServerRequest *request) const override {
-      return request->url() == "/screenshot.png";
+      std::array<char, 513> buffer{};
+      return request->url_to(buffer) == "/screenshot.png";
     }
     void handleRequest(AsyncWebServerRequest *request) override;
     void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -59,7 +61,8 @@ class ScreenshotComponent : public Component {
      public:
       explicit CaptureHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
-        return request->url() == "/capture";
+        std::array<char, 513> buffer{};
+        return request->url_to(buffer) == "/capture";
       }
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -75,7 +78,8 @@ class ScreenshotComponent : public Component {
      public:
       explicit SnapshotHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
-        return request->url() == "/snapshot.jpg";
+        std::array<char, 513> buffer{};
+        return request->url_to(buffer) == "/snapshot.jpg";
       }
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -93,7 +97,8 @@ class ScreenshotComponent : public Component {
      public:
       explicit VideoHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
-        return request->url() == "/video";
+        std::array<char, 513> buffer{};
+        return request->url_to(buffer) == "/video";
       }
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,

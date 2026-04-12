@@ -390,7 +390,8 @@ static void process_request(AsyncWebServerRequest *request);
 
 void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request) {
   ESP_LOGI(TAG, "HTTP /screenshot.png request via web_server");
-  ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url().c_str(), request->method());
+  std::array<char, 513> buffer{};
+  ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url_to(buffer).c_str(), request->method());
   std::string query = get_query_string(request);
 
   if (query_has_key(query, "status")) {

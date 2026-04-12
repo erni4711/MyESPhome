@@ -322,22 +322,23 @@ void SDFileServer::dump_config() {
 }
 
 bool SDFileServer::canHandle(AsyncWebServerRequest *request) const {
-  ESP_LOGD(TAG, "can handle %s %u", request->url().c_str(),
-           str_startswith(std::string(request->url().c_str()), this->build_prefix()));
-  return str_startswith(std::string(request->url().c_str()), this->build_prefix());
+  char buffer[513];
+  ESP_LOGD(TAG, "can handle %s %u", request->url_to(buffer), request->method());
+  return str_startswith(std::string(request->url_to(buffer)), this->build_prefix());
 }
 
 void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
-  ESP_LOGD(TAG, "url: %s", request->url().c_str());
-  if (str_startswith(std::string(request->url().c_str()), this->build_prefix())) {
+  char buffer[513];
+  ESP_LOGD(TAG, "url: %s", request->url_to(buffer));
+  if (str_startswith(std::string(request->url_to(buffer)), this->build_prefix())) {
     if (this->upload_in_progress_ && request->method() != HTTP_PUT) {
       httpd_req_t *req = *request;
-      ESP_LOGW(TAG, "request blocked during upload: %s", request->url().c_str());
+      ESP_LOGW(TAG, "request blocked during upload: %s", request->url_to(buffer));
       send_plain_response(req, 503, "{ \"error\": \"upload in progress\" }");
       return;
     }
     if (request->method() == HTTP_GET) {
-      std::string url = std::string(request->url().c_str());
+      std::string url = std::string(request->url_to(buffer));
       std::string query = get_query_string(request);
       if (!query.empty()) {
         ESP_LOGD(TAG, "full url: %s?%s", url.c_str(), query.c_str());
@@ -355,24 +356,24 @@ void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
       return;
     }
     if (request->method() == HTTP_DELETE) {
-      ESP_LOGI(TAG, "delete requested via HTTP DELETE: %s", request->url().c_str());
+      ESP_LOGI(TAG, "delete requested via HTTP DELETE: %s", request->url_to(buffer));
       this->handle_delete(request);
       return;
     }
     if (request->method() == HTTP_PUT || request->method() == HTTP_POST) {
       httpd_req_t *req = *request;
       if (this->upload_in_progress_) {
-        ESP_LOGW(TAG, "upload blocked (another upload in progress): %s", request->url().c_str());
+        ESP_LOGW(TAG, "upload blocked (another upload in progress): %s", request->url_to(buffer));
         send_plain_response(req, 503, "{ \"error\": \"upload already in progress\" }");
         return;
       }
       if (!this->upload_enabled_) {
-        ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url().c_str());
+        ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url_to(buffer));
         send_plain_response(req, 401, "{ \"error\": \"file upload is disabled\" }");
         return;
       }
       if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
-        ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url().c_str());
+        ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url_to(buffer));
         send_plain_response(req, 500, "{ \"error\": \"sd card not configured\" }");
         return;
       }
@@ -380,7 +381,7 @@ void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
       if (this->sd_spi_card_ != nullptr) {
         if (!this->sd_spi_card_->is_mounted()) {
           if (!this->sd_spi_card_->mount()) {
-            ESP_LOGE(TAG, "upload failed (sd spi not mounted): %s", request->url().c_str());
+            ESP_LOGE(TAG, "upload failed (sd spi not mounted): %s", request->url_to(buffer));
             send_plain_response(req, 500, "{ \"error\": \"sd card not mounted\" }");
             return;
           }
@@ -390,23 +391,23 @@ void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
       if (this->sd_mmc_card_ != nullptr) {
         if (!this->sd_mmc_card_->is_mounted()) {
           if (!this->sd_mmc_card_->mount()) {
-            ESP_LOGE(TAG, "upload failed (sd mmc not mounted): %s", request->url().c_str());
+            ESP_LOGE(TAG, "upload failed (sd mmc not mounted): %s", request->url_to(buffer));
             send_plain_response(req, 500, "{ \"error\": \"sd card not mounted\" }");
             return;
           }
         }
       }
 
-      std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
+      std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
       if (extracted.empty() || extracted.back() == '/') {
-        ESP_LOGW(TAG, "upload missing filename: %s", request->url().c_str());
+        ESP_LOGW(TAG, "upload missing filename: %s", request->url_to(buffer));
         send_plain_response(req, 400, "{ \"error\": \"missing filename\" }");
         return;
       }
       std::string path = this->build_absolute_path(extracted);
       size_t remaining = req->content_len;
       if (remaining == 0) {
-        ESP_LOGW(TAG, "upload missing content-length: %s", request->url().c_str());
+        ESP_LOGW(TAG, "upload missing content-length: %s", request->url_to(buffer));
         send_plain_response(req, 411, "{ \"error\": \"content length required\" }");
         return;
       }
@@ -452,17 +453,18 @@ void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
 
 void SDFileServer::handleUpload(AsyncWebServerRequest *request, const std::string &filename, size_t index,
                                 uint8_t *data, size_t len, bool final) {
+  char buffer[513];
   if (!this->upload_enabled_) {
-    ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url().c_str());
+    ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url_to(buffer));
     request->send(401, "application/json", "{ \"error\": \"file upload is disabled\" }");
     return;
   }
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
-    ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url().c_str());
+    ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url_to(buffer));
     request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
     return;
   }
-  std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
+  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
   std::string path = this->build_absolute_path(extracted);
 
   // Build absolute file path
@@ -502,17 +504,18 @@ void SDFileServer::handleUpload(AsyncWebServerRequest *request, const std::strin
 
 void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index,
                               size_t total) {
+  char buffer[513];
   if (request->method() != HTTP_PUT && request->method() != HTTP_POST) return;
   if (!this->upload_enabled_) {
     if (index == 0) {
-      ESP_LOGW(TAG, "raw upload blocked (upload disabled): %s", request->url().c_str());
+      ESP_LOGW(TAG, "raw upload blocked (upload disabled): %s", request->url_to(buffer));
       request->send(401, "application/json", "{ \"error\": \"file upload is disabled\" }");
     }
     return;
   }
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
     if (index == 0) {
-      ESP_LOGE(TAG, "raw upload failed (sd not configured): %s", request->url().c_str());
+      ESP_LOGE(TAG, "raw upload failed (sd not configured): %s", request->url_to(buffer));
       request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
     }
     return;
@@ -522,7 +525,7 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
     if (!this->sd_spi_card_->is_mounted()) {
       if (!this->sd_spi_card_->mount()) {
         if (index == 0) {
-          ESP_LOGE(TAG, "raw upload failed (sd spi not mounted): %s", request->url().c_str());
+          ESP_LOGE(TAG, "raw upload failed (sd spi not mounted): %s", request->url_to(buffer));
           request->send(500, "application/json", "{ \"error\": \"sd card not mounted\" }");
         }
         return;
@@ -534,7 +537,7 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
     if (!this->sd_mmc_card_->is_mounted()) {
       if (!this->sd_mmc_card_->mount()) {
         if (index == 0) {
-          ESP_LOGE(TAG, "raw upload failed (sd mmc not mounted): %s", request->url().c_str());
+          ESP_LOGE(TAG, "raw upload failed (sd mmc not mounted): %s", request->url_to(buffer));
           request->send(500, "application/json", "{ \"error\": \"sd card not mounted\" }");
         }
         return;
@@ -542,10 +545,10 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
     }
   }
 
-  std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
+  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
   if (extracted.empty() || extracted.back() == '/') {
     if (index == 0) {
-      ESP_LOGW(TAG, "raw upload missing filename: %s", request->url().c_str());
+      ESP_LOGW(TAG, "raw upload missing filename: %s", request->url_to(buffer));
       request->send(400, "application/json", "{ \"error\": \"missing filename\" }");
     }
     return;
@@ -596,9 +599,10 @@ void SDFileServer::set_download_enabled(bool allow) { this->download_enabled_ = 
 void SDFileServer::set_upload_enabled(bool allow) { this->upload_enabled_ = allow; }
 
 void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
-  std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
+  char buffer[513];
+  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
   std::string path = this->build_absolute_path(extracted);
-  ESP_LOGD(TAG, "GET %s -> %s", request->url().c_str(), path.c_str());
+  ESP_LOGD(TAG, "GET %s -> %s", request->url_to(buffer), path.c_str());
 
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
     request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
@@ -672,7 +676,8 @@ void SDFileServer::handle_index(AsyncWebServerRequest *request, std::string cons
   ESP_LOGD(TAG, "dir json size: %u", static_cast<unsigned>(json.size()));
   auto entries = parse_list_json(json);
 
-  std::string extracted = this->extract_path_from_url(std::string(request->url().c_str()));
+  char buffer[513];
+  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
   std::string base = this->build_prefix();
   if (!extracted.empty() && extracted.front() != '/') {
     extracted = "/" + extracted;
@@ -839,13 +844,14 @@ std::string Path::mime_type(std::string const &p) {
 }
 
 void SDFileServer::handle_delete(AsyncWebServerRequest *request) {
+  char buffer[513];
   if (!this->deletion_enabled_) {
-    ESP_LOGW(TAG, "delete blocked (deletion disabled): %s", request->url().c_str());
+    ESP_LOGW(TAG, "delete blocked (deletion disabled): %s", request->url_to(buffer));
     request->send(401, "application/json", "{ \"error\": \"deletion disabled\" }");
     return;
   }
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
-    ESP_LOGE(TAG, "delete failed (sd not configured): %s", request->url().c_str());
+    ESP_LOGE(TAG, "delete failed (sd not configured): %s", request->url_to(buffer));
     request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
     return;
   }
@@ -871,7 +877,7 @@ void SDFileServer::handle_delete(AsyncWebServerRequest *request) {
       }
     }
   }
-  std::string url = std::string(request->url().c_str());
+  std::string url = std::string(request->url_to(buffer));
   std::string extracted = this->extract_path_from_url(url);
   std::string query = get_query_string(request);
   std::string query_path;

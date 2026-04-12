@@ -187,7 +187,13 @@ font:
     ignore_missing_glyphs: true
 
   - file: 'fonts/RobotoCondensed-Regular.ttf'
-    glyphs: ' -0123456789.°C'
+    glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–'
     id: roboto_huge
     size: ${ui_huge_font_size}
     bpp: 4 
+  - file: 'fonts/RobotoCondensed-Regular.ttf'
+    id: voice_status_font
+    glyphs: ' 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ°.:/+-%–,()'
+    size: ${ui_huge_font_size}
+    bpp: 4
+    ignore_missing_glyphs: true

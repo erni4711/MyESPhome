@@ -1,6 +1,6 @@
 substitutions:
-  node_name: "esp32p4-7b-sample"
-  friendly_name: p47b
+  node_name: "esp32p4-7b-sample2"
+  friendly_name: p47b2
 
 packages:
   - !include common/subst.yaml
