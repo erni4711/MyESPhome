@@ -68,6 +68,7 @@ substitutions:
   ui_climate_ring_width: 10
   ui_climate_meter_diameter: 120
   ui_climate_meter_radius: 60
+  ui_climate_knob_diameter: 155
 
 external_components:
   - source: components

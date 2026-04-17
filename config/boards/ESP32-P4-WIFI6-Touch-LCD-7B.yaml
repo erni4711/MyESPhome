@@ -9,7 +9,7 @@ esphome:
     version: "1.0.0"
   name_add_mac_suffix: false
   platformio_options:
-    platform: https://github.com/pioarduino/platform-espressif32/releases/latest/download/platform-espressif32.zip
+#    platform: https://github.com/pioarduino/platform-espressif32/releases/latest/download/platform-espressif32.zip
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1 -DCONFIG_SDMMC_ENABLE_POWER_CONTROL=1
   on_boot:
     - logger.log: "ESPHome booted"
@@ -159,7 +159,6 @@ display:
     byte_order: little_endian
     # reset_pin:
     #   number: GPIO33
-    rotation: 180
     update_interval: never
     auto_clear_enabled: false
     dimensions:
@@ -446,7 +445,8 @@ substitutions:
   ui_climate_ring_width: 15
   ui_climate_meter_diameter: 180
   ui_climate_meter_radius: 90
-
+  ui_climate_knob_diameter: 205
+  
 sd_mmc_card:
   id: sdcard
   clk_pin: 43
@@ -760,6 +760,7 @@ interval:
 
 # LVGL settings required for this display
 lvgl:
+  rotation: 180
   byte_order: little_endian
   theme:
     label:

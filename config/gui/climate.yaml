@@ -7,8 +7,17 @@ scrollbar_mode: "OFF"
 pad_all: 0
 layout:
   type: GRID
-  grid_columns: [${ui_climate_col_left}, ${ui_climate_col_center}, ${ui_climate_col_right}]
-  grid_rows: [${ui_climate_row_1}, ${ui_climate_row_2}, ${ui_climate_row_3}, ${ui_climate_row_4}, ${ui_climate_row_5}, ${ui_climate_row_6}]
+  grid_columns:
+    - ${ui_climate_col_left}
+    - ${ui_climate_col_center}
+    - ${ui_climate_col_right}
+  grid_rows:
+    - ${ui_climate_row_1}
+    - ${ui_climate_row_2}
+    - ${ui_climate_row_3}
+    - ${ui_climate_row_4}
+    - ${ui_climate_row_5}
+    - ${ui_climate_row_6}
   multiple_widgets_per_cell: true
   pad_column: 0
   pad_row: 0
@@ -68,30 +77,30 @@ widgets:
       border_width: 2
       shadow_width: 0
       scales:
-        range_from: 160   # 16°C
-        range_to: 340     # 34°C
-        #  Set temperature ticks background
-        ticks:
-          count: 60
-          length: 15
-          width: 2
-          color: ${color_temp_ticks}
-        indicators:
-          # Current temperature needle
-          - line:
-              id: ${id}_current_temp_needle
-              color: ${color_temp_current}
-              width: 3
-              r_mod: 10
-              value: 340 # 34°C Should be the same as the current temperature label
-          # Set temperature ticks
-          - tick_style:
-              id: ${id}_hvac_temp_ticks
-              start_value: 160
-              end_value: 240 # 24°C Should be the same as the set temperature label
-              color_start: ${color_temp_set}
-              color_end: ${color_temp_set}
-              width: 2
+        - range_from: 160   # 16°C
+          range_to: 340     # 34°C
+          # Set temperature ticks background
+          ticks:
+            count: 60
+            length: 15
+            width: 2
+            color: ${color_temp_ticks}
+          indicators:
+            # Current temperature needle
+            - line:
+                id: ${id}_current_temp_needle
+                color: ${color_temp_current}
+                width: 3
+                r_mod: 10
+                value: 340 # 34°C Should be the same as the current temperature label
+            # Set temperature ticks
+            - tick_style:
+                id: ${id}_hvac_temp_ticks
+                start_value: 160
+                end_value: 240 # 24°C Should be the same as the set temperature label
+                color_start: ${color_temp_set}
+                color_end: ${color_temp_set}
+                width: 2
     # Meter inner Ring only for visual effect
   - obj:
       id: ${id}_meter_ring_inner
@@ -116,6 +125,9 @@ widgets:
       grid_cell_row_pos: 5
       grid_cell_x_align: CENTER
       grid_cell_y_align: CENTER
+      width: ${ui_climate_col_center}
+      height: ${ui_climate_row_5}
+      radius: ${ui_climate_mode_button_radius}
       bg_color: ${color_darker_grey}
       border_width: 0
       shadow_width: 0
@@ -136,8 +148,8 @@ widgets:
       value: 240 # 24°C (24x10) Should be the same as the set temperature needle
       min_value: 160
       max_value: 340
-      width: 155
-      height: 155
+      width: ${ui_climate_knob_diameter}
+      height: ${ui_climate_knob_diameter}
       start_angle: 140
       end_angle: 40
       arc_width: 10

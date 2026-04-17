@@ -15,9 +15,6 @@ sensor:
               # - lvgl.widget.hide: ${id}_hvac_temp_knob
               - lvgl.widget.hide: ${id}_hvac_temp_label
             else:
-              - lvgl.indicator.update:
-                  id: ${id}_hvac_temp_ticks
-                  end_value: !lambda return x * 10;
               - lvgl.arc.update:
                   id: ${id}_hvac_temp_knob
                   value: !lambda return x * 10;
@@ -39,23 +36,8 @@ sensor:
             condition:
               lambda: 'return isnan(x);'
             then:
-              - lambda: |-
-                  auto indic = id(${id}_current_temp_needle);
-                  if (indic) {
-                    indic->opa = LV_OPA_TRANSP;
-                    lv_obj_invalidate(id(${id}_meter_ticks));
-                  }
               - lvgl.widget.hide: ${id}_current_temp_label
             else:
-              - lambda: |-
-                  auto indic = id(${id}_current_temp_needle);
-                  if (indic) {
-                    indic->opa = LV_OPA_COVER;
-                    lv_obj_invalidate(id(${id}_meter_ticks));
-                  }
-              - lvgl.indicator.update:
-                  id: ${id}_current_temp_needle
-                  value: !lambda return x * 10;
               - lvgl.label.update:
                   id: ${id}_current_temp_label
                   text:
