@@ -28,9 +28,13 @@ style_definitions:
     width: 50%
     height: ${ui_header_height}
   - id: style_menu_button
+    width: ${ui_climate_button_col_left_width}
+    height: ${ui_climate_button_row_height}
+    pad_all: 0
+    radius: ${ui_climate_menu_button_radius}
     bg_opa: COVER
     bg_color: ${color_darker_grey}
-    shadow_opa: 50%
+    shadow_opa: 30%
     shadow_color: ${color_darker_grey}
     outline_width: 1
     outline_color: ${color_dark_grey}
@@ -43,24 +47,30 @@ style_definitions:
     shadow_color: ${color_grey}
     outline_width: 1
     outline_color: ${color_darker_grey}
-    pad_all: 1
+    pad_all: 0
     align: CENTER
     text_font: roboto_reg  
     text_color: ${color_white}
     text_align: CENTER
     radius: 10
   - id: style_circle_button
+    pad_all: 0
+    width: ${ui_climate_button_col_right_width}
+    height: ${ui_climate_button_row_height}
+    radius: ${ui_climate_circle_button_radius}
     bg_color: ${color_darker_grey}
-    shadow_opa: 50%
+    shadow_opa: 30%
     shadow_color: ${color_darker_grey}
     outline_width: 1
     outline_color: ${color_dark_grey}
-    radius: 15
   - id: style_mode_button
+    width: ${ui_climate_mode_button_width}
+    height: ${ui_climate_mode_button_height}
     bg_opa: COVER 
-    radius: 50
+    radius: ${ui_climate_mode_button_radius}
     outline_width: 1
   - id: style_circle_label
+    pad_all: 0
     align: center
     text_align: center
     text_font: roboto_med

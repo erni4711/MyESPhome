@@ -49,78 +49,12 @@
 #include "lvgl.h"
 
 
-lv_res_t lv_snapshot_take_to_buf_ex (lv_obj_t * obj, lv_img_cf_t cf, lv_img_dsc_t * dsc, void * buf, uint32_t buf_size)
-{
-    LV_ASSERT_NULL(obj);
-    LV_ASSERT_NULL(dsc);
-    LV_ASSERT_NULL(buf);
+lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
+                                       uint32_t buf_size) {
+  LV_ASSERT_NULL(obj);
+  LV_ASSERT_NULL(dsc);
+  LV_ASSERT_NULL(buf);
 
-    switch(cf) {
-        case LV_IMG_CF_TRUE_COLOR:
-        case LV_IMG_CF_TRUE_COLOR_ALPHA:
-        case LV_IMG_CF_ALPHA_1BIT:
-        case LV_IMG_CF_ALPHA_2BIT:
-        case LV_IMG_CF_ALPHA_4BIT:
-        case LV_IMG_CF_ALPHA_8BIT:
-            break;
-        default:
-            return LV_RES_INV;
-    }
-
-    uint32_t buf_size_needed = lv_snapshot_buf_size_needed(obj, cf);
-    if(buf_size_needed == 0 || buf_size < buf_size_needed) return LV_RES_INV;
-
-    /*Width and height determine snapshot image size.*/
-    lv_coord_t w = lv_obj_get_width(obj);
-    lv_coord_t h = lv_obj_get_height(obj);
-    lv_coord_t ext_size = _lv_obj_get_ext_draw_size(obj);
-    w += ext_size * 2;
-    h += ext_size * 2;
-
-    lv_area_t snapshot_area;
-    lv_obj_get_coords(obj, &snapshot_area);
-    lv_area_increase(&snapshot_area, ext_size, ext_size);
-
-    lv_memset(buf, 0x00, buf_size);
-    lv_memset_00(dsc, sizeof(lv_img_dsc_t));
-
-    lv_disp_t * obj_disp = lv_obj_get_disp(obj);
-    lv_disp_drv_t driver;
-    lv_disp_drv_init(&driver);
-    /*In lack of a better idea use the resolution of the object's display*/
-    driver.hor_res = lv_disp_get_hor_res(obj_disp);
-    driver.ver_res = lv_disp_get_hor_res(obj_disp);
-    lv_disp_drv_use_generic_set_px_cb(&driver, cf);
-
-    lv_disp_t fake_disp;
-    lv_memset_00(&fake_disp, sizeof(lv_disp_t));
-    fake_disp.driver = &driver;
-
-    lv_draw_ctx_t * draw_ctx = (lv_draw_ctx_t *)lv_mem_alloc(obj_disp->driver->draw_ctx_size);
-    LV_ASSERT_MALLOC(draw_ctx);
-    if(draw_ctx == NULL) return LV_RES_INV;
-    obj_disp->driver->draw_ctx_init(fake_disp.driver, draw_ctx);
-    fake_disp.driver->draw_ctx = draw_ctx;
-    draw_ctx->clip_area = &snapshot_area;
-    draw_ctx->buf_area = &snapshot_area;
-    draw_ctx->buf = (uint8_t *)buf;
-    driver.draw_ctx = draw_ctx;
-
-    lv_disp_t * refr_ori = _lv_refr_get_disp_refreshing();
-    _lv_refr_set_disp_refreshing(&fake_disp);
-
-    lv_obj_redraw(draw_ctx, obj);
-    lv_obj_redraw(draw_ctx, lv_layer_top());
-    lv_obj_redraw(draw_ctx, lv_layer_sys());  
-
-    _lv_refr_set_disp_refreshing(refr_ori);
-    obj_disp->driver->draw_ctx_deinit(fake_disp.driver, draw_ctx);
-    lv_mem_free(draw_ctx);
-
-    dsc->data = (uint8_t *)buf;
-    dsc->data_size = buf_size_needed;
-    dsc->header.w = w;
-    dsc->header.h = h;
-    dsc->header.cf = cf;
-    return LV_RES_OK;
+  lv_memzero(dsc, sizeof(lv_image_dsc_t));
+  return lv_snapshot_take_to_buf(obj, cf, dsc, buf, buf_size);
 }

@@ -2,7 +2,7 @@
 # https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B
 esphome:
   name: ${node_name}
-  min_version: "2025.4.2"
+  min_version: "2026.4.0"
   name_add_mac_suffix: false
   platformio_options:
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
@@ -32,6 +32,26 @@ substitutions:
   ui_weather_symbol_smallsize: 40
   ui_climate_width: 325
   ui_climate_height: 260
+  ui_climate_col_left: 65
+  ui_climate_col_center: 195
+  ui_climate_col_right: 65
+  ui_climate_row_1: 43
+  ui_climate_row_2: 43
+  ui_climate_row_3: 43
+  ui_climate_row_4: 43
+  ui_climate_row_5: 44
+  ui_climate_row_6: 44
+  ui_climate_button_row_height: 40
+  ui_climate_button_col_left_width: 66
+  ui_climate_button_col_right_width: 48
+  ui_climate_circle_button_size: 48
+  ui_climate_circle_button_radius: 12
+  ui_climate_menu_button_width: 66
+  ui_climate_menu_button_height: 40
+  ui_climate_menu_button_radius: 12
+  ui_climate_mode_button_width: 46
+  ui_climate_mode_button_height: 40
+  ui_climate_mode_button_radius: 12
   ui_climate_ring_diameter: 240
   ui_climate_ring_radius: 120
   ui_climate_ring_width: 15

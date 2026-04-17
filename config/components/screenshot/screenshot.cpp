@@ -131,7 +131,8 @@ void screenshot_register_runtime() {
   esphome::screenshot::ScreenshotComponent::register_component_runtime();
 }
 
-lv_res_t lv_snapshot_take_to_buf_ex (lv_obj_t * obj, lv_img_cf_t cf, lv_img_dsc_t * dsc, void * buf, uint32_t buf_size);
+lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
+                                       uint32_t buf_size);
 namespace esphome {
 namespace screenshot {
 
@@ -197,7 +198,13 @@ static lv_img_dsc_t *grab_lvgl_rgb565() {
   lv_obj_t *scr = lv_scr_act();
   ESP_LOGD(TAG, "grab_lvgl_rgb565: lv_scr_act -> %p", (void *)scr);
   /* Determine required buffer size for RGB565 snapshot */
-  uint32_t buf_size = lv_snapshot_buf_size_needed(scr, LV_IMG_CF_TRUE_COLOR);
+  lv_draw_buf_t *tmp = lv_snapshot_create_draw_buf(scr, LV_COLOR_FORMAT_RGB565);
+  if (tmp == nullptr) {
+    ESP_LOGD(TAG, "grab_lvgl_rgb565: failed to create temporary snapshot draw buffer");
+    return nullptr;
+  }
+  uint32_t buf_size = tmp->data_size;
+  lv_draw_buf_destroy(tmp);
   if (buf_size == 0) {
     ESP_LOGD(TAG, "grab_lvgl_rgb565: snapshot buffer size is 0");
     return nullptr;
@@ -220,8 +227,8 @@ static lv_img_dsc_t *grab_lvgl_rgb565() {
 
   /* Take snapshot into our buffer */
   lv_refr_now(NULL);
-  lv_res_t res = lv_snapshot_take_to_buf_ex(scr, LV_IMG_CF_TRUE_COLOR, dsc, buf, buf_size);
-  if (res != LV_RES_OK) {
+  lv_result_t res = lv_snapshot_take_to_buf_ex(scr, LV_COLOR_FORMAT_RGB565, dsc, buf, buf_size);
+  if (res != LV_RESULT_OK) {
     ESP_LOGW(TAG, "grab_lvgl_rgb565: lv_snapshot_take_to_buf failed");
     my_lvgl_free(buf);
     my_lvgl_free(dsc);
@@ -268,14 +275,14 @@ static bool encode_png_to_buffer(lv_img_dsc_t *img, uint8_t **out_buf, size_t *o
     return false;
   }
 
-  auto black = lv_color_make(0, 0, 0);
+  const auto *pixels = reinterpret_cast<const lv_color16_t *>(img->data);
   for (uint32_t y = 0; y < h; ++y) {
     for (uint32_t x = 0; x < w; ++x) {
-      lv_color_t color = lv_img_buf_get_px_color(img, x, y, black);
+      lv_color16_t color = pixels[(size_t) y * w + x];
       size_t idx = (size_t) x * 3;
-      auto r = LV_COLOR_GET_R(color);
-      auto g = LV_COLOR_GET_G(color);
-      auto b = LV_COLOR_GET_B(color);
+      auto r = color.red;
+      auto g = color.green;
+      auto b = color.blue;
       rowbuf[idx + 0] = (r << 3) | (r ? 7 : 0);
       rowbuf[idx + 1] = (g << 2) | (g ? 3 : 0);
       rowbuf[idx + 2] = (b << 3) | (b ? 7 : 0);
@@ -390,7 +397,8 @@ static void process_request(AsyncWebServerRequest *request);
 
 void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request) {
   ESP_LOGI(TAG, "HTTP /screenshot.png request via web_server");
-  ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url().c_str(), request->method());
+  char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
+  ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url_to(url_buf).c_str(), request->method());
   std::string query = get_query_string(request);
 
   if (query_has_key(query, "status")) {

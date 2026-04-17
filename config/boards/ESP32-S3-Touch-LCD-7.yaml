@@ -4,10 +4,10 @@
 #
 esphome:
   name: ${node_name}
-  min_version: "2025.4.2"
+  min_version: "2026.4.0"
   name_add_mac_suffix: false
   platformio_options:
-    # platform_packages: https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+    # platform_packages:
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
     board_build.flash_mode: qio
     board_build.psram_mode: opi
@@ -42,6 +42,26 @@ substitutions:
   ui_weather_symbol_smallsize: 38
   ui_climate_width: 250
   ui_climate_height: 210
+  ui_climate_col_left: 50
+  ui_climate_col_center: 150
+  ui_climate_col_right: 50
+  ui_climate_row_1: 35
+  ui_climate_row_2: 35
+  ui_climate_row_3: 35
+  ui_climate_row_4: 35
+  ui_climate_row_5: 35
+  ui_climate_row_6: 35
+  ui_climate_button_row_height: 34
+  ui_climate_button_col_left_width: 54
+  ui_climate_button_col_right_width: 42
+  ui_climate_circle_button_size: 42
+  ui_climate_circle_button_radius: 11
+  ui_climate_menu_button_width: 54
+  ui_climate_menu_button_height: 34
+  ui_climate_menu_button_radius: 12
+  ui_climate_mode_button_width: 40
+  ui_climate_mode_button_height: 34
+  ui_climate_mode_button_radius: 11
   ui_climate_ring_diameter: 180
   ui_climate_ring_radius: 90
   ui_climate_ring_width: 10

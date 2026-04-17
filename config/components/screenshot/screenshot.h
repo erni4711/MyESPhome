@@ -43,7 +43,8 @@ class ScreenshotComponent : public Component {
    public:
     explicit Handler(ScreenshotComponent *parent) : parent_(parent) {}
     bool canHandle(AsyncWebServerRequest *request) const override {
-      return request->url() == "/screenshot.png";
+      char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
+      return request->url_to(url_buf) == "/screenshot.png";
     }
     void handleRequest(AsyncWebServerRequest *request) override;
     void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -59,7 +60,8 @@ class ScreenshotComponent : public Component {
      public:
       explicit CaptureHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
-        return request->url() == "/capture";
+        char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
+        return request->url_to(url_buf) == "/capture";
       }
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -75,7 +77,8 @@ class ScreenshotComponent : public Component {
      public:
       explicit SnapshotHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
-        return request->url() == "/snapshot.jpg";
+        char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
+        return request->url_to(url_buf) == "/snapshot.jpg";
       }
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -93,7 +96,8 @@ class ScreenshotComponent : public Component {
      public:
       explicit VideoHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
-        return request->url() == "/video";
+        char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
+        return request->url_to(url_buf) == "/video";
       }
       void handleRequest(AsyncWebServerRequest *request) override;
       void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
