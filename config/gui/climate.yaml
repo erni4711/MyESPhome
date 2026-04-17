@@ -7,8 +7,8 @@ scrollbar_mode: "OFF"
 pad_all: 0
 layout:
   type: GRID
-  grid_columns: [fr(1),fr(3), fr(1)]
-  grid_rows: [fr(1), fr(1), fr(1), fr(1), fr(1), fr(1)]
+  grid_columns: [${ui_climate_col_left}, ${ui_climate_col_center}, ${ui_climate_col_right}]
+  grid_rows: [${ui_climate_row_1}, ${ui_climate_row_2}, ${ui_climate_row_3}, ${ui_climate_row_4}, ${ui_climate_row_5}, ${ui_climate_row_6}]
   multiple_widgets_per_cell: true
   pad_column: 0
   pad_row: 0
@@ -114,8 +114,8 @@ widgets:
   - obj:
       grid_cell_column_pos: 1
       grid_cell_row_pos: 5
-      grid_cell_x_align: STRETCH
-      grid_cell_y_align: STRETCH
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       bg_color: ${color_darker_grey}
       border_width: 0
       shadow_width: 0
@@ -198,9 +198,9 @@ widgets:
       hidden: true
       grid_cell_column_pos: 2
       grid_cell_row_pos: 1
-      grid_cell_x_align: STRETCH
-      grid_cell_y_align: STRETCH
-      align: TOP_RIGHT
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
+      align: CENTER
       styles: style_circle_button
       bg_color: ${color_red}
       widgets:
@@ -218,9 +218,9 @@ widgets:
       hidden: true
       grid_cell_column_pos: 2
       grid_cell_row_pos: 5
-      grid_cell_x_align: STRETCH
-      grid_cell_y_align: STRETCH
-      align: BOTTOM_RIGHT
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
+      align: CENTER
       styles: style_circle_button
       bg_color: ${color_blue}
       widgets:
@@ -238,9 +238,9 @@ widgets:
       hidden: true
       grid_cell_column_pos: 0
       grid_cell_row_pos: 1
-      grid_cell_x_align: STRETCH
-      grid_cell_y_align: STRETCH
-      align: TOP_LEFT
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
+      align: CENTER
       styles: style_menu_button
       bg_color: ${color_red}
       widgets:
@@ -260,9 +260,9 @@ widgets:
       hidden: true
       grid_cell_column_pos: 0
       grid_cell_row_pos: 5
-      grid_cell_x_align: STRETCH
-      grid_cell_y_align: STRETCH
-      align: BOTTOM_LEFT
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
+      align: CENTER
       styles: style_menu_button
       bg_color: ${color_blue}
       widgets:
@@ -284,7 +284,7 @@ widgets:
       grid_cell_row_pos: 5
       grid_cell_x_align: START
       grid_cell_y_align: CENTER
-      align: RIGHT_MID
+      align: CENTER
       bg_opa: TRANSP
       styles: style_mode_button
       widgets:
@@ -316,7 +316,7 @@ widgets:
       grid_cell_row_pos: 5
       grid_cell_x_align: END
       grid_cell_y_align: CENTER
-      align: BOTTOM_LEFT
+      align: CENTER
       bg_opa: TRANSP
       styles: style_mode_button
       widgets:
@@ -335,8 +335,8 @@ widgets:
       grid_cell_column_pos: 0
       grid_cell_row_pos: 0
       grid_cell_column_span: 3
-      grid_cell_x_align: STRETCH
-      grid_cell_y_align: STRETCH
+      grid_cell_x_align: CENTER
+      grid_cell_y_align: CENTER
       align: CENTER
       text: ${title}
       text_align: CENTER
