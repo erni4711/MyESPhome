@@ -445,7 +445,7 @@ substitutions:
   ui_climate_ring_width: 15
   ui_climate_meter_diameter: 180
   ui_climate_meter_radius: 90
-  ui_climate_knob_diameter: 205
+  ui_climate_knob_diameter: 215
   
 sd_mmc_card:
   id: sdcard

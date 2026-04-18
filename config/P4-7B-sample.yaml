@@ -106,6 +106,7 @@ lvgl:
             width: 100%
             height: ${ui_page_height}
             scrollbar_mode: "OFF"
+            scrollable: false
             # height: !lambda |- 
             #   int h = lv_obj_get_height(lv_scr_act()); 
             #   return h -60; // adjust for header/footer

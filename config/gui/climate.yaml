@@ -4,6 +4,7 @@ outline_width: 0
 width: ${ui_climate_width}
 height: ${ui_climate_height}
 scrollbar_mode: "OFF"
+scrollable: false
 pad_all: 0
 layout:
   type: GRID

@@ -35,3 +35,7 @@ a.log
 config/components/gt911/__pycache__/__init__.cpython-311.pyc
 config/components/gt911/binary_sensor/__pycache__/__init__.cpython-311.pyc
 config/components/gt911/touchscreen/__pycache__/__init__.cpython-311.pyc
+config/components/waveshare_io_ch32v003/waveshare_io_ch32v003.h
+.gitignore
+.gitignore
+config/components/waveshare_io_ch32v003/__pycache__/sensor.cpython-311.pyc

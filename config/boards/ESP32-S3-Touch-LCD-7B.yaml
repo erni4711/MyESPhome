@@ -96,12 +96,6 @@ preferences:
 external_components:
   - source: components
   #- source: github://n-serrette/esphome_sd_card
-  - source: 
-      type: git
-      url: https://github.com/fuzzybear62/esphome-waveshare_io_ch32v003
-      ref: main
-  # github://pr#10071
-    components: [waveshare_io_ch32v003]
    
 waveshare_io_ch32v003:
   - id: ioexp

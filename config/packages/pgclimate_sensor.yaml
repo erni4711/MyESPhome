@@ -11,10 +11,12 @@ sensor:
             condition:
               lambda: 'return isnan(x);'
             then:
-              # - lvgl.widget.hide: ${id}_hvac_temp_ticks
-              # - lvgl.widget.hide: ${id}_hvac_temp_knob
-              - lvgl.widget.hide: ${id}_hvac_temp_label
+              - lvgl.label.update:
+                  id: ${id}_hvac_temp_label
+                  text: "--.-°C"
+                  text_color: ${color_grey}
             else:
+              - lvgl.widget.show: ${id}_hvac_temp_label
               - lvgl.arc.update:
                   id: ${id}_hvac_temp_knob
                   value: !lambda return x * 10;
@@ -23,6 +25,7 @@ sensor:
                   text:
                     format: "%.1f°C"
                     args: [ 'round(x * 10) / 10' ]
+                  text_color: ${color_white}
   #      - script.execute: turn_on_screen_light
   # HA Climate current temperature sensor
   - platform: homeassistant
@@ -136,14 +139,18 @@ script:
     parameters:
       direction: string
     then:
-      - homeassistant.action:
-          action: climate.set_temperature
-          data:
-            entity_id: ${entity}
-            temperature: !lambda |-
-              float current_temp = id(${id}_set_temperature).state;
-              if (direction == "up") {
-                return current_temp + 0.5;
-              } else {
-                return current_temp - 0.5;
-              }
+      - if:
+          condition:
+            lambda: 'return !isnan(id(${id}_set_temperature).state);'
+          then:
+            - homeassistant.action:
+                action: climate.set_temperature
+                data:
+                  entity_id: ${entity}
+                  temperature: !lambda |-
+                    float current_temp = id(${id}_set_temperature).state;
+                    if (direction == "up") {
+                      return current_temp + 0.5;
+                    } else {
+                      return current_temp - 0.5;
+                    }
