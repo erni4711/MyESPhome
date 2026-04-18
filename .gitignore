@@ -32,3 +32,6 @@ config/components/tab5_camera/__pycache__/__init__.cpython-311.pyc
 .gitignore
 log
 a.log
+config/components/gt911/__pycache__/__init__.cpython-311.pyc
+config/components/gt911/binary_sensor/__pycache__/__init__.cpython-311.pyc
+config/components/gt911/touchscreen/__pycache__/__init__.cpython-311.pyc
