@@ -39,3 +39,5 @@ config/components/waveshare_io_ch32v003/waveshare_io_ch32v003.h
 .gitignore
 .gitignore
 config/components/waveshare_io_ch32v003/__pycache__/sensor.cpython-311.pyc
+config/components/waveshare_io_ch32v003/__pycache__/__init__.cpython-311.pyc
+config/components/waveshare_io_ch32v003/__pycache__/output.cpython-311.pyc
