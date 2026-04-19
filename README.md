@@ -1,91 +1,75 @@
-# 7i-sample.yaml — Build & Usage
+# MyESPhome — Home Assistant Panel Display
 
+An [ESPHome](https://esphome.io/)-based touch panel display for Home Assistant, running on Waveshare ESP32 boards. Includes UI pages for climate control, voice control, and weather forecasts.
 
-## Purpose
-Provide an panel display for Home-Assistant based on [ESPHome](https://esphome.io/).
+A custom [screenshot component](config/components/screenshot/README.md) lets you capture the live display via HTTP.
 
-Instructions for building, flashing and testing the ESPHome configuration file named `7i-sample.yaml`.
+## Compatibility
 
-included is a component that provides screenshots from the device via http.
-See [ScreenShot](config/components/screenshot/README.md)
+| Component | Tested version |
+|-----------|---------------|
+| ESPHome   | 2026.4.0 (minimum) |
+| LVGL      | 9.5 |
+| esp-idf   | recommended (auto-selected by ESPHome) |
 
 ## Hardware
-[ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) from [WAVESHARE](https://www.waveshare.com/)
 
-[ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) from [WAVESHARE](https://www.waveshare.com/)
+| Board | Sample file | Notes |
+|-------|-------------|-------|
+| [ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) | `config/7i-sample.yaml` | 7" 800×480, RGB |
+| [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) | `config/7ib-sample.yaml` | 7" 800×480, MIPI-DSI |
+| [ESP32-P4-WIFI6-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B) | `config/P4-7B-sample.yaml` | 7" 1024×600, MIPI-DSI, Wi-Fi 6 |
 
-[ESP32-P4-WIFI6-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B)
+## Software features
+- Multi-page LVGL UI (climate control, voice control, weather forecast)
+- SD card file browser served via web server (`/file/`)
+- OpenWeatherMap integration — 8-day and 48-hour forecast pages
+- Voice control integration (Home Assistant voice pipeline)
+- HTTP screenshot endpoint (`/screenshot.png`)
 
-## Software feature
-- Widget for heating control
-- sd card via webserver
-- openweathermap, 8-day and 48-hour forecast pages
+---
 
-## Prerequisites
+## ESP32-S3 Sample (`7i-sample.yaml` / `7ib-sample.yaml`)
+
+### Prerequisites
 - Python 3 and pip OR Docker, or Home Assistant ESPHome add-on.
 - ESPHome CLI: `pip install esphome`
-- USB cable (for direct serial flashing) or network access for OTA flashing.
-- Create `config/secrets.yaml` with your Wi‑Fi and OTA credentials:
+- USB cable (for initial serial flashing) or network access for OTA flashing.
+- Create `config/secrets.yaml` with your Wi-Fi and OTA credentials:
+
 ```yaml
 wifi_ssid: "SSID"
 wifi_password: "pwd"
 ota_password: "ota_pwd"
 ```
 
-## Quick build (local CLI)
-From the repository root (where `7i-sample.yaml` or '7ib-sample.yaml' lives):
+### Quick build (local CLI)
+From the `config/` directory:
 ```bash
 esphome compile 7i-sample.yaml
 ```
-Firmware binaries will be produced in the `build/` directory.
 
-## Flashing via USB (serial)
-1. Connect the device via USB.  
-2. Run:
+### Flashing via USB (serial)
 ```bash
 esphome run 7i-sample.yaml
-```
-ESPhome will compile (if needed) and upload via serial automatically. To specify a serial port:
-```bash
+# or specify a port:
 esphome run 7i-sample.yaml --device /dev/ttyUSB0
 ```
 
-## Flashing via OTA
-1. Ensure the YAML contains an `ota:` section and the device is on the same network.  
-2. Upload using the device IP or let esphome detect it:
+### Flashing via OTA
 ```bash
-esphome upload 7i-sample.yaml --upload-port OTA
-# or
 esphome run 7i-sample.yaml
 ```
 
-## Using Docker
-From the repo root:
+### Using Docker
 ```bash
-docker run --rm -v "$(pwd)":/config -it esphome/esphome run 7i-sample.yaml
+docker run --rm -v "$(pwd)/config":/config -it esphome/esphome run 7i-sample.yaml
 ```
-Replace `run` with `compile` if you only want to build.
 
-## Home Assistant
-Add `7i-sample.yaml` to the ESPHome add-on / dashboard and use the web UI to compile and upload firmware.
+### Home Assistant
+Add `7i-sample.yaml` to the ESPHome add-on dashboard and use the web UI to compile and flash.
 
-## Typical workflow notes
-- Edit the YAML to set name, platform/board, Wi‑Fi, logger, api and ota sections.  
-- Use `esphome compile` to verify configuration without flashing.  
-- Use `esphome logs 7i-sample.yaml` to watch serial logs (or `esphome logs --device <port>`).
-
-## Troubleshooting
-- Permission errors on serial ports: add your user to `dialout`/`tty` groups or use `sudo`.  
-- If OTA upload fails, verify device IP, API/OTA credentials and network firewall.  
-- For build errors, run `esphome compile 7i-sample.yaml` and inspect the output.
-
-## Tips
-- Keep backups of working firmware binaries from `build/` if you need to revert.  
-- Use `esphome dashboard .` to open a local web UI for managing multiple YAML files.
-
-> Replace placeholders (Wi‑Fi credentials, device names, pins, etc.) in `7i-sample.yaml` before building to match your hardware and network environment. 7i-sample.yaml 
-
-### Device screenshots
+### S3 sample screenshots
 
 #### About
 ![About](images/about.png)
@@ -93,9 +77,88 @@ Add `7i-sample.yaml` to the ESPHome add-on / dashboard and use the web UI to com
 #### Heating Control
 ![Heating-Control](images/heating-control.png)
 
-#### openweathermap.org
-https://openweathermap.org/api#one_call_3
+#### 8-day forecast
+OpenWeatherMap One Call API 3.0 — https://openweathermap.org/api#one_call_3
 
 ![8-day forecast](images/8-day%20forecast.png)
 
+#### 48-hour forecast
 ![48-hour forecast](images/48-hour%20forecast.png)
+
+---
+
+## ESP32-P4 Sample (`P4-7B-sample.yaml`)
+
+Sample configuration for the **ESP32-P4-WIFI6-Touch-LCD-7B** board. This sample demonstrates the full feature set on the P4 platform and requires **ESPHome ≥ 2026.4.0** and **LVGL 9.5**.
+
+### Hardware specs
+- SoC: ESP32-P4 @ 360 MHz, 32 MB flash
+- Display: 7" 1024×600 MIPI-DSI touch screen
+- Connectivity: Wi-Fi 6 (802.11ax), Bluetooth 5
+- SD card slot (SDMMC)
+- Camera connector (OV5647 compatible)
+
+### Home Assistant integrations required
+
+| Integration | Purpose |
+|-------------|---------|
+| `climate.*` entities | Climate control page — displays setpoint, current temperature, and HVAC mode for each room |
+| OpenWeatherMap (REST) | Weather daily and hourly forecast pages |
+| Voice pipeline (assist) | Voice Control page — shows spoken transcript and assistant response |
+| `input_select.ui_language` | Language selection for weather labels |
+
+### Pages
+
+The sample exposes an **`LVGL Page`** select entity (controllable from Home Assistant) to switch between pages:
+
+| Option | Description |
+|--------|-------------|
+| `Climate` | Heating/cooling control widgets for up to 6 rooms. Shows current temperature, setpoint arc, and HVAC mode per zone. |
+| `Voice Control` | Voice assistant interface showing spoken transcript and assistant response via the Home Assistant voice pipeline. |
+| `Weather Daily` | 8-day weather forecast from OpenWeatherMap showing daily high/low, condition icons, and precipitation. |
+| `Weather Hourly` | 48-hour weather forecast showing temperature and precipitation per hour. |
+
+### Build and flash
+
+From the `config/` directory:
+```bash
+# Compile
+esphome compile P4-7B-sample.yaml
+
+# Flash via USB (Windows COM port example)
+esphome run P4-7B-sample.yaml --device COM7
+
+# Flash via OTA
+esphome run P4-7B-sample.yaml
+```
+
+### P4 sample screenshots
+
+Screenshots captured from a running device using the `/screenshot.png` HTTP endpoint.
+To switch pages before capturing, use the **LVGL Page** select entity in Home Assistant.
+
+#### Climate page
+![P4 Climate](images/p4-climate.png)
+
+#### Voice Control page
+![P4 Voice Control](images/p4-voice-control.png)
+
+#### Weather Daily page
+![P4 Weather Daily](images/p4-weather-daily.png)
+
+#### Weather Hourly page
+![P4 Weather Hourly](images/p4-weather-hourly.png)
+
+---
+
+## Typical workflow notes
+- Use `esphome compile` to verify configuration without flashing.
+- Use `esphome logs <sample>.yaml` to watch serial logs.
+- Keep backups of working firmware binaries from the `.esphome/build/` directory.
+- Use `esphome dashboard config/` to open a local web UI for managing multiple YAML files.
+
+## Troubleshooting
+- **Permission errors on serial ports**: add your user to the `dialout`/`tty` group, or use `sudo` (Linux/macOS).
+- **OTA upload fails**: verify device IP, OTA password, and network firewall settings.
+- **Build errors**: run `esphome compile <sample>.yaml` and inspect the full output.
+- **P4 board not found**: ensure ESPHome ≥ 2026.4.0 is installed (`pip install --upgrade esphome`).
