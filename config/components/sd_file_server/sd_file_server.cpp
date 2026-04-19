@@ -81,6 +81,34 @@ static std::string url_decode(const std::string &in) {
   return out;
 }
 
+static std::string html_escape(const std::string &in) {
+  std::string out;
+  out.reserve(in.size());
+  for (char c : in) {
+    switch (c) {
+      case '&':
+        out += "&amp;";
+        break;
+      case '<':
+        out += "&lt;";
+        break;
+      case '>':
+        out += "&gt;";
+        break;
+      case '"':
+        out += "&quot;";
+        break;
+      case '\'':
+        out += "&#39;";
+        break;
+      default:
+        out.push_back(c);
+        break;
+    }
+  }
+  return out;
+}
+
 static std::string query_param_value(const std::string &query, const std::string &key) {
   std::string needle = key + "=";
   size_t pos = 0;
@@ -107,6 +135,13 @@ static std::string get_query_string(AsyncWebServerRequest *request) {
     return query;
   }
   return std::string();
+}
+
+static std::string safe_request_url_string(AsyncWebServerRequest *request, std::span<char, 513> buffer) {
+  if (request == nullptr) {
+    return std::string();
+  }
+  return request->url_to(buffer).str();
 }
 
 static std::vector<DirEntry> parse_list_json(const std::string &json) {
@@ -301,79 +336,95 @@ void SDFileServer::download_task(void *param) {
   vTaskDelete(nullptr);
 }
 
-SDFileServer::SDFileServer(web_server::WebServer *base) : base_(base) {}
+SDFileServer::SDFileServer(web_server_base::WebServerBase *base) : base_(base) {}
 
 void SDFileServer::setup() {
-  if (web_server_base::global_web_server_base != nullptr) {
-    web_server_base::global_web_server_base->add_handler(this);
-  } else {
+  ESP_LOGI(TAG, "setup() called - initializing SD file server");
+  if (this->base_ == nullptr) {
     ESP_LOGW(TAG, "web_server_base not available; SD file server handler not registered");
+    return;
   }
+  this->base_->add_handler(this);
+  ESP_LOGI(TAG, "SD file server handler registered successfully");
 }
 
 void SDFileServer::dump_config() {
-  ESP_LOGCONFIG(TAG, "SD File Server:");
-  ESP_LOGCONFIG(TAG, "  Address: %s", network::get_use_address());
+  const char *use_address = network::get_use_address();
+  if (use_address == nullptr) {
+    use_address = "";
+  }
+  ESP_LOGCONFIG(TAG, "SD File Server Configuration:");
+  ESP_LOGCONFIG(TAG, "  Address: %s", use_address);
   ESP_LOGCONFIG(TAG, "  Url Prefix: %s", this->url_prefix_.c_str());
   ESP_LOGCONFIG(TAG, "  Root Path: %s", this->root_path_.c_str());
-  ESP_LOGCONFIG(TAG, "  Deletation Enabled: %s", TRUEFALSE(this->deletion_enabled_));
-  ESP_LOGCONFIG(TAG, "  Download Enabled : %s", TRUEFALSE(this->download_enabled_));
-  ESP_LOGCONFIG(TAG, "  Upload Enabled : %s", TRUEFALSE(this->upload_enabled_));
+  ESP_LOGCONFIG(TAG, "  Deletion Enabled: %s", TRUEFALSE(this->deletion_enabled_));
+  ESP_LOGCONFIG(TAG, "  Download Enabled: %s", TRUEFALSE(this->download_enabled_));
+  ESP_LOGCONFIG(TAG, "  Upload Enabled: %s", TRUEFALSE(this->upload_enabled_));
+}
+
+float SDFileServer::get_setup_priority() const {
+  // Initialize after web_server_base (which has priority 100)
+  return esphome::setup_priority::AFTER_WIFI;
 }
 
 bool SDFileServer::canHandle(AsyncWebServerRequest *request) const {
   char buffer[513];
-  ESP_LOGD(TAG, "can handle %s %u", request->url_to(buffer), request->method());
-  return str_startswith(std::string(request->url_to(buffer)), this->build_prefix());
+  const std::string url = safe_request_url_string(request, buffer);
+  ESP_LOGI(TAG, "canHandle url=%s method=%u", url.c_str(), request != nullptr ? request->method() : 0U);
+  return str_startswith(url, this->build_prefix());
 }
 
 void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
   char buffer[513];
-  ESP_LOGD(TAG, "url: %s", request->url_to(buffer));
-  if (str_startswith(std::string(request->url_to(buffer)), this->build_prefix())) {
+  const std::string url = safe_request_url_string(request, buffer);
+  ESP_LOGI(TAG, "handleRequest enter url=%s method=%u", url.c_str(), request != nullptr ? request->method() : 0U);
+  if (str_startswith(url, this->build_prefix())) {
     if (this->upload_in_progress_ && request->method() != HTTP_PUT) {
       httpd_req_t *req = *request;
-      ESP_LOGW(TAG, "request blocked during upload: %s", request->url_to(buffer));
+      ESP_LOGW(TAG, "request blocked during upload: %s", url.c_str());
       send_plain_response(req, 503, "{ \"error\": \"upload in progress\" }");
       return;
     }
     if (request->method() == HTTP_GET) {
-      std::string url = std::string(request->url_to(buffer));
+      std::string url_str = url;
       std::string query = get_query_string(request);
+      ESP_LOGI(TAG, "route GET url=%s query_len=%u", url_str.c_str(), static_cast<unsigned>(query.size()));
       if (!query.empty()) {
-        ESP_LOGD(TAG, "full url: %s?%s", url.c_str(), query.c_str());
+        ESP_LOGD(TAG, "full url: %s?%s", url_str.c_str(), query.c_str());
         ESP_LOGD(TAG, "query: %s", query.c_str());
         if (query.find("delete=1") != std::string::npos || query == "delete" ||
             query.find("delete=true") != std::string::npos) {
-          ESP_LOGI(TAG, "delete requested via query: %s?%s", url.c_str(), query.c_str());
+          ESP_LOGI(TAG, "delete requested via query: %s?%s", url_str.c_str(), query.c_str());
           this->handle_delete(request);
           return;
         }
       } else {
-        ESP_LOGD(TAG, "full url: %s", url.c_str());
+        ESP_LOGD(TAG, "full url: %s", url_str.c_str());
       }
       this->handle_get(request);
+      ESP_LOGI(TAG, "route GET done url=%s", url.c_str());
       return;
     }
     if (request->method() == HTTP_DELETE) {
-      ESP_LOGI(TAG, "delete requested via HTTP DELETE: %s", request->url_to(buffer));
+      ESP_LOGI(TAG, "delete requested via HTTP DELETE: %s", url.c_str());
       this->handle_delete(request);
+      ESP_LOGI(TAG, "route DELETE done url=%s", url.c_str());
       return;
     }
     if (request->method() == HTTP_PUT || request->method() == HTTP_POST) {
       httpd_req_t *req = *request;
       if (this->upload_in_progress_) {
-        ESP_LOGW(TAG, "upload blocked (another upload in progress): %s", request->url_to(buffer));
+        ESP_LOGW(TAG, "upload blocked (another upload in progress): %s", url.c_str());
         send_plain_response(req, 503, "{ \"error\": \"upload already in progress\" }");
         return;
       }
       if (!this->upload_enabled_) {
-        ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url_to(buffer));
+        ESP_LOGW(TAG, "upload blocked (upload disabled): %s", url.c_str());
         send_plain_response(req, 401, "{ \"error\": \"file upload is disabled\" }");
         return;
       }
       if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
-        ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url_to(buffer));
+        ESP_LOGE(TAG, "upload failed (sd not configured): %s", url.c_str());
         send_plain_response(req, 500, "{ \"error\": \"sd card not configured\" }");
         return;
       }
@@ -381,7 +432,7 @@ void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
       if (this->sd_spi_card_ != nullptr) {
         if (!this->sd_spi_card_->is_mounted()) {
           if (!this->sd_spi_card_->mount()) {
-            ESP_LOGE(TAG, "upload failed (sd spi not mounted): %s", request->url_to(buffer));
+            ESP_LOGE(TAG, "upload failed (sd spi not mounted): %s", url.c_str());
             send_plain_response(req, 500, "{ \"error\": \"sd card not mounted\" }");
             return;
           }
@@ -391,23 +442,23 @@ void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
       if (this->sd_mmc_card_ != nullptr) {
         if (!this->sd_mmc_card_->is_mounted()) {
           if (!this->sd_mmc_card_->mount()) {
-            ESP_LOGE(TAG, "upload failed (sd mmc not mounted): %s", request->url_to(buffer));
+            ESP_LOGE(TAG, "upload failed (sd mmc not mounted): %s", url.c_str());
             send_plain_response(req, 500, "{ \"error\": \"sd card not mounted\" }");
             return;
           }
         }
       }
 
-      std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
+      std::string extracted = this->extract_path_from_url(url);
       if (extracted.empty() || extracted.back() == '/') {
-        ESP_LOGW(TAG, "upload missing filename: %s", request->url_to(buffer));
+        ESP_LOGW(TAG, "upload missing filename: %s", url.c_str());
         send_plain_response(req, 400, "{ \"error\": \"missing filename\" }");
         return;
       }
       std::string path = this->build_absolute_path(extracted);
       size_t remaining = req->content_len;
       if (remaining == 0) {
-        ESP_LOGW(TAG, "upload missing content-length: %s", request->url_to(buffer));
+        ESP_LOGW(TAG, "upload missing content-length: %s", request->url_to(buffer).str().c_str());
         send_plain_response(req, 411, "{ \"error\": \"content length required\" }");
         return;
       }
@@ -455,16 +506,16 @@ void SDFileServer::handleUpload(AsyncWebServerRequest *request, const std::strin
                                 uint8_t *data, size_t len, bool final) {
   char buffer[513];
   if (!this->upload_enabled_) {
-    ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url_to(buffer));
+    ESP_LOGW(TAG, "upload blocked (upload disabled): %s", request->url_to(buffer).str().c_str());
     request->send(401, "application/json", "{ \"error\": \"file upload is disabled\" }");
     return;
   }
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
-    ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url_to(buffer));
+    ESP_LOGE(TAG, "upload failed (sd not configured): %s", request->url_to(buffer).str().c_str());
     request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
     return;
   }
-  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
+  std::string extracted = this->extract_path_from_url(request->url_to(buffer).str());
   std::string path = this->build_absolute_path(extracted);
 
   // Build absolute file path
@@ -508,14 +559,14 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
   if (request->method() != HTTP_PUT && request->method() != HTTP_POST) return;
   if (!this->upload_enabled_) {
     if (index == 0) {
-      ESP_LOGW(TAG, "raw upload blocked (upload disabled): %s", request->url_to(buffer));
+      ESP_LOGW(TAG, "raw upload blocked (upload disabled): %s", request->url_to(buffer).str().c_str());
       request->send(401, "application/json", "{ \"error\": \"file upload is disabled\" }");
     }
     return;
   }
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
     if (index == 0) {
-      ESP_LOGE(TAG, "raw upload failed (sd not configured): %s", request->url_to(buffer));
+      ESP_LOGE(TAG, "raw upload failed (sd not configured): %s", request->url_to(buffer).str().c_str());
       request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
     }
     return;
@@ -525,7 +576,7 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
     if (!this->sd_spi_card_->is_mounted()) {
       if (!this->sd_spi_card_->mount()) {
         if (index == 0) {
-          ESP_LOGE(TAG, "raw upload failed (sd spi not mounted): %s", request->url_to(buffer));
+          ESP_LOGE(TAG, "raw upload failed (sd spi not mounted): %s", request->url_to(buffer).str().c_str());
           request->send(500, "application/json", "{ \"error\": \"sd card not mounted\" }");
         }
         return;
@@ -537,7 +588,7 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
     if (!this->sd_mmc_card_->is_mounted()) {
       if (!this->sd_mmc_card_->mount()) {
         if (index == 0) {
-          ESP_LOGE(TAG, "raw upload failed (sd mmc not mounted): %s", request->url_to(buffer));
+          ESP_LOGE(TAG, "raw upload failed (sd mmc not mounted): %s", request->url_to(buffer).str().c_str());
           request->send(500, "application/json", "{ \"error\": \"sd card not mounted\" }");
         }
         return;
@@ -545,10 +596,10 @@ void SDFileServer::handleBody(AsyncWebServerRequest *request, uint8_t *data, siz
     }
   }
 
-  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
+  std::string extracted = this->extract_path_from_url(request->url_to(buffer).str());
   if (extracted.empty() || extracted.back() == '/') {
     if (index == 0) {
-      ESP_LOGW(TAG, "raw upload missing filename: %s", request->url_to(buffer));
+      ESP_LOGW(TAG, "raw upload missing filename: %s", request->url_to(buffer).str().c_str());
       request->send(400, "application/json", "{ \"error\": \"missing filename\" }");
     }
     return;
@@ -600,9 +651,9 @@ void SDFileServer::set_upload_enabled(bool allow) { this->upload_enabled_ = allo
 
 void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
   char buffer[513];
-  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
+  std::string extracted = this->extract_path_from_url(request->url_to(buffer).str());
   std::string path = this->build_absolute_path(extracted);
-  ESP_LOGD(TAG, "GET %s -> %s", request->url_to(buffer), path.c_str());
+  ESP_LOGD(TAG, "GET %s -> %s", request->url_to(buffer).str().c_str(), path.c_str());
 
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
     request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
@@ -663,59 +714,27 @@ void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
 // from the sd card shim to keep the feature working without depending on
 // a FileInfo type.
 void SDFileServer::handle_index(AsyncWebServerRequest *request, std::string const &path) const {
-  ESP_LOGD(TAG, "rendering index for %s", path.c_str());
-  AsyncResponseStream *response = request->beginResponseStream("text/html");
-  response->addHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-  response->addHeader("Pragma", "no-cache");
+  ESP_LOGI(TAG, "listing path: %s", path.c_str());
 #if HAVE_SD_SPI_CARD
   std::string json = this->sd_spi_card_ != nullptr ? this->sd_spi_card_->list_dir_json(path)
                                                    : this->sd_mmc_card_->list_dir_json(path);
 #else
   std::string json = this->sd_mmc_card_->list_dir_json(path);
 #endif
-  ESP_LOGD(TAG, "dir json size: %u", static_cast<unsigned>(json.size()));
-  auto entries = parse_list_json(json);
-
-  char buffer[513];
-  std::string extracted = this->extract_path_from_url(std::string(request->url_to(buffer)));
-  std::string base = this->build_prefix();
-  if (!extracted.empty() && extracted.front() != '/') {
-    extracted = "/" + extracted;
-  }
-  if (extracted.empty()) extracted = "/";
-  if (!extracted.empty() && extracted.back() != '/') extracted += "/";
-
-  response->print("<!doctype html><html><head><meta charset=\"utf-8\"><title>SD</title>");
-  response->print("<style>body{font-family:sans-serif;margin:16px;}table{border-collapse:collapse;}th,td{padding:6px 10px;border-bottom:1px solid #ddd;}a{text-decoration:none;}button{padding:4px 10px;}</style>");
-  response->print("</head><body>");
-  response->print("<script>function delFile(base,p,n){if(!confirm('Delete '+n+'?'))return;var u=base+'?delete=1&path='+encodeURIComponent(p);fetch(u,{method:'GET'}).then(r=>{if(r.ok){location.reload();}else{return r.text().then(t=>alert(t));}}).catch(e=>alert(e));}function fmtBytes(v){if(!v&&v!==0)return'';var u=['B','KB','MB','GB'];var i=0;var n=v;while(n>=1024&&i<u.length-1){n/=1024;i++;}return n.toFixed(i?1:0)+' '+u[i];}function setUploadStatus(msg){var s=document.getElementById('uploadStatus');if(s)s.textContent=msg||'';}function setUploadProgress(p){var bar=document.getElementById('uploadProgress');if(bar)bar.value=p;}function uploadFile(base,dir){var f=document.getElementById('uploadFile');if(!f||!f.files||!f.files.length){alert('Select a file');return;}var file=f.files[0];var path=dir; if(!path.endsWith('/')) path+='/'; var target=base+path+encodeURIComponent(file.name);setUploadProgress(0);setUploadStatus('Starting...');var xhr=new XMLHttpRequest();xhr.open('POST',target,true);xhr.setRequestHeader('Content-Type','application/octet-stream');xhr.upload.onprogress=function(e){if(e.lengthComputable){var pct=Math.floor((e.loaded/e.total)*100);setUploadProgress(pct);setUploadStatus('Uploading '+pct+'% ('+fmtBytes(e.loaded)+' / '+fmtBytes(e.total)+')');}};xhr.onload=function(){if(xhr.status>=200&&xhr.status<300){setUploadProgress(100);setUploadStatus('Upload complete');location.reload();}else{setUploadStatus('Upload failed: '+xhr.status);alert(xhr.responseText||'upload failed');}};xhr.onerror=function(){setUploadStatus('Upload failed');alert('upload failed');};xhr.send(file);}</script>");
-  response->printf("<h3>Index of %s</h3>", extracted.c_str());
-  response->printf("<div style=\"margin:8px 0;\">\n<input type=\"file\" id=\"uploadFile\" />\n<button onclick=\"uploadFile('%s','%s')\">upload</button>\n<div style=\"margin-top:6px;\"><progress id=\"uploadProgress\" value=\"0\" max=\"100\" style=\"width:240px;\"></progress> <span id=\"uploadStatus\"></span></div>\n</div>", base.c_str(), extracted.c_str());
-  response->print("<table><thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead><tbody>");
-
-  if (extracted != "/") {
-    std::string parent = extracted.substr(0, extracted.find_last_of('/', extracted.size() - 2));
-    if (parent.empty()) parent = "/";
-    std::string href = base + url_encode(parent) + (parent.back() == '/' ? "" : "/");
-    response->printf("<tr><td><a href=\"%s\">..</a></td><td></td><td></td></tr>", href.c_str());
+  std::string query = get_query_string(request);
+  if (query.find("json=1") != std::string::npos || query.find("format=json") != std::string::npos) {
+    request->send(200, "application/json", json.c_str());
+    return;
   }
 
-  for (const auto &entry : entries) {
-    std::string name = entry.name;
-    std::string href = base + url_encode(extracted + name + (entry.is_dir ? "/" : ""));
-    response->print("<tr><td>");
-    response->printf("<a href=\"%s\">%s%s</a>", href.c_str(), name.c_str(), entry.is_dir ? "/" : "");
-    response->print("</td>");
-    if (entry.is_dir) {
-      response->print("<td>-</td><td></td></tr>");
-    } else {
-      response->printf("<td>%u</td>", static_cast<unsigned>(entry.size));
-      response->printf("<td><a href=\"%s\" download>download</a> ", href.c_str());
-      response->printf("<button onclick=\"delFile('%s','%s','%s')\">delete</button></td></tr>", base.c_str(), (extracted + name).c_str(), name.c_str());
-    }
-  }
-
-  response->print("</tbody></table></body></html>");
+  AsyncResponseStream *response = request->beginResponseStream("text/html");
+  response->addHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  response->addHeader("Pragma", "no-cache");
+  response->print("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>SD Browser</title>");
+  response->print("<style>body{font-family:Segoe UI,Arial,sans-serif;margin:16px;background:#f7f8fa;color:#111}h2{margin:0 0 12px 0}table{border-collapse:collapse;width:100%;background:#fff}th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f3f4f6}a{text-decoration:none;color:#0b63ce}a:hover{text-decoration:underline}.path{margin:8px 0 14px 0;color:#374151;font-size:14px}.muted{color:#6b7280}</style>");
+  response->print("</head><body><h2>SD File Browser</h2><div class=\"path\" id=\"path\"></div><table><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Action</th></tr></thead><tbody id=\"rows\"></tbody></table>");
+  response->print("<script>(function(){const esc=(s)=>String(s).replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));const path=location.pathname;document.getElementById('path').textContent='Path: '+path;const rows=document.getElementById('rows');const sep=path.includes('?')?'&':'?';fetch(path+sep+'json=1',{cache:'no-store'}).then(r=>r.json()).then(items=>{if(path!=='/file/'&&path!=='/file'){const p=path.endsWith('/')?path.slice(0,-1):path;const i=p.lastIndexOf('/');const up=(i>0?p.slice(0,i+1):'/file/');rows.insertAdjacentHTML('beforeend','<tr><td><a href=\"'+up+'\">..</a></td><td class=\"muted\">dir</td><td>-</td><td>-</td></tr>');}for(const it of items){const isDir=!!it.is_dir;const name=String(it.name||'');const href=(path.endsWith('/')?path:path+'/')+encodeURIComponent(name)+(isDir?'/':'');rows.insertAdjacentHTML('beforeend','<tr><td><a href=\"'+href+'\">'+esc(name)+(isDir?'/':'')+'</a></td><td>'+(isDir?'dir':'file')+'</td><td>'+(isDir?'-':String(it.size||0))+'</td><td>'+(isDir?'-':'<a href=\"'+href+'\" download>download</a>')+'</td></tr>');}}).catch(e=>{rows.innerHTML='<tr><td colspan=\"4\">Failed to load directory: '+esc(e)+'</td></tr>';});})();</script>");
+  response->print("</body></html>");
   request->send(response);
 }
 
@@ -846,12 +865,12 @@ std::string Path::mime_type(std::string const &p) {
 void SDFileServer::handle_delete(AsyncWebServerRequest *request) {
   char buffer[513];
   if (!this->deletion_enabled_) {
-    ESP_LOGW(TAG, "delete blocked (deletion disabled): %s", request->url_to(buffer));
+    ESP_LOGW(TAG, "delete blocked (deletion disabled): %s", request->url_to(buffer).str().c_str());
     request->send(401, "application/json", "{ \"error\": \"deletion disabled\" }");
     return;
   }
   if (this->sd_spi_card_ == nullptr && this->sd_mmc_card_ == nullptr) {
-    ESP_LOGE(TAG, "delete failed (sd not configured): %s", request->url_to(buffer));
+    ESP_LOGE(TAG, "delete failed (sd not configured): %s", request->url_to(buffer).str().c_str());
     request->send(500, "application/json", "{ \"error\": \"sd card not configured\" }");
     return;
   }
@@ -877,7 +896,7 @@ void SDFileServer::handle_delete(AsyncWebServerRequest *request) {
       }
     }
   }
-  std::string url = std::string(request->url_to(buffer));
+  std::string url = request->url_to(buffer).str();
   std::string extracted = this->extract_path_from_url(url);
   std::string query = get_query_string(request);
   std::string query_path;
