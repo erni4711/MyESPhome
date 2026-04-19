@@ -25,6 +25,7 @@ class SDFileServer : public Component, public AsyncWebHandler {
   SDFileServer(web_server::WebServer *base);
   void setup() override;
   void dump_config() override;
+  float get_setup_priority() const override;
   bool canHandle(AsyncWebServerRequest *request) const override;
   void handleRequest(AsyncWebServerRequest *request) override;
   // Note: use std::string for filenames to avoid Arduino String dependency

@@ -304,21 +304,33 @@ void SDFileServer::download_task(void *param) {
 SDFileServer::SDFileServer(web_server::WebServer *base) : base_(base) {}
 
 void SDFileServer::setup() {
-  if (web_server_base::global_web_server_base != nullptr) {
-    web_server_base::global_web_server_base->add_handler(this);
+  ESP_LOGI(TAG, "setup() called - initializing SD file server");
+  if (this->base_ != nullptr) {
+    ESP_LOGI(TAG, "web_server available, registering handler");
+    if (web_server_base::global_web_server_base != nullptr) {
+      web_server_base::global_web_server_base->add_handler(this);
+      ESP_LOGI(TAG, "SD file server handler registered successfully");
+    } else {
+      ESP_LOGW(TAG, "web_server_base global not available yet, deferring handler registration");
+    }
   } else {
-    ESP_LOGW(TAG, "web_server_base not available; SD file server handler not registered");
+    ESP_LOGW(TAG, "web_server not available; SD file server handler not registered");
   }
 }
 
 void SDFileServer::dump_config() {
-  ESP_LOGCONFIG(TAG, "SD File Server:");
+  ESP_LOGCONFIG(TAG, "SD File Server Configuration:");
   ESP_LOGCONFIG(TAG, "  Address: %s", network::get_use_address());
   ESP_LOGCONFIG(TAG, "  Url Prefix: %s", this->url_prefix_.c_str());
   ESP_LOGCONFIG(TAG, "  Root Path: %s", this->root_path_.c_str());
-  ESP_LOGCONFIG(TAG, "  Deletation Enabled: %s", TRUEFALSE(this->deletion_enabled_));
-  ESP_LOGCONFIG(TAG, "  Download Enabled : %s", TRUEFALSE(this->download_enabled_));
-  ESP_LOGCONFIG(TAG, "  Upload Enabled : %s", TRUEFALSE(this->upload_enabled_));
+  ESP_LOGCONFIG(TAG, "  Deletion Enabled: %s", TRUEFALSE(this->deletion_enabled_));
+  ESP_LOGCONFIG(TAG, "  Download Enabled: %s", TRUEFALSE(this->download_enabled_));
+  ESP_LOGCONFIG(TAG, "  Upload Enabled: %s", TRUEFALSE(this->upload_enabled_));
+}
+
+float SDFileServer::get_setup_priority() const {
+  // Initialize after web_server_base (which has priority 100)
+  return esphome::setup_priority::AFTER_WIFI;
 }
 
 bool SDFileServer::canHandle(AsyncWebServerRequest *request) const {
