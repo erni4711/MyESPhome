@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 
-from esphome.components import web_server_base, web_server
+from esphome.components import web_server_base
 from esphome.components.web_server_base import CONF_WEB_SERVER_BASE_ID
 from .. import sd_mmc_card
 try:
@@ -27,9 +27,7 @@ SD_MMC_CLASS = getattr(
     getattr(sd_mmc_card, "SdMmcCard", cg.Component),
 )
 
-# Accept either the base web server or the regular web_server (some configs
-# use one or the other). Allow either sd_mmc_card or sd_spi_card when present.
-AUTO_LOAD = ["web_server_base", "web_server", "sd_mmc_card"]
+AUTO_LOAD = ["web_server_base", "sd_mmc_card"]
 if sd_spi_card is not None:
     AUTO_LOAD.append("sd_spi_card")
 
@@ -39,7 +37,7 @@ SDFileServer = sd_file_server_ns.class_("SDFileServer", cg.Component)
 schema = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(SDFileServer),
-        cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server.WebServer),
+        cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server_base.WebServerBase),
         cv.Optional(SD_MMC_ID_KEY): cv.use_id(SD_MMC_CLASS),
         cv.Optional(CONF_URL_PREFIX, default="file"): cv.string_strict,
         cv.Optional(CONF_ROOT_PATH, default="/"): cv.string_strict,

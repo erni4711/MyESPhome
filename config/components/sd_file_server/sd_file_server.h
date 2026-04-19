@@ -1,6 +1,6 @@
 #pragma once
 #include "esphome/core/component.h"
-#include "esphome/components/web_server/web_server.h"
+#include "esphome/components/web_server_base/web_server_base.h"
 #include <utility>
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@ namespace sd_file_server {
 
 class SDFileServer : public Component, public AsyncWebHandler {
  public:
-  SDFileServer(web_server::WebServer *base);
+  SDFileServer(web_server_base::WebServerBase *base);
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override;
@@ -43,7 +43,7 @@ class SDFileServer : public Component, public AsyncWebHandler {
   void set_upload_enabled(bool);
 
  protected:
-  web_server::WebServer *base_;
+  web_server_base::WebServerBase *base_;
   ::esphome::sd_card::SdMmcCard *sd_mmc_card_;
   ::esphome::sd_card::SdSpiCard *sd_spi_card_{};
 

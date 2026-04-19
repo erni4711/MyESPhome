@@ -461,7 +461,7 @@ sd_mmc_card:
 
 sd_file_server:
   sd_mmc_id: sdcard
-  web_server_base_id: my_web_server
+  web_server_base_id: my_web_server_base
   enable_download: true
   enable_upload: true
   enable_deletion: true
@@ -627,8 +627,12 @@ sensor:
       return (v - 3.0) * 100.0 / (4.2 - 3.0);
 
 
+web_server_base:
+  id: my_web_server_base
+
 web_server:
   id: my_web_server
+  web_server_base_id: my_web_server_base
   port: 80
  
 screenshot:
