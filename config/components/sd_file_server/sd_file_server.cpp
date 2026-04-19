@@ -715,58 +715,26 @@ void SDFileServer::handle_get(AsyncWebServerRequest *request) const {
 // a FileInfo type.
 void SDFileServer::handle_index(AsyncWebServerRequest *request, std::string const &path) const {
   ESP_LOGI(TAG, "listing path: %s", path.c_str());
-  AsyncResponseStream *response = request->beginResponseStream("text/html");
-  response->addHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-  response->addHeader("Pragma", "no-cache");
-
 #if HAVE_SD_SPI_CARD
   std::string json = this->sd_spi_card_ != nullptr ? this->sd_spi_card_->list_dir_json(path)
                                                    : this->sd_mmc_card_->list_dir_json(path);
 #else
   std::string json = this->sd_mmc_card_->list_dir_json(path);
 #endif
-  auto entries = parse_list_json(json);
+  std::string query = get_query_string(request);
+  if (query.find("json=1") != std::string::npos || query.find("format=json") != std::string::npos) {
+    request->send(200, "application/json", json.c_str());
+    return;
+  }
 
-  char buffer[513];
-  std::string extracted = this->extract_path_from_url(request->url_to(buffer).str());
-  std::string base = this->build_prefix();
-  if (extracted.empty() || extracted.front() != '/') extracted = "/" + extracted;
-  if (!extracted.empty() && extracted.back() != '/') extracted.push_back('/');
-
+  AsyncResponseStream *response = request->beginResponseStream("text/html");
+  response->addHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  response->addHeader("Pragma", "no-cache");
   response->print("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>SD Browser</title>");
   response->print("<style>body{font-family:Segoe UI,Arial,sans-serif;margin:16px;background:#f7f8fa;color:#111}h2{margin:0 0 12px 0}table{border-collapse:collapse;width:100%;background:#fff}th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f3f4f6}a{text-decoration:none;color:#0b63ce}a:hover{text-decoration:underline}.path{margin:8px 0 14px 0;color:#374151;font-size:14px}.muted{color:#6b7280}</style>");
-  response->print("</head><body>");
-  response->print("<h2>SD File Browser</h2>");
-  response->printf("<div class=\"path\">Path: %s</div>", html_escape(extracted).c_str());
-
-  response->print("<table><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Action</th></tr></thead><tbody>");
-
-  if (extracted != "/") {
-    std::string parent = extracted.substr(0, extracted.find_last_of('/', extracted.size() - 2));
-    if (parent.empty()) parent = "/";
-    std::string up_href = base + url_encode(parent);
-    if (up_href.back() != '/') up_href.push_back('/');
-    response->printf("<tr><td><a href=\"%s\">..</a></td><td class=\"muted\">dir</td><td>-</td><td>-</td></tr>", up_href.c_str());
-  }
-
-  for (const auto &entry : entries) {
-    const bool is_dir = entry.is_dir;
-    std::string rel = extracted + entry.name + (is_dir ? "/" : "");
-    std::string href = base + url_encode(rel);
-    response->print("<tr><td>");
-    response->printf("<a href=\"%s\">%s%s</a>", href.c_str(), html_escape(entry.name).c_str(), is_dir ? "/" : "");
-    response->print("</td>");
-    response->printf("<td>%s</td>", is_dir ? "dir" : "file");
-    if (is_dir) {
-      response->print("<td>-</td><td>-</td>");
-    } else {
-      response->printf("<td>%u</td>", static_cast<unsigned>(entry.size));
-      response->printf("<td><a href=\"%s\" download>download</a></td>", href.c_str());
-    }
-    response->print("</tr>");
-  }
-
-  response->print("</tbody></table></body></html>");
+  response->print("</head><body><h2>SD File Browser</h2><div class=\"path\" id=\"path\"></div><table><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Action</th></tr></thead><tbody id=\"rows\"></tbody></table>");
+  response->print("<script>(function(){const esc=(s)=>String(s).replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));const path=location.pathname;document.getElementById('path').textContent='Path: '+path;const rows=document.getElementById('rows');const sep=path.includes('?')?'&':'?';fetch(path+sep+'json=1',{cache:'no-store'}).then(r=>r.json()).then(items=>{if(path!=='/file/'&&path!=='/file'){const p=path.endsWith('/')?path.slice(0,-1):path;const i=p.lastIndexOf('/');const up=(i>0?p.slice(0,i+1):'/file/');rows.insertAdjacentHTML('beforeend','<tr><td><a href=\"'+up+'\">..</a></td><td class=\"muted\">dir</td><td>-</td><td>-</td></tr>');}for(const it of items){const isDir=!!it.is_dir;const name=String(it.name||'');const href=(path.endsWith('/')?path:path+'/')+encodeURIComponent(name)+(isDir?'/':'');rows.insertAdjacentHTML('beforeend','<tr><td><a href=\"'+href+'\">'+esc(name)+(isDir?'/':'')+'</a></td><td>'+(isDir?'dir':'file')+'</td><td>'+(isDir?'-':String(it.size||0))+'</td><td>'+(isDir?'-':'<a href=\"'+href+'\" download>download</a>')+'</td></tr>');}}).catch(e=>{rows.innerHTML='<tr><td colspan=\"4\">Failed to load directory: '+esc(e)+'</td></tr>';});})();</script>");
+  response->print("</body></html>");
   request->send(response);
 }
 
