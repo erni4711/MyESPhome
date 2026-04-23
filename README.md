@@ -17,7 +17,7 @@ A custom [screenshot component](config/components/screenshot/README.md) lets you
 | Board | Sample file | Notes |
 |-------|-------------|-------|
 | [ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) | `config/7i-sample.yaml` | 7" 800×480, RGB |
-| [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) | `config/7ib-sample.yaml` | 7" 800×480, MIPI-DSI |
+| [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) | `config/7ib-sample.yaml` | 7" 1024×600, MIPI-DSI |
 | [ESP32-P4-WIFI6-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B) | `config/P4-7B-sample.yaml` | 7" 1024×600, MIPI-DSI, Wi-Fi 6 |
 
 ## Software features
