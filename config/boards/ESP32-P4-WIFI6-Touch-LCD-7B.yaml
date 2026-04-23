@@ -764,6 +764,14 @@ interval:
 
 # LVGL settings required for this display
 lvgl:
+  on_swipe_left:
+    - lvgl.page.next:
+        animation: NONE
+        #time: 180ms
+  on_swipe_right:
+    - lvgl.page.previous:
+        animation: NONE
+        #time: 180ms
   rotation: 180
   byte_order: little_endian
   theme:

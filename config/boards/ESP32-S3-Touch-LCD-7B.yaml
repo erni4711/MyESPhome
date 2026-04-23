@@ -493,6 +493,14 @@ interval:
 
 
 lvgl:
+  on_swipe_left:
+    - lvgl.page.next:
+        animation: NONE
+        #time: 180ms
+  on_swipe_right:
+    - lvgl.page.previous:
+        animation: NONE
+        #time: 180ms
   theme:
     label:
       text_font: font_norm
