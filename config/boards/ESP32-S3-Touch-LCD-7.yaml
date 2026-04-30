@@ -213,7 +213,7 @@ switch:
 
 ### Display
 display:
-  - platform: rpi_dpi_rgb
+  - platform: mipi_rgb
     id: waveshare_display
     update_interval: never
     auto_clear_enabled: false

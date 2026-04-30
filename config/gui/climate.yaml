@@ -92,7 +92,7 @@ widgets:
                 id: ${id}_current_temp_needle
                 color: ${color_temp_current}
                 width: 3
-                r_mod: 10
+                length: 10
                 value: 340 # 34°C Should be the same as the current temperature label
             # Set temperature ticks
             - tick_style:
