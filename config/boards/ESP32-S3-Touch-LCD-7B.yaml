@@ -296,6 +296,7 @@ touchscreen:
 #-------------------------------------------
 display:
   - platform: mipi_rgb
+    model: RPI
     id: my_display
     update_interval: never
     auto_clear_enabled: false
