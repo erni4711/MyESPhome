@@ -31,6 +31,7 @@ substitutions:
   ui_weather_symbol_size: 80
   ui_weather_symbol_smallersize: 64
   ui_weather_symbol_smallsize: 40
+  ui_weather_hourly_column_width: 78
   ui_climate_width: 325
   ui_climate_height: 260
   ui_climate_col_left: 65
@@ -132,7 +133,7 @@ i2c:
 
 sd_file_server:
   sd_mmc_id: sdcard
-  web_server_base_id: my_web_server
+  web_server_base_id: my_web_server_base
   enable_download: true
   enable_upload: true
   enable_deletion: true
@@ -266,11 +267,20 @@ touchscreen:
   id: my_touchscreen
   display: my_display
   i2c_id: bus_a
-  interrupt_pin: GPIO4
+  interrupt_pin:
+    number: GPIO4
+    mode:
+      input: true
+      pullup: true
   reset_pin:
     waveshare_io_ch32v003: ioexp 
     number: 1
     mode: OUTPUT
+  transform:
+    mirror_x: true
+    mirror_y: true
+    swap_xy: false
+  update_interval: 50ms
   on_release:
     - if:
         condition: lvgl.is_paused
@@ -280,16 +290,16 @@ touchscreen:
           - lvgl.resume:
           - lvgl.widget.redraw:
           - light.turn_on: display_backlight
-  # on_touch:
-    # - lambda: |-
-        # ESP_LOGI("Touch", "Touch detected at x=%d, y=%d", touch.x, touch.y);
-  # on_update:
-    # - lambda: |-
-          # for (auto touch: touches)  {
-              # if (touch.state <= 2) {
-                # ESP_LOGI("Touch points:", "id=%d x=%d, y=%d x.raw=%d, y.raw=%d", touch.id, touch.x, touch.y, touch.x_raw, touch.y_raw);
-              # }
-          # }
+  on_touch:
+    - lambda: |-
+        ESP_LOGI("touch", "Touch detected at x=%d y=%d", touch.x, touch.y);
+  on_update:
+    - lambda: |-
+        for (auto touch: touches) {
+          if (touch.state <= 2) {
+            ESP_LOGI("touch", "id=%d x=%d y=%d x_raw=%d y_raw=%d", touch.id, touch.x, touch.y, touch.x_raw, touch.y_raw);
+          }
+        }
 
 #-------------------------------------------
 # Display
@@ -425,9 +435,12 @@ sensor:
       return (v - 3.0) * 100.0 / (4.2 - 3.0);
 
 
+web_server_base:
+  id: my_web_server_base
+
 web_server:
-  id: my_web_server
   port: 80
+  web_server_base_id: my_web_server_base
  
 screenshot:
   id: screenshot_component
@@ -602,12 +615,12 @@ lvgl:
                 text: "\uF053"
                 on_press:
                   then:
-                    lvgl.page.previous:
+                    - lvgl.page.previous:
               - id: page_home
                 text: "\uF015"
                 on_press:
                   then:
-                    lvgl.page.show: main_page
+                    - lvgl.page.show: main_page
               - id: page_sleep
                 text: "Z"
                 on_press:
@@ -618,7 +631,7 @@ lvgl:
                 text: "\uF054"
                 on_press:
                   then:
-                    lvgl.page.next:
+                    - lvgl.page.next:
       - obj:
           id: boot_screen
           x: 0

@@ -32,7 +32,7 @@ widgets:
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "°C"
+      text: "${mdi_thermometer} °C"
   - label:
       height: SIZE_CONTENT
       text_font: font_small
@@ -43,14 +43,14 @@ widgets:
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "${mdi_windy}㎧"
+      text: "${mdi_windy} ㎧"
   - label:
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "${mdi_rainy}mm"
+      text: "${mdi_rainy} mm"
   - label:
       height: SIZE_CONTENT
       text_font: font_small
       text_color: gray
-      text: "${mdi_snowy}mm"
+      text: "${mdi_snowy} mm"

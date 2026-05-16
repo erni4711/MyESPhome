@@ -38,6 +38,7 @@ font:
         glyphs: "㎧㎜"
       - file: "fonts/MaterialSymbolsSharp-SemiBold.ttf"
         glyphs:
+          - ${mdi_thermometer}
           - ${mdi_clear_night}
           - ${mdi_cloudy}
           - ${mdi_exceptional}

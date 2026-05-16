@@ -1,24 +1,30 @@
 height: SIZE_CONTENT
-width: SIZE_CONTENT
+width: ${ui_weather_hourly_column_width}
 bg_color: gray50
 pad_top: 0
 pad_bottom : 0
-border_width: 0
+pad_left: 0
+pad_right: 0
+border_width: 1
 shadow_width: 0
 outline_width: 0
+border_color: light_blue
+border_post: true
+radius: 0
 layout:
   type: flex
   flex_flow: COLUMN
   flex_align_cross: STRETCH
   flex_align_track: START
   pad_column: 0
-  pad_row: 0
+  pad_row: 1
 grid_cell_row_pos: ${row}
 grid_cell_column_pos: ${col}
 widgets:
   - label:
       id: forecast_hourly_time_label_${id}
       height: SIZE_CONTENT
+      width: 100%
       text_font: font_small
       text: " "
       bg_color: light_blue

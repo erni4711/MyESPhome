@@ -1,0 +1,172 @@
+substitutions:
+  node_name: "esp32s3-7b-touch-test"
+  friendly_name: "7B Touch Test"
+
+packages:
+  - !include common/wifi.yaml
+
+esphome:
+  name: ${node_name}
+  min_version: "2026.4.0"
+  name_add_mac_suffix: false
+  on_boot:
+    - light.turn_on: display_backlight
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    advanced:
+      execute_from_psram: true
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  - source: components
+
+i2c:
+  sda: GPIO08
+  scl: GPIO09
+  scan: true
+  id: bus_a
+
+waveshare_io_ch32v003:
+  - id: ioexp
+    i2c_id: bus_a
+    address: 0x24
+
+output:
+  - platform: waveshare_io_ch32v003
+    id: backlight_pwm
+    waveshare_io_ch32v003_id: ioexp
+    inverted: true
+    zero_means_zero: true
+    safe_pwm_levels:
+      min_value: 0
+      max_value: 247
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    id: display_backlight
+    name: "Display Backlight"
+    restore_mode: ALWAYS_ON
+
+logger:
+  level: DEBUG
+  hardware_uart: UART0
+  baud_rate: 115200
+
+interval:
+  - interval: 1s
+    then:
+      - script.execute: read_gt911_status
+
+api:
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+script:
+  - id: read_gt911_status
+    then:
+      - lambda: |-
+          ESP_LOGI("GT911_DEBUG", "Script executed - checking GT911 status");
+
+display:
+  - platform: mipi_rgb
+    model: RPI
+    id: main_display
+    update_interval: never
+    auto_clear_enabled: false
+    color_order: RGB
+    pclk_frequency: 30MHz
+    dimensions:
+      width: 1024
+      height: 600
+    de_pin:
+      number: 5
+    hsync_pin:
+      number: 46
+      ignore_strapping_warning: true
+    vsync_pin:
+      number: 3
+      ignore_strapping_warning: true
+    pclk_pin: 7
+    pclk_inverted: true
+    reset_pin:
+      waveshare_io_ch32v003: ioexp
+      number: 3
+    hsync_back_porch: 152
+    hsync_front_porch: 48
+    hsync_pulse_width: 162
+    vsync_back_porch: 13
+    vsync_front_porch: 3
+    vsync_pulse_width: 45
+    data_pins:
+      red:
+        - 1
+        - 2
+        - 42
+        - 41
+        - 40
+      blue:
+        - 14
+        - 38
+        - 18
+        - 17
+        - 10
+      green:
+        - 39
+        - 0
+        - 45
+        - 48
+        - 47
+        - 21
+
+touchscreen:
+  platform: gt911
+  id: my_touchscreen
+  display: main_display
+  i2c_id: bus_a
+  address: 0x5D
+  reset_pin:
+    waveshare_io_ch32v003: ioexp
+    number: 1
+  transform:
+    mirror_x: true
+    mirror_y: true
+    swap_xy: false
+  update_interval: 50ms
+  on_touch:
+    - lambda: |-
+        ESP_LOGI("GT911_EVENT", "Touch detected at X=%d, Y=%d", touch.x, touch.y);
+  on_update:
+    - lambda: |-
+        ESP_LOGI("GT911_EVENT", "GT911 update cycle executed");
+
+lvgl:
+  pages:
+    - id: main_page
+      widgets:
+        - obj:
+            width: 100%
+            height: 100%
+            pad_all: 0
+            border_width: 0
+            outline_width: 0
+            shadow_width: 0
+            widgets:
+              - label:
+                  align: TOP_MID
+                  y: 20
+                  text: "7B LVGL + Touch Test"
+              - label:
+                  id: touch_state_label
+                  align: CENTER
+                  text: "Touch the screen"

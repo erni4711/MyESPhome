@@ -6,6 +6,8 @@ border_width: 0
 shadow_width: 0
 outline_width: 0
 pad_top: 0
+pad_left: 0
+pad_right: 0
 layout:
   type: flex
   flex_flow: COLUMN

@@ -418,6 +418,7 @@ substitutions:
   ui_weather_symbol_size: 80
   ui_weather_symbol_smallersize: 64
   ui_weather_symbol_smallsize: 40
+  ui_weather_hourly_column_width: 78
   ui_climate_width: 325
   ui_climate_height: 260
   ui_climate_col_left: 65
@@ -874,12 +875,12 @@ lvgl:
                 text: "\uF053"
                 on_press:
                   then:
-                    lvgl.page.previous:
+                    - lvgl.page.previous:
               - id: page_home
                 text: "\uF015"
                 on_press:
                   then:
-                    lvgl.page.show: main_page
+                    - lvgl.page.show: main_page
               - id: page_sleep
                 text: "Z"
                 on_press:
@@ -889,7 +890,7 @@ lvgl:
                 text: "\uF054"
                 on_press:
                   then:
-                    lvgl.page.next:
+                    - lvgl.page.next:
       - obj:
           id: boot_screen
           x: 0

@@ -38,6 +38,7 @@ substitutions:
   ui_title_font_size: 24
   ui_norm_font_size: 18
   ui_small_font_size: 14
+  ui_weather_hourly_column_width: 61
   ui_weather_symbol_size: 70
   ui_weather_symbol_smallersize: 56
   ui_weather_symbol_smallsize: 38
@@ -128,12 +129,16 @@ ota:
   password: !secret ota_password
   on_begin:
     then:
+      - switch.turn_off: switch_ble_scan
+      - light.turn_off: display_backlight
       - switch.turn_off: switch_antiburn
       - lvgl.pause:
       - logger.log: "LVGL paused for OTA"
   on_end:
     then:
       - lvgl.resume:
+      - switch.turn_on: switch_ble_scan
+      - light.turn_on: display_backlight
       - logger.log: "LVGL resumed after OTA"
       - logger.log: "OTA end, restart"
       #- switch.turn_on: restart_esp
@@ -210,6 +215,20 @@ switch:
           then:
             - lvgl.resume:
             - lvgl.widget.redraw:
+  - platform: template
+    name: BLE Scan
+    id: switch_ble_scan
+    icon: mdi:bluetooth-searching
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: "config"
+    disabled_by_default: true
+    turn_on_action:
+      - esp32_ble_tracker.start_scan:
+      - logger.log: "BLE scan enabled"
+    turn_off_action:
+      - esp32_ble_tracker.stop_scan:
+      - logger.log: "BLE scan disabled"
 
 ### Display
 display:
@@ -514,12 +533,12 @@ lvgl:
                 text: "\uF053"
                 on_press:
                   then:
-                    lvgl.page.previous:
+                    - lvgl.page.previous:
               - id: page_home
                 text: "\uF015"
                 on_press:
                   then:
-                    lvgl.page.show: main_page
+                    - lvgl.page.show: main_page
               - id: page_sleep
                 text: "Z"
                 on_press:
@@ -530,7 +549,7 @@ lvgl:
                 text: "\uF054"
                 on_press:
                   then:
-                    lvgl.page.next:
+                    - lvgl.page.next:
       - obj:
           id: boot_screen
           x: 0

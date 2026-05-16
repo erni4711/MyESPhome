@@ -264,7 +264,7 @@ lvgl:
           - obj:
               align: top_left
               y: ${ui_header_height}
-              width: 100%
+              width: ${ui_page_width}
               height: ${ui_page_height}
               border_width: 0
               shadow_width: 0
