@@ -197,47 +197,15 @@ static bool query_get_u32(const std::string &query, const std::string &key, uint
 static lv_img_dsc_t *grab_lvgl_rgb565() {
   lv_obj_t *scr = lv_scr_act();
   ESP_LOGD(TAG, "grab_lvgl_rgb565: lv_scr_act -> %p", (void *)scr);
-  /* Determine required buffer size for RGB565 snapshot */
-  lv_draw_buf_t *tmp = lv_snapshot_create_draw_buf(scr, LV_COLOR_FORMAT_RGB565);
-  if (tmp == nullptr) {
-    ESP_LOGD(TAG, "grab_lvgl_rgb565: failed to create temporary snapshot draw buffer");
-    return nullptr;
-  }
-  uint32_t buf_size = tmp->data_size;
-  lv_draw_buf_destroy(tmp);
-  if (buf_size == 0) {
-    ESP_LOGD(TAG, "grab_lvgl_rgb565: snapshot buffer size is 0");
+  lv_refr_now(nullptr);
+  lv_draw_buf_t *draw_buf = lv_snapshot_take(scr, LV_COLOR_FORMAT_RGB565);
+  if (draw_buf == nullptr) {
+    ESP_LOGW(TAG, "grab_lvgl_rgb565: lv_snapshot_take failed");
     return nullptr;
   }
 
-  /* Allocate buffer directly with the project's LVGL hooks (my_lvgl_malloc) */
-  void *buf = my_lvgl_malloc(buf_size);
-  if (!buf) {
-    ESP_LOGW(TAG, "grab_lvgl_rgb565: failed to allocate %u bytes for snapshot", (unsigned)buf_size);
-    return nullptr;
-  }
-
-  /* Allocate an image descriptor via LVGL allocator */
-  lv_img_dsc_t *dsc = (lv_img_dsc_t *)my_lvgl_malloc(sizeof(lv_img_dsc_t));
-  if (!dsc) {
-    ESP_LOGW(TAG, "grab_lvgl_rgb565: failed to allocate lv_img_dsc_t");
-    my_lvgl_free(buf);
-    return nullptr;
-  }
-
-  /* Take snapshot into our buffer */
-  lv_refr_now(NULL);
-  lv_result_t res = lv_snapshot_take_to_buf_ex(scr, LV_COLOR_FORMAT_RGB565, dsc, buf, buf_size);
-  if (res != LV_RESULT_OK) {
-    ESP_LOGW(TAG, "grab_lvgl_rgb565: lv_snapshot_take_to_buf failed");
-    my_lvgl_free(buf);
-    my_lvgl_free(dsc);
-    return nullptr;
-  }
-
-
-  /* On success lv_snapshot_take_to_buf wrote the dsc and buffer for us */
-  return dsc;
+  // lv_snapshot_take allocates an image descriptor compatible with lv_image_dsc_t.
+  return reinterpret_cast<lv_img_dsc_t *>(draw_buf);
 }
 
 static bool encode_png_to_buffer(lv_img_dsc_t *img, uint8_t **out_buf, size_t *out_size) {

@@ -51,11 +51,27 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#if defined(LV_USE_SNAPSHOT) && LV_USE_SNAPSHOT
 lv_result_t lv_snapshot_take_to_buf(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
                                     uint32_t buf_size);
+#endif
 #ifdef __cplusplus
 }
 #endif
+
+static lv_result_t snapshot_take_to_buf_compat(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
+                                               uint32_t buf_size) {
+#if defined(LV_USE_SNAPSHOT) && LV_USE_SNAPSHOT
+  return lv_snapshot_take_to_buf(obj, cf, dsc, buf, buf_size);
+#else
+  LV_UNUSED(obj);
+  LV_UNUSED(cf);
+  LV_UNUSED(dsc);
+  LV_UNUSED(buf);
+  LV_UNUSED(buf_size);
+  return LV_RESULT_INVALID;
+#endif
+}
 
 static bool get_snapshot_area_from_dsc(lv_obj_t *obj, const lv_image_dsc_t *dsc, lv_area_t *snapshot_area) {
   if (obj == nullptr || dsc == nullptr || snapshot_area == nullptr) return false;
@@ -94,8 +110,8 @@ static void blend_layer_argb8888_on_rgb565(lv_obj_t *layer_obj, void *base_buf, 
 
   lv_image_dsc_t overlay_dsc;
   lv_memzero(&overlay_dsc, sizeof(overlay_dsc));
-  lv_result_t overlay_res = lv_snapshot_take_to_buf(layer_obj, LV_COLOR_FORMAT_ARGB8888, &overlay_dsc, overlay_buf,
-                                                    overlay_buf_size);
+  lv_result_t overlay_res = snapshot_take_to_buf_compat(layer_obj, LV_COLOR_FORMAT_ARGB8888, &overlay_dsc, overlay_buf,
+                                                        overlay_buf_size);
   if (overlay_res != LV_RESULT_OK || overlay_dsc.data == nullptr) {
     lv_free(overlay_buf);
     return;
@@ -154,7 +170,7 @@ lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format_t cf, lv_i
   LV_ASSERT_NULL(buf);
 
   lv_memzero(dsc, sizeof(lv_image_dsc_t));
-  lv_result_t res = lv_snapshot_take_to_buf(obj, cf, dsc, buf, buf_size);
+  lv_result_t res = snapshot_take_to_buf_compat(obj, cf, dsc, buf, buf_size);
   if (res != LV_RESULT_OK) return res;
 
   if (cf != LV_COLOR_FORMAT_RGB565) return res;
