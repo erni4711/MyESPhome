@@ -51,11 +51,39 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-lv_result_t lv_snapshot_take_to_buf(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
-                                    uint32_t buf_size);
+lv_draw_buf_t *lv_snapshot_create_draw_buf(lv_obj_t *obj, lv_color_format_t cf);
+lv_result_t lv_snapshot_take_to_draw_buf(lv_obj_t *obj, lv_color_format_t cf, lv_draw_buf_t *draw_buf);
 #ifdef __cplusplus
 }
 #endif
+
+// Use the current LVGL snapshot API; the deprecated lv_snapshot_take_to_buf API is not
+// available in the LVGL version bundled with ESPHome 2026.7.x.
+
+static lv_result_t snapshot_draw_buf_to_image_dsc(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc,
+                                                 void *buf, uint32_t buf_size) {
+  if (obj == nullptr || dsc == nullptr || buf == nullptr || buf_size == 0) return LV_RESULT_INVALID;
+
+  lv_draw_buf_t *draw_buf = lv_snapshot_create_draw_buf(obj, cf);
+  if (draw_buf == nullptr) return LV_RESULT_INVALID;
+
+  lv_result_t res = lv_snapshot_take_to_draw_buf(obj, cf, draw_buf);
+  if (res != LV_RESULT_OK) {
+    lv_draw_buf_destroy(draw_buf);
+    return res;
+  }
+
+  uint32_t copy_size = LV_MIN(draw_buf->data_size, buf_size);
+  lv_memcpy(buf, draw_buf->data, copy_size);
+
+  lv_memzero(dsc, sizeof(*dsc));
+  dsc->header = draw_buf->header;
+  dsc->data = static_cast<uint8_t *>(buf);
+  dsc->data_size = copy_size;
+
+  lv_draw_buf_destroy(draw_buf);
+  return LV_RESULT_OK;
+}
 
 static bool get_snapshot_area_from_dsc(lv_obj_t *obj, const lv_image_dsc_t *dsc, lv_area_t *snapshot_area) {
   if (obj == nullptr || dsc == nullptr || snapshot_area == nullptr) return false;
@@ -94,8 +122,8 @@ static void blend_layer_argb8888_on_rgb565(lv_obj_t *layer_obj, void *base_buf, 
 
   lv_image_dsc_t overlay_dsc;
   lv_memzero(&overlay_dsc, sizeof(overlay_dsc));
-  lv_result_t overlay_res = lv_snapshot_take_to_buf(layer_obj, LV_COLOR_FORMAT_ARGB8888, &overlay_dsc, overlay_buf,
-                                                    overlay_buf_size);
+  lv_result_t overlay_res = snapshot_draw_buf_to_image_dsc(layer_obj, LV_COLOR_FORMAT_ARGB8888, &overlay_dsc,
+                                                          overlay_buf, overlay_buf_size);
   if (overlay_res != LV_RESULT_OK || overlay_dsc.data == nullptr) {
     lv_free(overlay_buf);
     return;
@@ -147,14 +175,14 @@ static void blend_layer_argb8888_on_rgb565(lv_obj_t *layer_obj, void *base_buf, 
 }
 
 
-lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
-                                       uint32_t buf_size) {
+extern "C" lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc,
+                                                  void *buf, uint32_t buf_size) {
   LV_ASSERT_NULL(obj);
   LV_ASSERT_NULL(dsc);
   LV_ASSERT_NULL(buf);
 
   lv_memzero(dsc, sizeof(lv_image_dsc_t));
-  lv_result_t res = lv_snapshot_take_to_buf(obj, cf, dsc, buf, buf_size);
+  lv_result_t res = snapshot_draw_buf_to_image_dsc(obj, cf, dsc, buf, buf_size);
   if (res != LV_RESULT_OK) return res;
 
   if (cf != LV_COLOR_FORMAT_RGB565) return res;

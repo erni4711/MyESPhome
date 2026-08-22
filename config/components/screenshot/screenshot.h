@@ -44,6 +44,7 @@ class ScreenshotComponent : public Component {
    public:
     explicit Handler(ScreenshotComponent *parent) : parent_(parent) {}
     bool canHandle(AsyncWebServerRequest *request) const override {
+      if (request == nullptr) return false;
       char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
       return request->url_to(url_buf) == "/screenshot.png";
     }
@@ -61,6 +62,7 @@ class ScreenshotComponent : public Component {
      public:
       explicit CaptureHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
+        if (request == nullptr) return false;
         char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
         return request->url_to(url_buf) == "/capture";
       }
@@ -78,6 +80,7 @@ class ScreenshotComponent : public Component {
      public:
       explicit SnapshotHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
+        if (request == nullptr) return false;
         char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
         return request->url_to(url_buf) == "/snapshot.jpg";
       }
@@ -97,6 +100,7 @@ class ScreenshotComponent : public Component {
      public:
       explicit VideoHandler(ScreenshotComponent *parent) : parent_(parent) {}
       bool canHandle(AsyncWebServerRequest *request) const override {
+        if (request == nullptr) return false;
         char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
         return request->url_to(url_buf) == "/video";
       }

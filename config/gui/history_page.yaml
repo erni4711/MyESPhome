@@ -1,0 +1,415 @@
+# History Charts LVGL Page
+# 24-hour temperature and humidity line charts
+# Requires: history_charts.yaml component to be included first
+
+id: history_page
+on_load:
+  - lambda: |-
+      id(lvgl_page_select).publish_state("History");
+  - script.execute: refresh_history_page
+widgets:
+  - obj:
+      align: TOP_MID
+      styles: header_footer
+      widgets:
+        - label:
+            text: "Temperature & Humidity - Last 24h"
+            align: CENTER
+            text_align: CENTER
+            text_color: 0xFFFFFF
+  - obj:
+      align: top_left
+      y: ${ui_header_height}
+      width: 100%
+      height: ${ui_page_height}
+      scrollbar_mode: "OFF"
+      scrollable: false
+      border_width: 0
+      shadow_width: 0
+      outline_width: 0
+      pad_all: 8
+      layout:
+        type: grid
+        grid_rows: [ SIZE_CONTENT, 130, SIZE_CONTENT ]
+        grid_columns: [ fr(1), fr(1) ]
+        pad_column: 8
+        pad_row: 6
+      widgets:
+        - label:
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 0
+            text: "Temperature (C)"
+            text_font: font_norm
+        - obj:
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 0
+            width: 100%
+            height: 130
+            bg_opa: TRANSP
+            border_width: 1
+            border_color: 0x555555
+            pad_all: 0
+            widgets:
+              - line:
+                  id: temperature_history_line
+                  align: CENTER
+                  width: 100%
+                  height: 130
+                  line_width: 3
+                  line_color: 0xFF6B57
+                  line_rounded: true
+                  points:
+                    - x: 0
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[0] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 20
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[1] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 40
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[2] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 60
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[3] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 80
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[4] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 100
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[5] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 120
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[6] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 140
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[7] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 160
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[8] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 180
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[9] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 200
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[10] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 220
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[11] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 240
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[12] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 260
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[13] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 280
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[14] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 300
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[15] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 320
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[16] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 340
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[17] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 360
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[18] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 380
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[19] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 400
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[20] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 420
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[21] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 440
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[22] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 460
+                      y: !lambda |- 
+                        int y = 120 - (int) ((id(temp_history_24h)[23] - 10.0f) * 4.8f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+        - obj:
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 0
+            width: 100%
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            outline_width: 0
+            layout:
+              type: flex
+              flex_flow: row
+              flex_align_main: space_between
+              flex_align_cross: center
+            widgets:
+              - label:
+                  text: "24h ago"
+              - label:
+                  id: history_temp_value
+                  text: "Now: --.- C"
+              - label:
+                  text: "now"
+        - label:
+            grid_cell_row_pos: 0
+            grid_cell_column_pos: 1
+            text: "Humidity (%)"
+            text_font: font_norm
+        - obj:
+            grid_cell_row_pos: 1
+            grid_cell_column_pos: 1
+            width: 100%
+            height: 130
+            bg_opa: TRANSP
+            border_width: 1
+            border_color: 0x555555
+            pad_all: 0
+            widgets:
+              - line:
+                  id: humidity_history_line
+                  align: CENTER
+                  width: 100%
+                  height: 130
+                  line_width: 3
+                  line_color: 0x4BA3FF
+                  line_rounded: true
+                  points:
+                    - x: 0
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[0] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 20
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[1] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 40
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[2] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 60
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[3] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 80
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[4] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 100
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[5] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 120
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[6] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 140
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[7] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 160
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[8] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 180
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[9] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 200
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[10] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 220
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[11] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 240
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[12] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 260
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[13] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 280
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[14] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 300
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[15] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 320
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[16] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 340
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[17] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 360
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[18] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 380
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[19] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 400
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[20] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 420
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[21] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 440
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[22] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+                    - x: 460
+                      y: !lambda |- 
+                        int y = 120 - (int) (id(humidity_history_24h)[23] * 1.2f);
+                        if (y < 0) y = 0;
+                        if (y > 120) y = 120;
+                        return y;
+        - obj:
+            grid_cell_row_pos: 2
+            grid_cell_column_pos: 1
+            width: 100%
+            bg_opa: TRANSP
+            border_width: 0
+            shadow_width: 0
+            outline_width: 0
+            layout:
+              type: flex
+              flex_flow: row
+              flex_align_main: space_between
+              flex_align_cross: center
+            widgets:
+              - label:
+                  text: "24h ago"
+              - label:
+                  id: history_humidity_value
+                  text: "Now: --.- %"
+              - label:
+                  text: "now"

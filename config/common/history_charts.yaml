@@ -1,0 +1,498 @@
+# History Charts Component - Enhanced with Home Assistant Integration
+# Displays 24-hour temperature and humidity history with line charts
+# Fetches historical data from Home Assistant's statistics database
+#
+# SETUP INSTRUCTIONS:
+# 1. Find your sensor entity IDs in Home Assistant:
+#    - Go to Developer Tools > States
+#    - Search for your temperature and humidity sensors
+#    - Update options in history_temp_source and history_humidity_source below
+#
+# 2. (Optional) Create a Long-Lived Access Token for authentication:
+#    - In Home Assistant: Settings > Devices & Services > Developer Tools
+#    - Create Long-Lived Access Token (bottom of page)
+#    - Add to config/secrets.yaml: ha_long_lived_token: "your_token_here"
+#    - Set ha_token below to !secret ha_long_lived_token
+#
+# 3. Customize Home Assistant URL if not at homeassistant.local:8123
+#
+# DATA FLOW:
+# - At startup (30s delay): Fetches 24h history from HA and populates buffers
+# - Every hour: Captures latest sensor reading and shifts buffer
+# - Both local and HA data sources: HA for historical depth, local for real-time
+#
+# Requires: bme_temperature and bme_humidity sensors to be defined
+
+# Configuration (customize these)
+substitutions:
+  ha_url: "http://homeassistant.local:8123"
+  ha_temp_entity_default: "sensor.esp32p4_7b_sample_bme280_temperature"
+  ha_humidity_entity_default: "sensor.esp32p4_7b_sample_bme280_humidity"
+  ha_token: ""  # Set to !secret ha_long_lived_token in your device config
+
+http_request:
+  useragent: esphome/history-charts
+  timeout: 10s
+
+globals:
+  - id: temp_history_24h
+    type: float[24]
+    restore_value: no
+    initial_value: '{0.0f}'
+  - id: humidity_history_24h
+    type: float[24]
+    restore_value: no
+    initial_value: '{0.0f}'
+
+select:
+  - platform: template
+    id: history_temp_source
+    name: History Temperature Source
+    optimistic: true
+    restore_value: true
+    options:
+      - ${ha_temp_entity_default}
+      - sensor.office_temperature
+      - sensor.living_room_temperature
+      - sensor.outside_temperatur_2
+    initial_option: ${ha_temp_entity_default}
+    set_action:
+      - script.execute: fetch_ha_history
+
+  - platform: template
+    id: history_humidity_source
+    name: History Humidity Source
+    optimistic: true
+    restore_value: true
+    options:
+      - ${ha_humidity_entity_default}
+      - sensor.office_humidity
+      - sensor.living_room_humidity
+    initial_option: ${ha_humidity_entity_default}
+    set_action:
+      - script.execute: fetch_ha_history
+
+script:
+  - id: fetch_ha_history
+    then:
+      - logger.log:
+          format: "Fetching history from Home Assistant..."
+          tag: history
+          level: INFO
+      - if:
+          condition:
+            lambda: 'return std::string("${ha_token}").empty();'
+          then:
+            - logger.log:
+                format: "Skipping HA history fetch: ha_token is empty"
+                tag: history
+                level: WARN
+            - script.execute: capture_history_sample
+          else:
+            - http_request.get:
+                url: !lambda |-
+                  auto temp_option = id(history_temp_source).current_option();
+                  auto humidity_option = id(history_humidity_source).current_option();
+
+                  std::string temp_entity = temp_option.empty() ? std::string("${ha_temp_entity_default}") : temp_option.str();
+                  std::string humidity_entity = humidity_option.empty() ? std::string("${ha_humidity_entity_default}") : humidity_option.str();
+
+                  ESP_LOGI("history", "Using entities temp=%s humidity=%s", temp_entity.c_str(), humidity_entity.c_str());
+                  // Leave period start unspecified so Home Assistant returns the default last 24h window.
+                  return std::string("${ha_url}/api/history/period?filter_entity_id=") + temp_entity + "," + humidity_entity + "&minimal_response";
+                request_headers:
+                  Authorization: !lambda |-
+                    return "Bearer ${ha_token}";
+                on_response:
+                  - logger.log:
+                      format: "History fetch complete"
+                      tag: history
+                      level: DEBUG
+                  - script.execute: capture_history_sample
+
+  - id: capture_history_sample
+    then:
+      - lambda: |-
+          static bool initialized = false;
+          const bool has_temp = id(bme_temperature).has_state();
+          const bool has_humidity = id(bme_humidity).has_state();
+
+          float temp = has_temp ? id(bme_temperature).state : 0.0f;
+          float hum = has_humidity ? id(bme_humidity).state : 0.0f;
+
+          if (!initialized) {
+            for (int i = 0; i < 24; i++) {
+              id(temp_history_24h)[i] = temp;
+              id(humidity_history_24h)[i] = hum;
+            }
+            initialized = true;
+            return;
+          }
+
+          for (int i = 0; i < 23; i++) {
+            id(temp_history_24h)[i] = id(temp_history_24h)[i + 1];
+            id(humidity_history_24h)[i] = id(humidity_history_24h)[i + 1];
+          }
+
+          id(temp_history_24h)[23] = temp;
+          id(humidity_history_24h)[23] = hum;
+
+  - id: refresh_history_page
+    then:
+      - lvgl.line.update:
+          id: temperature_history_line
+          points:
+            - x: 0
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[0] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 20
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[1] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 40
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[2] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 60
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[3] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 80
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[4] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 100
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[5] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 120
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[6] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 140
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[7] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 160
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[8] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 180
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[9] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 200
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[10] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 220
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[11] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 240
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[12] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 260
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[13] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 280
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[14] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 300
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[15] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 320
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[16] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 340
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[17] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 360
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[18] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 380
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[19] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 400
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[20] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 420
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[21] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 440
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[22] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 460
+              y: !lambda |-
+                int y = 120 - (int) ((id(temp_history_24h)[23] - 10.0f) * 4.8f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+      - lvgl.line.update:
+          id: humidity_history_line
+          points:
+            - x: 0
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[0] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 20
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[1] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 40
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[2] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 60
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[3] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 80
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[4] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 100
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[5] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 120
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[6] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 140
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[7] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 160
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[8] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 180
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[9] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 200
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[10] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 220
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[11] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 240
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[12] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 260
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[13] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 280
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[14] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 300
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[15] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 320
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[16] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 340
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[17] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 360
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[18] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 380
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[19] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 400
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[20] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 420
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[21] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 440
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[22] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+            - x: 460
+              y: !lambda |-
+                int y = 120 - (int) (id(humidity_history_24h)[23] * 1.2f);
+                if (y < 0) y = 0;
+                if (y > 120) y = 120;
+                return y;
+      - lvgl.label.update:
+          id: history_temp_value
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Now: %.1f C", id(temp_history_24h)[23]);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: history_humidity_value
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Now: %.1f %%", id(humidity_history_24h)[23]);
+            return std::string(buf);
+
+interval:
+  - interval: 1h
+    then:
+      - script.execute: capture_history_sample
+      - script.execute: refresh_history_page
+  # Fetch HA history on startup (after 30 seconds)
+  - interval: 30s
+    startup_delay: 30s
+    then:
+      - logger.log:
+          format: "Initializing history from Home Assistant..."
+          tag: history
+          level: INFO
+      - script.execute: fetch_ha_history
+      - script.execute: refresh_history_page
+
+# LVGL History Page (include this in lvgl.pages section)
+# lvgl_history_page: &lvgl_history_page
+#   - id: history_page
+#     on_load:
+#       - lambda: |-
+#           id(lvgl_page_select).publish_state("History");
+#       - script.execute: refresh_history_page
+#     widgets:
+#       - obj:
+#           align: TOP_MID
+#           styles: header_footer
+#           widgets:
+#             - label:
+#                 text: "Temperature & Humidity - Last 24h"
+#                 align: CENTER
+#                 text_align: CENTER
+#                 text_color: 0xFFFFFF
+#       - obj:
+#           align: top_left
+#           y: ${ui_header_height}
+#           width: 100%
+#           height: ${ui_page_height}
+#           scrollbar_mode: "OFF"
+#           scrollable: false
+#           border_width: 0
+#           shadow_width: 0
+#           outline_width: 0
+#           pad_all: 8
+#           layout:
+#             type: grid
+#             grid_rows: [ SIZE_CONTENT, 130, SIZE_CONTENT, SIZE_CONTENT, 130, SIZE_CONTENT ]
+#             grid_columns: [ fr(1) ]
+#             pad_row: 6
+#           widgets: ...

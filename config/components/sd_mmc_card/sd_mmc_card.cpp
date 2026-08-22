@@ -127,6 +127,8 @@ bool SdMmcCard::mount() {
   sd_pwr_ctrl_ldo_config_t ldo_config = {
       .ldo_chan_id = 4,
   };
+  ESP_LOGI(TAG, "SDMMC LDO power channel: %d", ldo_config.ldo_chan_id);
+
   sd_pwr_ctrl_handle_t pwr_ctrl_handle = nullptr;
   err = sd_pwr_ctrl_new_on_chip_ldo(&ldo_config, &pwr_ctrl_handle);
   if (err != ESP_OK) {
@@ -204,18 +206,37 @@ bool SdMmcCard::get_capacity_kb(uint64_t *total_kb, uint64_t *available_kb) {
 bool SdMmcCard::is_mounted() { return this->mounted_; }
 
 std::string SdMmcCard::list_dir_json(const std::string &path) {
+  // Bound JSON size to avoid heap spikes on large directories.
+  constexpr size_t kMaxJsonBytes = 32768;
+  constexpr size_t kMaxEntries = 256;
+
   std::string out = "[";
+  out.reserve(4096);
   std::string p = path;
   if (p.empty()) p = MOUNT_POINT;
   std::string vfs_path = to_vfs_path(p);
   DIR *dir = opendir(vfs_path.c_str());
   if (dir == nullptr) return "[]";
   bool first = true;
+  size_t entry_count = 0;
+  bool truncated = false;
   for (dirent *entry = readdir(dir); entry != nullptr; entry = readdir(dir)) {
     if (entry->d_name[0] == 0) break;
     if (std::strcmp(entry->d_name, ".") == 0 || std::strcmp(entry->d_name, "..") == 0) continue;
+    if (entry_count >= kMaxEntries) {
+      truncated = true;
+      break;
+    }
+
+    if (out.size() >= (kMaxJsonBytes - 256)) {
+      truncated = true;
+      break;
+    }
+
     if (!first) out += ",";
     first = false;
+    entry_count++;
+
     std::string name = entry->d_name;
     std::string full_path = vfs_path + "/" + name;
     struct stat info;
@@ -230,6 +251,12 @@ std::string SdMmcCard::list_dir_json(const std::string &path) {
     out += "\"is_dir\":" + std::string(is_dir ? "true" : "false") + ",\"mtime\":0}";
   }
   closedir(dir);
+
+  if (truncated) {
+    ESP_LOGW(TAG, "Directory listing truncated for %s (entries=%u, bytes=%u)", vfs_path.c_str(),
+             static_cast<unsigned>(entry_count), static_cast<unsigned>(out.size()));
+  }
+
   out += "]";
   return out;
 }

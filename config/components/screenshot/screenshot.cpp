@@ -131,8 +131,6 @@ void screenshot_register_runtime() {
   esphome::screenshot::ScreenshotComponent::register_component_runtime();
 }
 
-lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format_t cf, lv_image_dsc_t *dsc, void *buf,
-                                       uint32_t buf_size);
 namespace esphome {
 namespace screenshot {
 
@@ -194,53 +192,19 @@ static bool query_get_u32(const std::string &query, const std::string &key, uint
 
 
 // Helper: grab LVGL active screen buffer pointer and size. This is best-effort.
-static lv_img_dsc_t *grab_lvgl_rgb565() {
+static lv_draw_buf_t *grab_lvgl_rgb565() {
   lv_obj_t *scr = lv_scr_act();
   ESP_LOGD(TAG, "grab_lvgl_rgb565: lv_scr_act -> %p", (void *)scr);
-  /* Determine required buffer size for RGB565 snapshot */
-  lv_draw_buf_t *tmp = lv_snapshot_create_draw_buf(scr, LV_COLOR_FORMAT_RGB565);
-  if (tmp == nullptr) {
-    ESP_LOGD(TAG, "grab_lvgl_rgb565: failed to create temporary snapshot draw buffer");
-    return nullptr;
-  }
-  uint32_t buf_size = tmp->data_size;
-  lv_draw_buf_destroy(tmp);
-  if (buf_size == 0) {
-    ESP_LOGD(TAG, "grab_lvgl_rgb565: snapshot buffer size is 0");
-    return nullptr;
-  }
-
-  /* Allocate buffer directly with the project's LVGL hooks (my_lvgl_malloc) */
-  void *buf = my_lvgl_malloc(buf_size);
-  if (!buf) {
-    ESP_LOGW(TAG, "grab_lvgl_rgb565: failed to allocate %u bytes for snapshot", (unsigned)buf_size);
-    return nullptr;
-  }
-
-  /* Allocate an image descriptor via LVGL allocator */
-  lv_img_dsc_t *dsc = (lv_img_dsc_t *)my_lvgl_malloc(sizeof(lv_img_dsc_t));
-  if (!dsc) {
-    ESP_LOGW(TAG, "grab_lvgl_rgb565: failed to allocate lv_img_dsc_t");
-    my_lvgl_free(buf);
-    return nullptr;
-  }
-
-  /* Take snapshot into our buffer */
+  /* Use LVGL's native snapshot allocator and capture path. */
   lv_refr_now(NULL);
-  lv_result_t res = lv_snapshot_take_to_buf_ex(scr, LV_COLOR_FORMAT_RGB565, dsc, buf, buf_size);
-  if (res != LV_RESULT_OK) {
-    ESP_LOGW(TAG, "grab_lvgl_rgb565: lv_snapshot_take_to_buf failed");
-    my_lvgl_free(buf);
-    my_lvgl_free(dsc);
-    return nullptr;
+  lv_draw_buf_t *draw_buf = lv_snapshot_take(scr, LV_COLOR_FORMAT_RGB565);
+  if (draw_buf == nullptr) {
+    ESP_LOGW(TAG, "grab_lvgl_rgb565: lv_snapshot_take failed");
   }
-
-
-  /* On success lv_snapshot_take_to_buf wrote the dsc and buffer for us */
-  return dsc;
+  return draw_buf;
 }
 
-static bool encode_png_to_buffer(lv_img_dsc_t *img, uint8_t **out_buf, size_t *out_size) {
+static bool encode_png_to_buffer(const lv_draw_buf_t *img, uint8_t **out_buf, size_t *out_size) {
   if (!img || !out_buf || !out_size) return false;
   uint32_t w = img->header.w;
   uint32_t h = img->header.h;
@@ -1304,7 +1268,7 @@ void ScreenshotComponent::loop() {
   this->capture_in_progress_ = true;
   this->capture_requested_ = false;
 
-  lv_img_dsc_t *img = grab_lvgl_rgb565();
+  lv_draw_buf_t *img = grab_lvgl_rgb565();
   if (!img) {
     ESP_LOGW(TAG, "Main-loop capture returned NULL image");
     this->capture_in_progress_ = false;
@@ -1315,8 +1279,7 @@ void ScreenshotComponent::loop() {
   size_t png_size = 0;
   bool ok = encode_png_to_buffer(img, &png_buf, &png_size);
 
-  my_lvgl_free((void *) img->data);
-  my_lvgl_free(img);
+  lv_draw_buf_destroy(img);
 
   if (!ok) {
     ESP_LOGW(TAG, "PNG encode failed; no cached image updated");

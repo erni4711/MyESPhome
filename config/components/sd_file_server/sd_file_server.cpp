@@ -349,7 +349,8 @@ void SDFileServer::setup() {
 }
 
 void SDFileServer::dump_config() {
-  const char *use_address = network::get_use_address();
+  std::array<char, network::USE_ADDRESS_BUFFER_SIZE> addr_buf{};
+  const char *use_address = network::get_use_address_to(addr_buf);
   if (use_address == nullptr) {
     use_address = "";
   }
@@ -368,17 +369,25 @@ float SDFileServer::get_setup_priority() const {
 }
 
 bool SDFileServer::canHandle(AsyncWebServerRequest *request) const {
-  char buffer[513];
-  const std::string url = safe_request_url_string(request, buffer);
-  ESP_LOGI(TAG, "canHandle url=%s method=%u", url.c_str(), request != nullptr ? request->method() : 0U);
-  return str_startswith(url, this->build_prefix());
+  if (request == nullptr) return false;
+
+  char buffer[AsyncWebServerRequest::URL_BUF_SIZE];
+  const std::string url = request->url_to(buffer).str();
+  const std::string prefix = this->build_prefix();
+
+  if (prefix.empty()) return false;
+  if (url.size() < prefix.size()) return false;
+  return std::memcmp(url.data(), prefix.data(), prefix.size()) == 0;
 }
 
 void SDFileServer::handleRequest(AsyncWebServerRequest *request) {
-  char buffer[513];
-  const std::string url = safe_request_url_string(request, buffer);
-  ESP_LOGI(TAG, "handleRequest enter url=%s method=%u", url.c_str(), request != nullptr ? request->method() : 0U);
-  if (str_startswith(url, this->build_prefix())) {
+  if (request == nullptr) return;
+
+  char buffer[AsyncWebServerRequest::URL_BUF_SIZE];
+  const std::string url = request->url_to(buffer).str();
+  const std::string prefix = this->build_prefix();
+
+  if (url.size() >= prefix.size() && std::memcmp(url.data(), prefix.data(), prefix.size()) == 0) {
     if (this->upload_in_progress_ && request->method() != HTTP_PUT) {
       httpd_req_t *req = *request;
       ESP_LOGW(TAG, "request blocked during upload: %s", url.c_str());
