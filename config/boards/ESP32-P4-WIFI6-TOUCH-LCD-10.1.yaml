@@ -16,9 +16,16 @@ esphome:
     #   board_build.psram_mode: opi
     #   board_upload.maximum_ram_size: 524288
   on_boot:
-    - logger.log: "ESPHome booted"
+    - logger.log: "Boot sequence started"
+    - lvgl.widget.show: boot_screen
+    - light.turn_on: display_backlight
     - delay: 5s
     - lvgl.widget.hide: boot_screen
+## on_boot temporarily disabled for build tracing
+# on_boot:
+#  priority: -200
+#  then:
+#    - delay: 2s
 
 external_components:
   - source:
@@ -29,10 +36,11 @@ substitutions:
   screen_height: ${1280 if rotation | default("0") not in ["90", "270"] else 800}
   screen_width: ${800 if rotation | default("0") not in ["90", "270"] else 1280}
 
-  ui_header_height: 40
-  ui_footer_height: 40
+  ui_header_height: 60
+  ui_footer_height: 60
   ui_page_height: 520
-  ui_page_width: 1024
+  ui_page_width: 1280
+  ui_half_page_width: 640
   ui_half_page_height: 260
   ui_header_font_size: 30
   ui_title_font_size: 34
@@ -91,9 +99,20 @@ esp32:
       CONFIG_FATFS_MAX_LFN: "255"
       CONFIG_LV_USE_SNAPSHOT: "y"
       CONFIG_SDMMC_ENABLE_POWER_CONTROL: "y"
+      CONFIG_ESP_TASK_WDT_EN: "y"
       # CONFIG_ESP_INT_WDT: n
       # CONFIG_ESP_INT_WDT_TIMEOUT_MS: "20000"
-      # CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"
+      CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"
+      # ISP / Video pipeline and camera support
+      CONFIG_ESP_VIDEO_ENABLE_ISP_PIPELINE_CONTROLLER: "y"
+      CONFIG_SOC_ISP_SUPPORTED: "y"
+      CONFIG_SOC_ISP_DVP_SUPPORTED: "y"
+      CONFIG_SOC_ISP_DEMOSAIC_SUPPORTED: "y"
+      CONFIG_SOC_ISP_LSC_SUPPORTED: "y"
+      CONFIG_SOC_ISP_WBG_SUPPORTED: "y"
+      CONFIG_SOC_ISP_SHARPEN_SUPPORTED: "y"
+      CONFIG_SOC_ISP_CCM_SUPPORTED: "y"
+      CONFIG_SOC_ISP_BF_SUPPORTED: "y"
 
 psram:
   mode: hex
@@ -141,17 +160,6 @@ i2c:
     frequency: 400kHz
     scan: true
 
-tab5_camera:
-  id: ov5647_camera
-  name: OV5647 Camera
-  i2c_id: bus_a
-  external_clock_pin: 36
-  frequency: 24000000
-  address_sensor_ov5647: 0x36
-  resolution: FHD
-  pixel_format: RGB565
-  framerate: 30
-  flip_mirror: false
 
 
 touchscreen:
@@ -355,9 +363,39 @@ media_player:
       - delay: 100ms
     on_turn_off:
       - media_player.stop: speaker_media_player
+      - delay: 100ms
+      - switch.turn_off: audio_amplifier
+    on_state:
+      if:
+        condition:
+          and:
+            - not:
+                voice_assistant.is_running:
+            - not:
+                media_player.is_announcing:
+        then:
+          - mixer_speaker.apply_ducking:
+              id: media_mixing_input
+              decibel_reduction: 0
+              duration: 1.0s
+    on_play:
+      - logger.log: "Media player started playing, disabling microphone"
+      - switch.turn_on: audio_amplifier
+      - delay: 100ms
+      - micro_wake_word.stop
+      - voice_assistant.stop
+    on_idle:
+      - delay: 100ms
+      - switch.turn_off: audio_amplifier
+      - if:
+          condition:
+            not:
+              voice_assistant.is_running:
+          then:
+            - script.execute: start_micro_wake_word
 
 
-# DISABLE: voice assistant - memory optimization
+# voice assistant enabled
 micro_wake_word:
   id: my_wake_word
   vad:
@@ -366,6 +404,16 @@ micro_wake_word:
   on_wake_word_detected:
     then:
       - logger.log: "Wake word detected"
+      - switch.turn_off: switch_antiburn
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - light.turn_on: display_backlight
+      - lvgl.page.show: voice_page
+      - voice_assistant.start:
+          wake_word: !lambda return wake_word;
 
 voice_assistant:
   microphone: esp32_microphone
@@ -375,6 +423,32 @@ voice_assistant:
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   conversation_timeout: 300s
+  on_start:
+    - text_sensor.template.publish:
+        id: voice_spoken_sentence
+        state: ""
+  on_end:
+    # Wait a short amount of time to see if an announcement starts
+    - wait_until:
+        condition:
+          - media_player.is_announcing:
+        timeout: 0.5s
+    # Announcement is finished and the I2S bus is free
+    - wait_until:
+        - and:
+            - not:
+                media_player.is_announcing:
+            - not:
+                media_player.is_playing:
+    - script.execute: start_micro_wake_word
+  on_stt_end:
+    - text_sensor.template.publish:
+        id: voice_spoken_sentence
+        state: !lambda return x;
+  on_client_connected:
+    - script.execute: start_micro_wake_word
+  on_client_disconnected:
+    - script.execute: stop_micro_wake_word
 
 
 
@@ -417,10 +491,12 @@ ota:
     then:
       - switch.turn_off: switch_antiburn
       - lvgl.pause:
+      - light.turn_off: display_backlight
       - logger.log: "LVGL paused for OTA"
   on_end:
     then:
       - lvgl.resume:
+      - light.turn_on: display_backlight
       - logger.log: "LVGL resumed after OTA"
       - logger.log: "OTA end, restart"
       #- switch.turn_on: restart_esp
@@ -461,6 +537,22 @@ api:
           lambda: 'return (0 == client_info.find("Home Assistant "));'
         then:
           - lvgl.widget.hide: lbl_hastatus
+  services:
+    # Camera services disabled while p4_camera component is temporarily removed
+    - service: start_camera_stream
+      then:
+        - logger.log: "start_camera_stream skipped (camera disabled)"
+    - service: stop_camera_stream
+      then:
+        - logger.log: "stop_camera_stream skipped (camera disabled)"
+    - service: capture_camera_frame
+      then:
+        - logger.log: "capture_camera_frame skipped (camera disabled)"
+    - service: set_camera_resolution
+      variables:
+        resolution: string
+      then:
+        - logger.log: "set_camera_resolution skipped (camera disabled)"
  
 time:
   - platform: homeassistant
@@ -480,10 +572,29 @@ script:
             time_format: "%H:%M:%S"
   - id: start_micro_wake_word
     then:
-      - logger.log: "Wake word detection disabled (memory optimization)"
+      - if:
+          condition:
+            and:
+              - voice_assistant.connected:
+              - not:
+                  voice_assistant.is_running:
+              - not:
+                  media_player.is_announcing:
+              - not:
+                  media_player.is_playing:
+              - not:
+                  micro_wake_word.is_running:
+          then:
+            - logger.log: "Starting wake word detection"
+            - micro_wake_word.start
   - id: stop_micro_wake_word
     then:
-      - logger.log: "Wake word stop disabled (memory optimization)"
+      - if:
+          condition:
+            micro_wake_word.is_running:
+          then:
+            - logger.log: "Stopping wake word detection"
+            - micro_wake_word.stop
 
 <<: !include ../common/7i-fonts.yaml
 
@@ -557,10 +668,11 @@ web_server:
   port: 80
   web_server_base_id: my_web_server_base
  
-screenshot:
-  id: screenshot_component
-  sd_mmc_id: sdcard
-  camera_id: ov5647_camera
+# screenshot:
+#   id: screenshot_component
+#   sd_mmc_id: sdcard
+#   # camera_id: ov5647_camera  # disabled while p4_camera is temporarily removed
+# Screenshot component disabled while p4_camera is temporarily removed
 
 text_sensor:
   - platform: wifi_info
@@ -581,21 +693,21 @@ text_sensor:
             text: !lambda |-
               auto ver_str = (std::string("ESPHome ") + id(esphome_version).state);
               return ver_str; //.c_str();
-  # DISABLED: voice_spoken_sentence - memory optimization
-  # - platform: template
-  #   id: voice_spoken_sentence
-  #   internal: true
-  #   update_interval: never
-  #   lambda: return {""};
-  #   on_value:
-  #     then:
-  #       - lvgl.label.update:
-  #           id: voice_transcript_label
-  #           text: !lambda |-
-  #             if (x.empty()) {
-  #               return std::string("Waiting for speech...");
-  #             }
-  #             return x;
+  # DISABLE: voice_spoken_sentence - memory optimization
+  - platform: template
+    id: voice_spoken_sentence
+    internal: true
+    update_interval: never
+    lambda: return {""};
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: voice_transcript_label
+            text: !lambda |-
+              if (x.empty()) {
+                return std::string("Waiting for speech...");
+              }
+              return x;
 
 
 interval:
@@ -814,3 +926,16 @@ lvgl:
             
           on_press:
             - lvgl.widget.hide: boot_screen
+
+# p4_camera:
+#   id: ov5647_camera
+#   name: OV5647 Camera
+#   i2c_id: bus_a
+#   external_clock_pin: 36
+#   frequency: 24000000
+#   address_sensor_ov5647: 0x36
+#   resolution: FHD
+#   pixel_format: RGB565
+#   framerate: 30
+#   flip_mirror: false
+# p4_camera re-enabled for logging and boot tracing

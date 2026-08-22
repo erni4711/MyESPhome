@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 from esphome.components import sd_mmc_card
-from esphome.components import tab5_camera
+from esphome.components import p4_camera
 try:
     from .. import sd_spi_card
 except Exception:
@@ -31,7 +31,7 @@ SD_MMC_CLASS = getattr(
 schema = cv.Schema({
     cv.GenerateID(): cv.declare_id(Screenshot),
     cv.Optional(SD_MMC_ID_KEY): cv.use_id(SD_MMC_CLASS),
-    cv.Optional(CONF_CAMERA_ID): cv.use_id(tab5_camera.Tab5Camera),
+    cv.Optional(CONF_CAMERA_ID): cv.use_id(p4_camera.P4Camera),
 })
 if sd_spi_card is not None:
     schema = schema.extend({

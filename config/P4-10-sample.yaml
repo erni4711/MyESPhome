@@ -48,8 +48,7 @@ packages:
         id: schlafzimmer
         entity: climate.schlafzimmer
   - !include common/pgweather.yaml
-  # DISABLED: voice.yaml for memory optimization
-  # - !include common/voice.yaml
+  - !include common/voice.yaml
   - !include common/history_charts.yaml
 
 select:
@@ -62,6 +61,7 @@ select:
       - Weather Daily
       - Weather Hourly
       - History
+      - Voice Control
     initial_option: Climate
     set_action:
       - if:
@@ -84,6 +84,11 @@ select:
             lambda: return x == "History";
           then:
             - lvgl.page.show: history_page
+      - if:
+          condition:
+            lambda: return x == "Voice Control";
+          then:
+            - lvgl.page.show: voice_page
 
 lvgl:
   on_boot:

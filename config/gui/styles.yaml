@@ -14,7 +14,7 @@ style_definitions:
     width: 100%
     height: ${ui_footer_height}
   - id: entity_widget
-    bg_color: 0xFFFFFFF
+    bg_color: 0xFFFFFF
     bg_grad_color: 0xFFFFFF
     bg_grad_dir: VER
     bg_opa: COVER

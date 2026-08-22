@@ -136,6 +136,13 @@ namespace screenshot {
 
 static const char *TAG = "screenshot";
 
+// Disable watchdog feeding from the screenshot component during debugging.
+// Replacing direct calls to App.feed_wdt() with this no-op prevents
+// continuous WDT-related errors while we debug the web/camera handlers.
+#ifndef SCREENSHOT_FEED_WDT
+#  define SCREENSHOT_FEED_WDT() do { } while (0)
+#endif
+
 static std::string get_query_string(AsyncWebServerRequest *request) {
   httpd_req_t *req = *request;
   size_t qlen = httpd_req_get_url_query_len(req);
@@ -256,7 +263,7 @@ static bool encode_png_to_buffer(const lv_draw_buf_t *img, uint8_t **out_buf, si
       ESP_LOGW(TAG, "Error adding line %u to PNG encoding = %d", (unsigned) y, rc);
       break;
     }
-    App.feed_wdt();
+    SCREENSHOT_FEED_WDT();
     vTaskDelay(pdMS_TO_TICKS(1));
   }
 
@@ -673,7 +680,7 @@ void ScreenshotComponent::VideoHandler::handleRequest(AsyncWebServerRequest *req
     if (frames_sent % 100 == 0)
       ESP_LOGI(TAG, "/video: %u frames streamed", frames_sent);
 
-    App.feed_wdt();
+    SCREENSHOT_FEED_WDT();
   }
 
   // End chunked transfer
@@ -842,7 +849,7 @@ bool ScreenshotComponent::write_camera_png_to_sd_(const uint8_t *rgb565_buf, uin
       ESP_LOGW(TAG, "write_camera_png_to_sd_: PNG addLine failed y=%u rc=%d", (unsigned)y, rc);
       break;
     }
-    App.feed_wdt();
+    SCREENSHOT_FEED_WDT();
     vTaskDelay(pdMS_TO_TICKS(1));
   }
 
@@ -1091,9 +1098,9 @@ void ScreenshotComponent::loop() {
 
         // Switch to FHD (1920×1080 RAW10) using official Espressif OV5647 register table
         ESP_LOGD(TAG, "Requesting camera resolution FHD (1920x1080 RAW10) for capture");
-        cam->set_pixel_format(::esphome::tab5_camera::PIXEL_FORMAT_RGB565);
-        cam->set_resolution(::esphome::tab5_camera::RESOLUTION_FHD);
-        cam->reconfigure_resolution(::esphome::tab5_camera::RESOLUTION_FHD);
+        cam->set_pixel_format(::esphome::p4_camera::PIXEL_FORMAT_RGB565);
+        cam->set_resolution(::esphome::p4_camera::RESOLUTION_FHD);
+        cam->reconfigure_resolution(::esphome::p4_camera::RESOLUTION_FHD);
 
         // Log immediate config state
         ESP_LOGD(TAG, "Post-reconfigure (pre-start): image_size=%u width=%u height=%u",
@@ -1116,7 +1123,7 @@ void ScreenshotComponent::loop() {
             ESP_LOGD(TAG, "capture_frame still false after %u attempts; image_size=%u width=%u height=%u",
                      attempts, (unsigned)cam->get_image_size(), (unsigned)cam->get_image_width(), (unsigned)cam->get_image_height());
           }
-          App.feed_wdt();
+          SCREENSHOT_FEED_WDT();
           vTaskDelay(pdMS_TO_TICKS(20));
         }
 
@@ -1177,9 +1184,9 @@ void ScreenshotComponent::loop() {
         }
         // Stop and revert to previous streaming/resolution and pixel format
         cam->stop_streaming();
-        cam->set_pixel_format(::esphome::tab5_camera::PIXEL_FORMAT_RGB565);
-        cam->set_resolution(::esphome::tab5_camera::RESOLUTION_SVGA);
-        cam->reconfigure_resolution(::esphome::tab5_camera::RESOLUTION_SVGA);
+        cam->set_pixel_format(::esphome::p4_camera::PIXEL_FORMAT_RGB565);
+        cam->set_resolution(::esphome::p4_camera::RESOLUTION_SVGA);
+        cam->reconfigure_resolution(::esphome::p4_camera::RESOLUTION_SVGA);
         if (was_streaming) cam->start_streaming();
       }
 
@@ -1217,7 +1224,7 @@ void ScreenshotComponent::loop() {
         bool snap_got = false;
         while ((millis() - snap_start) < 2000) {
           if (cam->capture_frame()) { snap_got = true; break; }
-          App.feed_wdt();
+          SCREENSHOT_FEED_WDT();
           vTaskDelay(pdMS_TO_TICKS(10));
         }
 

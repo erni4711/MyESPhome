@@ -778,6 +778,14 @@ void Tab5Camera::setup() {
   
   this->initialized_ = true;
   ESP_LOGI(TAG, "✅ Camera ready");
+  // If the optional p4_camera adapter is available, register it so the
+  // ESPHome camera subsystem can use this Tab5Camera as a Camera entity.
+#ifdef __has_include
+#if __has_include("../p4_camera/p4_camera_entity.h")
+#include "../p4_camera/p4_camera_entity.h"
+  esphome::p4_camera::register_p4_camera(this);
+#endif
+#endif
   
 #else
   ESP_LOGE(TAG, "❌ ESP32-P4 required");

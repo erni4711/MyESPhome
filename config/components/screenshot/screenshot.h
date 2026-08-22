@@ -3,9 +3,9 @@
 #include "esphome.h"
 #include "lvgl.h"
 #include "esphome/components/web_server_base/web_server_base.h"
-#if HAVE_CAMERA
-#include "../tab5_camera/tab5_camera.h"
-#endif
+#include "../p4_camera/p4_camera.h"
+// Forward-declare P4Camera for build robustness in case include ordering differs
+namespace esphome { namespace p4_camera { class P4Camera; } }
 #include "freertos/semphr.h"
 #include <array>
 #include <string>
@@ -31,9 +31,7 @@ class ScreenshotComponent : public Component {
 
   void set_sd_mmc_card(::esphome::sd_card::SdMmcCard *card) { this->sd_mmc_card_ = card; }
   void set_sd_spi_card(::esphome::sd_card::SdSpiCard *card) { this->sd_spi_card_ = card; }
-#if HAVE_CAMERA
-  void set_camera(::esphome::tab5_camera::Tab5Camera *camera) { this->camera_ = camera; }
-#endif
+  void set_camera(::esphome::p4_camera::P4Camera *camera) { this->camera_ = camera; }
 
   // Call to register the component at runtime (safe after App initialized)
   static void register_component_runtime();
@@ -129,7 +127,7 @@ class ScreenshotComponent : public Component {
   ::esphome::sd_card::SdMmcCard *sd_mmc_card_{nullptr};
   ::esphome::sd_card::SdSpiCard *sd_spi_card_{nullptr};
 #if HAVE_CAMERA  
-  ::esphome::tab5_camera::Tab5Camera *camera_{nullptr};
+  ::esphome::p4_camera::P4Camera *camera_{nullptr};
 #endif  
 
   // Cached PNG image data for quick HTTP responses
