@@ -12,13 +12,12 @@ class LocalHandler : public AsyncWebHandler {
   }
   void handleRequest(AsyncWebServerRequest *request) override {
     if (request->url() == "/") {
-      request->send(302, "text/html; charset=utf-8", "", "Location: /" + base_);
+      request->redirect(base_);
       return;
     }
     const char* body = "<!doctype html><html><head><title>Admin</title></head><body><h1>Admin Page</h1><p>Welcome to the local admin page.</p></body></html>";
     request->send(200, "text/html; charset=utf-8", body);
   }
-  void handleUpload(AsyncWebServerRequest * /*request*/, const String & /*filename*/, size_t /*index*/, uint8_t * /*data*/, size_t /*len*/, bool /*final*/) override {}
   bool isRequestHandlerTrivial() const override { return false; }
 
  private:
