@@ -1,24 +1,34 @@
 #include "web_admin_local.h"
+#include "esphome/components/web_server_idf/web_server_idf.h"
 
 namespace web_admin_local {
 
-void WebAdminLocal::setup() {
-  // Attempt to use the concrete WebServer if available
-  auto* concrete = dynamic_cast<esphome::web_server::WebServer*>(this->server_);
-  if (!concrete) return;
-
-  const std::string base = std::string("/") + url_prefix_;
-
-  // Root and /admin
-  concrete->on(base.c_str(), esphome::web_server::HTTP_GET, [concrete, this]() {
+class LocalHandler : public AsyncWebHandler {
+ public:
+  LocalHandler(const std::string &base) : base_(base) {}
+  bool canHandle(AsyncWebServerRequest *request) const override {
+    const auto url = request->url();
+    return request->method() == HTTP_GET && (url == base_ || url == "/");
+  }
+  void handleRequest(AsyncWebServerRequest *request) override {
+    if (request->url() == "/") {
+      request->send(302, "text/html; charset=utf-8", "", "Location: /" + base_);
+      return;
+    }
     const char* body = "<!doctype html><html><head><title>Admin</title></head><body><h1>Admin Page</h1><p>Welcome to the local admin page.</p></body></html>";
-    concrete->send(200, "text/html; charset=utf-8", body);
-  });
+    request->send(200, "text/html; charset=utf-8", body);
+  }
+  void handleUpload(AsyncWebServerRequest * /*request*/, const String & /*filename*/, size_t /*index*/, uint8_t * /*data*/, size_t /*len*/, bool /*final*/) override {}
+  bool isRequestHandlerTrivial() const override { return false; }
 
-  concrete->on("/", esphome::web_server::HTTP_GET, [concrete, this]() {
-    const char* body = "<!doctype html><html><head><meta http-equiv=\"refresh\" content=\"0; url=/admin\"></head><body></body></html>";
-    concrete->send(302, "text/html; charset=utf-8", body);
-  });
+ private:
+  std::string base_;
+};
+
+void WebAdminLocal::setup() {
+  const std::string base = std::string("/") + url_prefix_;
+  auto *handler = new LocalHandler(base);
+  this->server_->add_handler(handler);
 }
 
 }  // namespace web_admin_local
