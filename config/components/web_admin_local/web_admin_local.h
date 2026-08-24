@@ -1,6 +1,6 @@
 #pragma once
 #include "esphome.h"
-#include "esphome/components/web_server/web_server.h"
+#include "esphome/components/web_server_base/web_server_base.h"
 
 namespace web_admin_local {
 

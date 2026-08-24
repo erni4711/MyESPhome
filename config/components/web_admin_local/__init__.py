@@ -14,7 +14,7 @@ WebAdminLocal = web_admin_local_ns.class_("WebAdminLocal", cg.Component)
 
 schema = cv.Schema(
     {
-        cv.GenerateID(): cv.declare_id(WebAdmin),
+        cv.GenerateID(): cv.declare_id(WebAdminLocal),
         cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server_base.WebServerBase),
         cv.Optional(CONF_URL_PREFIX, default="admin"): cv.string_strict,
     }
