@@ -31,6 +31,10 @@ external_components:
   - source:
       type: local
       path: components
+  # # Explicit local web_admin component (copied into config/components/web_admin)
+  # - source:
+  #     type: local
+  #     path: components/web_admin
 
 substitutions:
   screen_height: ${1280 if rotation | default("0") not in ["90", "270"] else 800}
@@ -471,6 +475,16 @@ sd_file_server:
   enable_upload: true
   enable_deletion: true
 
+web_admin_local:
+  web_server_base_id: my_web_server_base
+  url_prefix: admin
+
+# web_admin:
+#   web_server_base_id: my_web_server_base
+#   url_prefix: admin
+#   # enable_authentication: true
+#   # username: !secret web_admin_username
+#   # password: !secret web_admin_password
 
 #-------------------------------------------
 # LCD Back light
@@ -505,8 +519,6 @@ logger:
   level: DEBUG
   hardware_uart: UART0
   baud_rate: 115200
-
-
 
 number:
   - platform: template
@@ -851,7 +863,7 @@ lvgl:
                 text: "\uF015"
                 on_press:
                   then:
-                    - lvgl.page.show: main_page
+                    - lvgl.page.show: voice_page
               - id: page_sleep
                 text: "Z"
                 on_press:

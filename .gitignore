@@ -32,3 +32,4 @@ a.log
 *.pyd
 .venv-py311-freeze.txt
 .venv-py311-backup/
+config/components_new/

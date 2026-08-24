@@ -1,0 +1,56 @@
+substitutions:
+  node_name: "esp32p4-10-sample"
+  friendly_name: p47b
+  ha_token: !secret ha_long_lived_token
+
+packages:
+  - !include common/subst.yaml
+  - !include common/wifi.yaml
+  - !include
+      file: boards/ESP32-P4-WIFI6-TOUCH-LCD-10.1.yaml
+      vars:
+        rotation: 270
+  - !include common/voice.yaml
+
+select:
+  - platform: template
+    name: LVGL Page
+    id: lvgl_page_select
+    optimistic: true
+    options:
+      # - Climate
+      # - Weather Daily
+      # - Weather Hourly
+      # - History
+      - Voice Control
+    initial_option: Voice Control
+    set_action:
+      # - if:
+      #     condition:
+      #       lambda: return x == "Climate";
+      #     then:
+      #       - lvgl.page.show: main_page
+      # - if:
+      #     condition:
+      #       lambda: return x == "Weather Daily";
+      #     then:
+      #       - lvgl.page.show: weather_page_daily
+      # - if:
+      #     condition:
+      #       lambda: return x == "Weather Hourly";
+      #     then:
+      #       - lvgl.page.show: weather_page_hourly
+      # - if:
+      #     condition:
+      #       lambda: return x == "History";
+      #     then:
+      #       - lvgl.page.show: history_page
+      - if:
+          condition:
+            lambda: return x == "Voice Control";
+          then:
+            - lvgl.page.show: voice_page
+
+lvgl:
+  on_boot:
+    - lvgl.page.show: voice_page
