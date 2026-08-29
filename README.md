@@ -1,5 +1,13 @@
 # MyESPhome — Home Assistant Panel Display
 
+> **Breaking changes:** This project is undergoing an architectural transition.
+
+Inspired by [HomeTiles](https://github.com/GalusPeres/HomeTiles), the ESPHome implementation now includes an `/admin` configuration API for managing the panel layout and tile definitions. The long-term goal is to replace MQTT-based communication with direct consumption of the Home Assistant REST API and WebSocket API, allowing the display to retrieve entity data and receive state updates in real time.
+
+See [API.md](API.md) for the API documentation.
+
+This integration is currently experimental. APIs, configuration formats, and supported features may change as development continues.
+
 An [ESPHome](https://esphome.io/)-based touch panel display for Home Assistant, running on Waveshare ESP32 boards. Includes UI pages for climate control, voice control, and weather forecasts.
 
 A custom [screenshot component](config/components/screenshot/README.md) lets you capture the live display via HTTP.
