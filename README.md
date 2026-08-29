@@ -26,7 +26,10 @@ A custom [screenshot component](config/components/screenshot/README.md) lets you
 |-------|-------------|-------|
 | [ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) | `config/7i-sample.yaml` | 7" 800×480, RGB |
 | [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) | `config/7ib-sample.yaml` | 7" 1024×600, MIPI-DSI |
-| [ESP32-P4-WIFI6-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B) | `config/P4-7B-sample.yaml` | 7" 1024×600, MIPI-DSI, Wi-Fi 6 |
+| [ESP32-P4-WIFI6-Touch-LCD-7B](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-7B) | `config/P4-7B-sample.yaml` | 7" 1024×600, MIPI-DSI, Wi-Fi 6 |
+| [ESP32-P4-WIFI6-Touch-LCD-10.1](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-X) | `config/P4-10-sample.yaml` | 10" 1280×800, MIPI-DSI, Wi-Fi 6 |
+| | `config/P4-10-sample2.yaml` |  dito with tiles API |
+
 
 ## Software features
 - Multi-page LVGL UI (climate control, voice control, weather forecast)
@@ -49,6 +52,7 @@ A custom [screenshot component](config/components/screenshot/README.md) lets you
 wifi_ssid: "SSID"
 wifi_password: "pwd"
 ota_password: "ota_pwd"
+ha_long_lived_access_token: "long-lived-access-token"
 ```
 
 ### Quick build (local CLI)
