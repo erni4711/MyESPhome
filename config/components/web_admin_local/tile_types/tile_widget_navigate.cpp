@@ -1,6 +1,5 @@
 // Navigate tile: tapping navigates to another folder page.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 
 namespace web_admin_local {

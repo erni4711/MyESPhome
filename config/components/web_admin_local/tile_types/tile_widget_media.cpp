@@ -1,6 +1,5 @@
 // Media player tile: shows track info + playback controls.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 #include <cstring>
 

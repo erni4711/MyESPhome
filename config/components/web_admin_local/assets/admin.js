@@ -108,6 +108,9 @@ function t(key) {
         layoutTiles(tileTab, freshTiles);
         sessionRestoredFolderTabs.delete(tileTab);
       } else if (needsTileData) {
+        freshTiles.forEach((tile, index) => {
+          renderTileFromData(tileTab, index, tile, sensorMetaCache);
+        });
         syncTileGridStructure(tileTab, freshTiles);
       }
     }
@@ -2013,7 +2016,8 @@ function t(key) {
 
   async function loadNavigateTargetFolders() {
     const response = await fetch('/admin/folders');
-    const folders = await response.json();
+    const data = await response.json();
+    const folders = Array.isArray(data) ? data : data?.folders;
     if (!response.ok || !Array.isArray(folders)) {
       throw new Error('Folder list failed');
     }
@@ -6907,6 +6911,7 @@ function t(key) {
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    ensureFolderSettingsButton();
     toggleStaticNetworkFields();
     toggleNetworkSettings();
     toggleSettingsAccessFields();
@@ -7273,6 +7278,165 @@ function maybeFillTitleFromScene(tab) {
     if (sceneEl) sceneEl.value = '';
   }
 
+async function openFolderSettings(tabId) {
+    try {
+      const activeTab = document.querySelector('.tab-content.active.tile-tab');
+      const tid = String(tabId || activeTab?.dataset?.tabId || '');
+      // Try to resolve folder id from the tab element
+      let folderId = null;
+      const tabEl = document.getElementById('tab-tiles-' + tid);
+      if (tabEl && tabEl.dataset && tabEl.dataset.folderId) folderId = Number(tabEl.dataset.folderId);
+      if (!Number.isInteger(folderId)) {
+        const m = /^folder(\d+)$/.exec(tid);
+        if (m) folderId = Number(m[1]);
+      }
+      if (!Number.isInteger(folderId) || folderId < 0) {
+        showNotification(t('networkError') || 'Folder not found', false);
+        return;
+      }
+
+      const panel = await ensureFolderSettingsPanel();
+      panel.dataset.tabId = tid;
+      currentTileIndex = -1;
+      currentTileTab = '';
+      document.querySelectorAll('.tile-editor.active, .tile-grid .active').forEach(el => {
+        el.classList.remove('active');
+        delete el.dataset.selected;
+      });
+      activeTab?.querySelectorAll('.tile-specific-settings').forEach(el => {
+        el.classList.add('hidden');
+      });
+      document.querySelectorAll('.folder-settings-panel').forEach(el => el.classList.add('hidden'));
+      panel.classList.remove('hidden');
+
+      fetch('/admin/folders').then(async res => {
+        if (!res.ok) throw new Error('Fetch failed');
+        const data = await res.json();
+        return Array.isArray(data) ? data : data?.folders;
+      }).then(async folders => {
+        if (!Array.isArray(folders)) throw new Error('Invalid folder response');
+        const idx = folders.findIndex(f => Number(f.id) === folderId);
+        if (idx === -1) throw new Error('Folder not found');
+        const folder = folders[idx];
+        const nameInput = document.getElementById('folder_settings_name');
+        const iconInput = document.getElementById('folder_settings_icon');
+        if (!nameInput || !iconInput) throw new Error('Folder settings fields unavailable');
+        nameInput.value = folder.name || '';
+        iconInput.value = folder.icon_name || '';
+        panel.classList.remove('hidden');
+      }).catch(e => {
+        console.error('openFolderSettings failed:', e);
+        panel.classList.add('hidden');
+        showNotification(t('networkErrorSave') || 'Load failed', false);
+      });
+    } catch (e) {
+      console.error(e);
+      showNotification(t('networkErrorSave') || 'Load failed', false);
+    }
+  }
+
+  async function ensureFolderSettingsPanel() {
+    let panel = document.getElementById('FolderSettingsPanel');
+    if (panel) return panel;
+    const response = await fetch('/admin/folders/settings');
+    if (!response.ok) throw new Error('Folder settings panel failed');
+    const html = await response.text();
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    panel = wrapper.firstElementChild;
+    if (!panel) throw new Error('Folder settings panel missing');
+    const activeTab = document.querySelector('.tab-content.active.tile-tab');
+    const parent = activeTab?.parentElement || document.querySelector('.card');
+    parent?.insertBefore(panel, activeTab || parent.firstChild);
+    return panel;
+  }
+
+  function closeFolderSettings() {
+    const panel = document.getElementById('FolderSettingsPanel');
+    if (panel) panel.classList.add('hidden');
+  }
+
+  async function saveFolderSettings() {
+    const panel = document.getElementById('FolderSettingsPanel');
+    const tid = String(panel?.dataset?.tabId || '');
+    const tabEl = document.getElementById('tab-tiles-' + tid);
+    const folderId = Number(tabEl?.dataset?.folderId);
+    const nameInput = document.getElementById('folder_settings_name');
+    const iconInput = document.getElementById('folder_settings_icon');
+    if (!Number.isInteger(folderId) || folderId < 0 || !nameInput || !iconInput) {
+      showNotification(t('networkError') || 'Folder settings unavailable', false);
+      return;
+    }
+    try {
+      const res = await fetch('/admin/folders');
+      if (!res.ok) throw new Error('Fetch failed');
+      const data = await res.json();
+      const folders = Array.isArray(data) ? data : data?.folders;
+      if (!Array.isArray(folders)) throw new Error('Invalid folder response');
+      const idx = folders.findIndex(f => Number(f.id) === folderId);
+      if (idx === -1) throw new Error('Folder not found');
+      folders[idx].name = String(nameInput.value || '');
+      folders[idx].icon_name = String(iconInput.value || '');
+      const putRes = await fetch('/admin/folders', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({
+          folder_id: String(folderId),
+          name: folders[idx].name,
+          icon_name: folders[idx].icon_name
+        })
+      });
+      if (!putRes.ok) throw new Error('Save failed');
+      updateFolderTabUi(folderId, folders[idx].name, folders[idx].icon_name);
+      closeFolderSettings(tid);
+      showNotification(t('folderSaved') || 'Folder saved');
+    } catch (e) {
+      console.error('saveFolderSettings failed:', e);
+      showNotification(t('networkErrorSave') || 'Save failed', false);
+    }
+  }
+  async function createFolder() {
+    const nameInput = document.getElementById('folder_settings_name');
+    const iconInput = document.getElementById('folder_settings_icon');
+    try {
+      const response = await fetch('/admin/folders', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({
+          action: 'create',
+          name: String(nameInput?.value || '').trim(),
+          icon_name: String(iconInput?.value || '').trim()
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Create failed');
+      }
+      window.location.reload();
+    } catch (e) {
+      console.error('createFolder failed:', e);
+      showNotification(t('networkErrorSave') || 'Create failed', false);
+    }
+  }
+  window.openFolderSettings = openFolderSettings;
+  window.saveFolderSettings = saveFolderSettings;
+  window.closeFolderSettings = closeFolderSettings;
+  window.createFolder = createFolder;
+
+  function ensureFolderSettingsButton() {
+    if (document.querySelector('.folder-settings-btn')) return;
+    const nav = document.querySelector('.tab-nav');
+    if (!nav) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tab-btn folder-settings-btn';
+    button.innerHTML = '<i class="mdi mdi-folder-settings" style="font-size:24px;"></i>' +
+      '<span style="font-size:14px;font-weight:600;">Folder Settings</span>';
+    button.addEventListener('click', () => window.openFolderSettings());
+    nav.appendChild(button);
+  }
+  window.ensureFolderSettingsButton = ensureFolderSettingsButton;
+
 function normalizeIconName(value) {
     let icon = String(value || '').trim().toLowerCase();
     if (icon.startsWith('mdi:')) icon = icon.substring(4);
@@ -7374,9 +7538,9 @@ function normalizeIconName(value) {
   }
 
   function syncFolderPinControls(tab) {
-    const fields = document.getElementById(tab + '_navigate_fields');
     const toggle = document.getElementById(tab + '_folder_pin_enabled');
     const input = document.getElementById(tab + '_folder_pin');
+    const fields = document.getElementById(tab + '_navigate_fields');
     const label = fields?.querySelector('.folder-pin-label');
     const control = fields?.querySelector('.folder-pin-control');
     const status = document.getElementById(tab + '_folder_pin_status');
@@ -7388,8 +7552,6 @@ function normalizeIconName(value) {
       targetSelect?.value ?? tile?.navigate_target ??
       tileEl?.dataset.navigateTarget ?? 0);
     const isFolderTile = type === 4 && Number.isInteger(folderId) && folderId > 0;
-    if (fields) fields.classList.toggle('is-hidden', !isFolderTile);
-
     const showPinEditor = isFolderTile && toggle?.checked === true;
     label?.classList.toggle('is-hidden', !showPinEditor);
     control?.classList.toggle('is-hidden', !showPinEditor);

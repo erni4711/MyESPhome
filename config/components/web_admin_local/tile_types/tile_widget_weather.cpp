@@ -1,6 +1,5 @@
 // Weather tile: shows condition + temperature.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 
 namespace web_admin_local {

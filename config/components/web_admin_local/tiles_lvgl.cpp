@@ -1,5 +1,4 @@
 #include "tiles_lvgl.h"
-#include "web_admin_lvgl_fonts.h"
 #include "mdi_icons.h"
 #include "ha_ws_client.h"
 #include <esp_log.h>
@@ -276,7 +275,11 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     d.animation_file    = t["animation_file"]   | "";
     d.text_value        = t["text_value"]       | "";
     d.text_value_font   = t["text_value_font"]  | 0;
-    d.navigate_target   = t["navigate_target"]  | 0;
+    if (t["navigate_target"].is<const char *>()) {
+      d.navigate_target = atoi(t["navigate_target"].as<const char *>());
+    } else {
+      d.navigate_target = t["navigate_target"] | 0;
+    }
     d.clock_flags       = t["clock_flags"]      | 1;
     d.clock_time_format = t["clock_time_format"]| 0;
     d.clock_date_format = t["clock_date_format"]| 0;
@@ -307,7 +310,7 @@ lv_obj_t *lvgl_tile_make_label(lv_obj_t *parent, const char *text,
   lv_obj_t *lbl = lv_label_create(parent);
   lv_label_set_text(lbl, text ? text : "");
   lv_obj_set_style_text_color(lbl, color, 0);
-  lv_obj_set_style_text_font(lbl, web_admin_lvgl_font_for_size(font_size), 0);
+  lv_obj_set_style_text_font(lbl, ui_font_for_size(static_cast<uint8_t>(font_size)), 0);
   lv_obj_align(lbl, align, 0, 0);
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
   lv_obj_set_width(lbl, LV_PCT(90));
@@ -454,7 +457,7 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
         lv_obj_t *value = lv_label_create(tile_obj);
         lv_label_set_text(value, label.c_str());
         lv_obj_set_style_text_color(value, lv_color_white(), 0);
-        lv_obj_set_style_text_font(value, web_admin_lvgl_font_for_size(20), 0);
+        lv_obj_set_style_text_font(value, ui_font_for_size(20), 0);
         lv_obj_set_style_text_align(value, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(value, LV_PCT(100));
         lv_obj_align(value, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -468,7 +471,7 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
         const char *fallback = tile.type == TILE_BACK ? "Back" : "Settings";
         lv_label_set_text(lbl, tile.title.empty() ? fallback : tile.title.c_str());
         lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(lbl, web_admin_lvgl_font_for_size(20), 0);
+        lv_obj_set_style_text_font(lbl, ui_font_for_size(20), 0);
         lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
         if (tile.type == TILE_BACK) {
           lv_obj_add_flag(tile_obj, LV_OBJ_FLAG_CLICKABLE);
@@ -622,7 +625,7 @@ void tile_widget_build_sensor(lv_obj_t *parent, const TileData &tile) {
   lv_label_set_long_mode(title_lbl, LV_LABEL_LONG_DOT);
   lv_obj_set_width(title_lbl, LV_PCT(100));
   lv_obj_set_style_text_color(title_lbl, muted, 0);
-  lv_obj_set_style_text_font(title_lbl, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(title_lbl, ui_font_for_size(16), 0);
   lv_obj_align(title_lbl, LV_ALIGN_TOP_LEFT, 0, 0);
 
   // Value label in the center (placeholder — live value updated by HA bridge)
@@ -631,7 +634,7 @@ void tile_widget_build_sensor(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *val_lbl = lv_label_create(parent);
   lv_label_set_text(val_lbl, val_buf);
   lv_obj_set_style_text_color(val_lbl, white, 0);
-  lv_obj_set_style_text_font(val_lbl, web_admin_lvgl_font_for_size(28), 0);
+  lv_obj_set_style_text_font(val_lbl, ui_font_for_size(28), 0);
   lv_obj_align(val_lbl, LV_ALIGN_CENTER, 0, 0);
 
   // Unit label below value
@@ -639,7 +642,7 @@ void tile_widget_build_sensor(lv_obj_t *parent, const TileData &tile) {
     lv_obj_t *unit_lbl = lv_label_create(parent);
     lv_label_set_text(unit_lbl, tile.sensor_unit.c_str());
     lv_obj_set_style_text_color(unit_lbl, muted, 0);
-    lv_obj_set_style_text_font(unit_lbl, web_admin_lvgl_font_for_size(16), 0);
+    lv_obj_set_style_text_font(unit_lbl, ui_font_for_size(16), 0);
     lv_obj_align(unit_lbl, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
   }
 
@@ -683,7 +686,7 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     lv_obj_t *lbl = lv_label_create(parent);
     lv_label_set_text(lbl, tile.title.c_str());
     lv_obj_set_style_text_color(lbl, muted, 0);
-    lv_obj_set_style_text_font(lbl, web_admin_lvgl_font_for_size(16), 0);
+    lv_obj_set_style_text_font(lbl, ui_font_for_size(16), 0);
     lv_obj_align(lbl, LV_ALIGN_TOP_LEFT, 0, 0);
   }
 
@@ -699,7 +702,7 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     lv_label_set_text(time_lbl, tbuf);
     lv_obj_set_style_text_color(time_lbl, white, 0);
     // Time font size from key_code (stored as clock time font size, default 40)
-    const lv_font_t *font = web_admin_lvgl_font_for_size(tile.key_code);
+    const lv_font_t *font = ui_font_for_size(static_cast<uint8_t>(tile.key_code));
     lv_obj_set_style_text_font(time_lbl, font, 0);
     int y_offset = show_date ? -12 : 0;
     lv_obj_align(time_lbl, LV_ALIGN_CENTER, 0, y_offset);
@@ -735,7 +738,7 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     lv_obj_t *date_lbl = lv_label_create(parent);
     lv_label_set_text(date_lbl, dbuf);
     lv_obj_set_style_text_color(date_lbl, lv_color_make(0xCC, 0xCC, 0xCC), 0);
-    lv_obj_set_style_text_font(date_lbl, web_admin_lvgl_font_for_size(20), 0);
+    lv_obj_set_style_text_font(date_lbl, ui_font_for_size(20), 0);
     lv_obj_align(date_lbl, LV_ALIGN_CENTER, 0, show_time ? 22 : 0);
   }
 }
@@ -777,7 +780,7 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
   lv_obj_set_width(title, LV_PCT(100));
   lv_obj_set_style_text_color(title, muted, 0);
-  lv_obj_set_style_text_font(title, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(title, ui_font_for_size(16), 0);
   lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
 
   // Toggle button.  Using a checkable button keeps this compatible with the
@@ -797,7 +800,7 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *state_lbl = lv_label_create(parent);
   lv_label_set_text(state_lbl, "OFF");
   lv_obj_set_style_text_color(state_lbl, muted, 0);
-  lv_obj_set_style_text_font(state_lbl, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(state_lbl, ui_font_for_size(16), 0);
   lv_obj_align(state_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   auto *context = new SwitchToggleContext{state_lbl, {}};
   std::strncpy(context->entity_id, entity.c_str(), sizeof(context->entity_id) - 1);
@@ -821,7 +824,7 @@ void tile_widget_build_navigate(lv_obj_t *parent, const TileData &tile, int /*fo
   lv_obj_t *arrow = lv_label_create(parent);
   lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
   lv_obj_set_style_text_color(arrow, lv_color_make(0x26, 0xA6, 0x9A), 0);
-  lv_obj_set_style_text_font(arrow, web_admin_lvgl_font_for_size(24), 0);
+  lv_obj_set_style_text_font(arrow, ui_font_for_size(24), 0);
   lv_obj_align(arrow, LV_ALIGN_TOP_RIGHT, 0, 0);
 
   // Folder name
@@ -831,14 +834,14 @@ void tile_widget_build_navigate(lv_obj_t *parent, const TileData &tile, int /*fo
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
   lv_obj_set_width(lbl, LV_PCT(100));
   lv_obj_set_style_text_color(lbl, white, 0);
-  lv_obj_set_style_text_font(lbl, web_admin_lvgl_font_for_size(20), 0);
+  lv_obj_set_style_text_font(lbl, ui_font_for_size(20), 0);
   lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
 
   // "Tap to enter" hint
   lv_obj_t *hint = lv_label_create(parent);
   lv_label_set_text(hint, "Tap to open");
   lv_obj_set_style_text_color(hint, muted, 0);
-  lv_obj_set_style_text_font(hint, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(hint, ui_font_for_size(16), 0);
   lv_obj_align(hint, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 }
 
@@ -857,7 +860,7 @@ void tile_widget_build_scene(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *icon = lv_label_create(parent);
   lv_label_set_text(icon, LV_SYMBOL_PLAY);
   lv_obj_set_style_text_color(icon, accent, 0);
-  lv_obj_set_style_text_font(icon, web_admin_lvgl_font_for_size(28), 0);
+  lv_obj_set_style_text_font(icon, ui_font_for_size(28), 0);
   lv_obj_align(icon, LV_ALIGN_CENTER, 0, -10);
 
   // Scene / script name
@@ -867,7 +870,7 @@ void tile_widget_build_scene(lv_obj_t *parent, const TileData &tile) {
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
   lv_obj_set_width(lbl, LV_PCT(100));
   lv_obj_set_style_text_color(lbl, white, 0);
-  lv_obj_set_style_text_font(lbl, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(lbl, ui_font_for_size(16), 0);
   lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(lbl, LV_ALIGN_BOTTOM_MID, 0, 0);
 }
@@ -888,7 +891,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     lv_obj_t *t = lv_label_create(parent);
     lv_label_set_text(t, tile.title.c_str());
     lv_obj_set_style_text_color(t, muted, 0);
-    lv_obj_set_style_text_font(t, web_admin_lvgl_font_for_size(16), 0);
+    lv_obj_set_style_text_font(t, ui_font_for_size(16), 0);
     lv_obj_align(t, LV_ALIGN_TOP_LEFT, 0, 0);
   }
 
@@ -908,7 +911,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *temp = lv_label_create(parent);
   lv_label_set_text(temp, "--°");
   lv_obj_set_style_text_color(temp, white, 0);
-  lv_obj_set_style_text_font(temp, web_admin_lvgl_font_for_size(28), 0);
+  lv_obj_set_style_text_font(temp, ui_font_for_size(28), 0);
   lv_obj_align(temp, LV_ALIGN_CENTER, 28, 0);
 
   // Entity hint
@@ -920,7 +923,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     lv_label_set_long_mode(e, LV_LABEL_LONG_DOT);
     lv_obj_set_width(e, LV_PCT(100));
     lv_obj_set_style_text_color(e, muted, 0);
-    lv_obj_set_style_text_font(e, web_admin_lvgl_font_for_size(16), 0);
+    lv_obj_set_style_text_font(e, ui_font_for_size(16), 0);
     lv_obj_align(e, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   }
 }
@@ -946,14 +949,14 @@ void tile_widget_build_media(lv_obj_t *parent, const TileData &tile) {
   lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
   lv_obj_set_width(title, LV_PCT(100));
   lv_obj_set_style_text_color(title, muted, 0);
-  lv_obj_set_style_text_font(title, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(title, ui_font_for_size(16), 0);
   lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
 
   // "Now playing" placeholder
   lv_obj_t *track = lv_label_create(parent);
   lv_label_set_text(track, "--");
   lv_obj_set_style_text_color(track, white, 0);
-  lv_obj_set_style_text_font(track, web_admin_lvgl_font_for_size(16), 0);
+  lv_obj_set_style_text_font(track, ui_font_for_size(16), 0);
   lv_label_set_long_mode(track, LV_LABEL_LONG_SCROLL_CIRCULAR);
   lv_obj_set_width(track, LV_PCT(100));
   lv_obj_align(track, LV_ALIGN_CENTER, 0, -8);
@@ -999,16 +1002,16 @@ void tile_widget_build_text(lv_obj_t *parent, const TileData &tile) {
     lv_obj_t *t = lv_label_create(parent);
     lv_label_set_text(t, tile.title.c_str());
     lv_obj_set_style_text_color(t, muted, 0);
-    lv_obj_set_style_text_font(t, web_admin_lvgl_font_for_size(16), 0);
+    lv_obj_set_style_text_font(t, ui_font_for_size(16), 0);
     lv_obj_align(t, LV_ALIGN_TOP_LEFT, 0, 0);
   }
 
   // Choose font based on text_value_font index (0=default 28, 1=36, etc.)
   const lv_font_t *font;
   switch (tile.text_value_font) {
-    case 1:  font = web_admin_lvgl_font_semibold(); break;
-    case 2:  font = web_admin_lvgl_font_for_size(28); break;
-    default: font = web_admin_lvgl_font_for_size(20); break;
+    case 1:  font = &ui_font_20_semibold; break;
+    case 2:  font = ui_font_for_size(28); break;
+    default: font = ui_font_for_size(20); break;
   }
 
   lv_obj_t *lbl = lv_label_create(parent);

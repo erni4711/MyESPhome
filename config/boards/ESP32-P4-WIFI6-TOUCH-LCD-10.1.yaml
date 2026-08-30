@@ -512,8 +512,8 @@ ota:
   on_begin:
     then:
       - switch.turn_off: switch_antiburn
-      - lvgl.pause:
       - light.turn_off: display_backlight
+      - lvgl.pause:
       - logger.log: "LVGL paused for OTA"
   on_end:
     then:

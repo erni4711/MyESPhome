@@ -1,6 +1,5 @@
 // Switch / Light tile: toggle button or brightness slider.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 #include <cstring>
 

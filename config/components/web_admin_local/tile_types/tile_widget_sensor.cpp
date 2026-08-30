@@ -1,6 +1,5 @@
 // Sensor / Energy tile: shows entity value, unit, optional gauge.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 #include <cstdio>
 #include <cstring>

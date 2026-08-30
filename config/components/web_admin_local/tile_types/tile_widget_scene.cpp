@@ -1,6 +1,5 @@
 // Scene / Script tile: tap-to-trigger action tile.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 
 namespace web_admin_local {

@@ -4,13 +4,16 @@
  * Opts: --bpp 4 --size 48 --stride 1 --align 1 --font materialdesignicons-webfont.woff --range 983040-991231 --format lvgl -o mdi_icons_48.c
  ******************************************************************************/
 
-#ifndef LV_FONT_FMT_TXT_LARGE
-#define LV_FONT_FMT_TXT_LARGE 1
-#endif
 #include "lvgl.h"
 
+#include "src/devices/device_select.h"
+
 #ifndef MDI_ICONS_48
+#if defined(DEVICE_LAYOUT_1024X600) || defined(DEVICE_LAYOUT_480X480)
+#define MDI_ICONS_48 0
+#else
 #define MDI_ICONS_48 1
+#endif
 #endif
 
 #if MDI_ICONS_48
