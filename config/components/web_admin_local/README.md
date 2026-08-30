@@ -69,6 +69,16 @@ curl.exe "http://192.168.10.26/admin/tiles?folder=0"
 ```
 
 `/admin/entity_options` reads Home Assistant entities from `GET /api/states`.
+Appending `?sd` saves the complete successful `/api/states` response to
+`/sdcard/api.states.json`.
+Entity options are also cached in separate SPIFFS files. Short filenames are
+used because SPIFFS has a limited filename length:
+`/spiffs/eo_s.json`, `/spiffs/eo_sw.json`, `/spiffs/eo_w.json`,
+`/spiffs/eo_e.json`, `/spiffs/eo_m.json`, `/spiffs/eo_c.json`,
+`/spiffs/eo_cv.json`, `/spiffs/eo_cam.json`, and `/spiffs/eo_sc.json`.
+The SPIFFS partition is formatted automatically if it cannot be mounted. This
+initializes a new partition after flashing the partition table, but can erase
+cached entity files if the existing filesystem is corrupted.
 Configure the Home Assistant URL and a long-lived access token on
 `web_admin_local`, keeping the token in `secrets.yaml`:
 

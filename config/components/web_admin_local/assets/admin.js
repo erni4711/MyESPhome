@@ -1706,7 +1706,9 @@ function t(key) {
       if (!entry || entry.v === undefined) continue;
       const opt = document.createElement('option');
       opt.value = entry.v;
-      opt.textContent = entry.t || entry.v;
+      opt.textContent = typeof entry.t === 'string' && entry.t.trim()
+        ? entry.t
+        : entry.v;
       el.appendChild(opt);
     }
     el.value = keep;
@@ -3083,7 +3085,17 @@ function t(key) {
       scheduleAutoSave(tab);
     });
     bindLive(entitySelect, 'change', 'sensorEntity', () => { maybeFillTitleFromSensor(tab); updateTilePreview(tab); updateSensorValuePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
-    bindLive(weatherSelect, 'change', 'weatherEntity', () => { maybeFillTitleFromWeather(tab); updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
+    bindLive(weatherSelect, 'change', 'weatherEntity', () => {
+      if (weatherSelect.value) {
+        weatherSelect.dataset.configuredValue = weatherSelect.value;
+      } else {
+        delete weatherSelect.dataset.configuredValue;
+      }
+      maybeFillTitleFromWeather(tab);
+      updateTilePreview(tab);
+      updateDraft(tab);
+      scheduleAutoSave(tab);
+    });
     bindLive(weatherPopupModeSelect, 'change', 'weatherPopupMode', () => { updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(energySelect, 'change', 'energyEntity', () => {
       energySelect.dataset.configuredValue = energySelect.value || '';
@@ -3134,7 +3146,18 @@ function t(key) {
     bindLive(switchSelect, 'change', 'switchEntity', () => { maybeFillTitleFromSwitch(tab); updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(switchStyleSelect, 'change', 'switchStyle', () => { updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(switchPopupModeSelect, 'change', 'switchPopupMode', () => { updateDraft(tab); scheduleAutoSave(tab); });
-    bindLive(mediaSelect, 'change', 'mediaEntity', () => { maybeFillTitleFromMedia(tab); updateTilePreview(tab); updateMediaValuePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
+    bindLive(mediaSelect, 'change', 'mediaEntity', () => {
+      if (mediaSelect.value) {
+        mediaSelect.dataset.configuredValue = mediaSelect.value;
+      } else {
+        delete mediaSelect.dataset.configuredValue;
+      }
+      maybeFillTitleFromMedia(tab);
+      updateTilePreview(tab);
+      updateMediaValuePreview(tab);
+      updateDraft(tab);
+      scheduleAutoSave(tab);
+    });
     bindLive(climateSelect, 'change', 'climateEntity', () => {
       if (climateSelect.value) {
         climateSelect.dataset.configuredValue = climateSelect.value;
@@ -7225,7 +7248,11 @@ function maybeFillTitleFromWeather(tab) {
   function loadWeatherFields(tab, data) {
     const prefix = tab;
     const el = document.getElementById(prefix + '_weather_entity');
-    if (el) el.value = data.sensor_entity || data.weather_entity || '';
+    const configured = data.sensor_entity || data.weather_entity || '';
+    if (el) {
+      el.dataset.configuredValue = configured;
+      el.value = configured;
+    }
     const popupModeEl = document.getElementById(prefix + '_weather_popup_open_mode');
     if (popupModeEl) popupModeEl.value = (data.popup_open_mode !== undefined) ? String(data.popup_open_mode) : '1';
     maybeFillTitleFromWeather(tab);
@@ -8061,7 +8088,11 @@ function maybeFillTitleFromMedia(tab) {
   function loadMediaFields(tab, data) {
     const prefix = tab;
     const el = document.getElementById(prefix + '_media_entity');
-    if (el) el.value = data.sensor_entity || data.media_entity || '';
+    const configured = data.sensor_entity || data.media_entity || '';
+    if (el) {
+      el.dataset.configuredValue = configured;
+      el.value = configured;
+    }
     maybeFillTitleFromMedia(tab);
     updateMediaValuePreview(tab);
   }

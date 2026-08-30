@@ -3,10 +3,14 @@
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
 #include <esp_log.h>
+#include <esp_spiffs.h>
 #include <sys/stat.h>
 
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <array>
 #include <string>
 #include <vector>
 
@@ -1942,9 +1946,7 @@ bool EntityOptionsHandler::canHandle(AsyncWebServerRequest* request) const {
   if (request->method() != HTTP_GET) return false;
   const auto url = request_url(request);
   const std::string adminPath = base_ + "/entity_options";
-  const std::string apiPath = "/api/entity_options";
-  return url == adminPath || url == adminPath + "/" || url == apiPath ||
-         url == apiPath + "/";
+  return url == adminPath || url == adminPath + "/";
 }
 
 void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
@@ -1955,25 +1957,192 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     return;
   }
 
-  struct EntitySet {
-    std::vector<std::string> sensors, switches, weathers, energy, media,
-        climates, covers, cameras, scenes;
-    void add(std::vector<std::string>& v, const std::string& s) {
-      if (s.empty()) return;
-      for (auto& e : v) {
-        if (e == s) return;
-      }
-      v.push_back(s);
-    }
-  } es;
+
 
   struct HttpResponse {
-    std::string scan;
-    std::vector<std::string> entity_ids;
+    std::string json_object;
+    int object_depth = 0;
+    bool in_string = false;
+    bool escaped = false;
     int status = 0;
+    FILE* sd_file = nullptr;
+    bool sd_write_failed = false;
+    bool entity_file_failed = false;
+    std::array<FILE*, 9> entity_files{};
+    std::array<bool, 9> array_empty{};
+
+    static void append_escaped(FILE* file, const std::string& value) {
+      for (char c : value) {
+        if (c == '"' || c == '\\') fputc('\\', file);
+        fputc(c, file);
+      }
+    }
+
+    void append_entity(size_t category, const std::string& id,
+                       const std::string& friendly_name) {
+      if (id.empty() || friendly_name.empty()) return;
+      FILE* file = entity_files[category];
+      if (!file) return;
+      if (!array_empty[category]) fputc(',', file);
+      fputs("{\"v\":\"", file);
+      append_escaped(file, id);
+      fputs("\",\"t\":\"", file);
+      append_escaped(file, friendly_name);
+      fputs("\"}", file);
+      array_empty[category] = false;
+    }
+
+    void close_entity_files() {
+      for (FILE*& file : entity_files) {
+        if (file) {
+          if (fputc(']', file) == EOF) entity_file_failed = true;
+          if (ferror(file) || fclose(file) != 0) entity_file_failed = true;
+          file = nullptr;
+        }
+      }
+    }
+
+    void process_object() {
+      JsonDocument doc;
+      if (deserializeJson(doc, json_object)) return;
+      const std::string id = doc["entity_id"] | "";
+      const size_t dot = id.find('.');
+      if (dot == std::string::npos || dot == 0)
+        return;
+      const std::string domain = id.substr(0, dot);
+      if (doc["state"] == "unavailable") return;
+      const JsonVariant attributes = doc["attributes"];
+      const char* friendly_name = nullptr;
+      if (attributes.is<JsonObjectConst>())
+        friendly_name = attributes["friendly_name"].as<const char*>();
+      const std::string t = friendly_name != nullptr ? friendly_name : "";
+      const bool is_energy_sensor =
+          domain == "sensor" &&
+          attributes.is<JsonObjectConst>() &&
+          attributes["device_class"] == "energy";
+      size_t category = 9;
+      if (is_energy_sensor || domain == "energy")
+        category = 3;
+      else if (domain == "sensor" || domain == "binary_sensor")
+        category = 0;
+      else if (domain == "switch" || domain == "light" ||
+               domain == "input_boolean")
+        category = 1;
+      else if (domain == "weather")
+        category = 2;
+      else if (domain == "media_player")
+        category = 4;
+      else if (domain == "climate")
+        category = 5;
+      else if (domain == "cover")
+        category = 6;
+      else if (domain == "camera")
+        category = 7;
+      else if (domain == "scene" || domain == "script")
+        category = 8;
+      if (category == 9) return;
+      append_entity(category, id, t);
+    }
+
+    void process_json_chunk(const char* data, size_t len) {
+      for (size_t i = 0; i < len; ++i) {
+        const char c = data[i];
+        if (object_depth == 0) {
+          if (c != '{') continue;
+          json_object.clear();
+          json_object.push_back(c);
+          object_depth = 1;
+          in_string = false;
+          escaped = false;
+          continue;
+        }
+
+        json_object.push_back(c);
+        if (in_string) {
+          if (escaped)
+            escaped = false;
+          else if (c == '\\')
+            escaped = true;
+          else if (c == '"')
+            in_string = false;
+          continue;
+        }
+        if (c == '"') {
+          in_string = true;
+        } else if (c == '{') {
+          ++object_depth;
+        } else if (c == '}') {
+          --object_depth;
+          if (object_depth == 0) process_object();
+        }
+      }
+    }
   } response;
-  static constexpr size_t kMaxEntityIds = 256;
-  response.scan.reserve(1024);
+  response.json_object.reserve(4096);
+  response.array_empty.fill(true);
+  static constexpr const char* const category_names[] = {
+      "sensors", "switches", "weathers", "energy", "media",
+      "climates", "covers", "cameras", "scenes"};
+  static constexpr const char* const category_file_names[] = {
+      "eo_s", "eo_sw", "eo_w", "eo_e", "eo_m",
+      "eo_c", "eo_cv", "eo_cam", "eo_sc"};
+  std::array<std::string, 9> entity_tmp_paths;
+  std::array<std::string, 9> entity_paths;
+  if (!esp_spiffs_mounted("spiffs")) {
+    esp_vfs_spiffs_conf_t spiffs_config = {};
+    spiffs_config.base_path = "/spiffs";
+    spiffs_config.partition_label = "spiffs";
+    spiffs_config.max_files = 16;
+    spiffs_config.format_if_mount_failed = true;
+    const esp_err_t mount_result = esp_vfs_spiffs_register(&spiffs_config);
+    if (mount_result != ESP_OK) {
+      ESP_LOGW("web_admin_local.entity_options",
+               "Failed to mount SPIFFS partition 'spiffs': %s",
+               esp_err_to_name(mount_result));
+      request->send(507, "application/json; charset=utf-8",
+                    "{\"success\":false,\"error\":\"SPIFFS is unavailable\"}");
+      return;
+    }
+  }
+  bool entity_files_ready = true;
+  for (size_t i = 0; i < 9; ++i) {
+    entity_paths[i] =
+        std::string("/spiffs/") + category_file_names[i] + ".json";
+    entity_tmp_paths[i] = entity_paths[i] + ".tmp";
+    response.entity_files[i] = fopen(entity_tmp_paths[i].c_str(), "wb");
+    if (!response.entity_files[i]) {
+      ESP_LOGW("web_admin_local.entity_options",
+               "Failed to open SPIFFS file %s: %s",
+               entity_tmp_paths[i].c_str(), strerror(errno));
+      entity_files_ready = false;
+      break;
+    }
+    if (fputc('[', response.entity_files[i]) == EOF) {
+      ESP_LOGW("web_admin_local.entity_options",
+               "Failed to initialize SPIFFS file %s: %s",
+               entity_tmp_paths[i].c_str(), strerror(errno));
+      entity_files_ready = false;
+      break;
+    }
+  }
+  if (!entity_files_ready) {
+    response.close_entity_files();
+    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"Unable to create SPIFFS "
+                  "entity files\"}");
+    return;
+  }
+  const bool save_to_sd = request->hasArg("sd");
+  const char* const sd_path = "/sdcard/api.states.json";
+  const std::string sd_tmp_path = std::string(sd_path) + ".tmp";
+  if (save_to_sd) {
+    response.sd_file = fopen(sd_tmp_path.c_str(), "wb");
+    if (!response.sd_file) {
+      ESP_LOGW("web_admin_local.entity_options",
+               "Failed to open %s for writing", sd_tmp_path.c_str());
+    }
+  }
   std::string url = home_assistant_url_;
   while (!url.empty() && url.back() == '/') url.pop_back();
   url += "/api/states";
@@ -1985,49 +2154,25 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     auto* result = static_cast<HttpResponse*>(event->user_data);
     if (event->event_id == HTTP_EVENT_ON_DATA && event->data &&
         event->data_len > 0) {
-      result->scan.append(static_cast<const char*>(event->data),
-                          static_cast<size_t>(event->data_len));
-      size_t search = 0;
-      while ((search = result->scan.find("\"entity_id\"", search)) !=
-             std::string::npos) {
-        const size_t colon = result->scan.find(':', search + 11);
-        if (colon == std::string::npos) break;
-        const size_t first_quote = result->scan.find('"', colon + 1);
-        if (first_quote == std::string::npos) break;
-        const size_t last_quote = result->scan.find('"', first_quote + 1);
-        if (last_quote == std::string::npos) break;
-        const std::string id =
-            result->scan.substr(first_quote + 1, last_quote - first_quote - 1);
-        const size_t dot = id.find('.');
-        if (dot != std::string::npos && dot > 0 &&
-            result->entity_ids.size() < kMaxEntityIds) {
-          const std::string domain = id.substr(0, dot);
-          if (domain == "sensor" || domain == "binary_sensor" ||
-              domain == "switch" || domain == "light" ||
-              domain == "input_boolean" || domain == "weather" ||
-              domain == "energy" || domain == "media_player" ||
-              domain == "climate" || domain == "cover" || domain == "camera" ||
-              domain == "scene" || domain == "script") {
-            bool duplicate = false;
-            for (const auto& existing : result->entity_ids) {
-              if (existing == id) {
-                duplicate = true;
-                break;
-              }
-            }
-            if (!duplicate) result->entity_ids.push_back(id);
-          }
-        }
-        result->scan.erase(0, last_quote + 1);
-        search = 0;
+      if (result->sd_file && !result->sd_write_failed &&
+          fwrite(event->data, 1, static_cast<size_t>(event->data_len),
+                 result->sd_file) != static_cast<size_t>(event->data_len)) {
+        result->sd_write_failed = true;
       }
-      if (result->scan.size() > 1024)
-        result->scan.erase(0, result->scan.size() - 1024);
+      result->process_json_chunk(static_cast<const char*>(event->data),
+                                 static_cast<size_t>(event->data_len));
     }
     return ESP_OK;
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);
   if (!client) {
+    response.close_entity_files();
+    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    if (response.sd_file) {
+      fclose(response.sd_file);
+      response.sd_file = nullptr;
+    }
+    if (save_to_sd) remove(sd_tmp_path.c_str());
     request->send(502, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Unable to initialize Home "
                   "Assistant REST client\"}");
@@ -2036,88 +2181,71 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   std::string auth = "Bearer " + home_assistant_token_;
   esp_http_client_set_header(client, "Authorization", auth.c_str());
   esp_http_client_set_header(client, "Accept", "application/json");
-  const esp_err_t result = esp_http_client_perform(client);
+  const esp_err_t http_result = esp_http_client_perform(client);
   response.status = esp_http_client_get_status_code(client);
   esp_http_client_cleanup(client);
-  if (result != ESP_OK || response.status != 200) {
+  response.close_entity_files();
+  if (response.sd_file) {
+    if (fclose(response.sd_file) != 0) response.sd_write_failed = true;
+    response.sd_file = nullptr;
+  }
+  if (http_result != ESP_OK || response.status != 200) {
+    if (save_to_sd) remove(sd_tmp_path.c_str());
+    for (const auto& path : entity_tmp_paths) remove(path.c_str());
     request->send(502, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Home Assistant REST API "
                   "request failed\"}");
     return;
   }
-  for (const std::string& entity_id : response.entity_ids) {
-    const size_t dot = entity_id.find('.');
-    if (dot == std::string::npos || dot == 0) continue;
-    const std::string domain = entity_id.substr(0, dot);
-    if (domain == "sensor" || domain == "binary_sensor")
-      es.add(es.sensors, entity_id);
-    else if (domain == "switch" || domain == "light" ||
-             domain == "input_boolean")
-      es.add(es.switches, entity_id);
-    else if (domain == "weather")
-      es.add(es.weathers, entity_id);
-    else if (domain == "energy")
-      es.add(es.energy, entity_id);
-    else if (domain == "media_player")
-      es.add(es.media, entity_id);
-    else if (domain == "climate")
-      es.add(es.climates, entity_id);
-    else if (domain == "cover")
-      es.add(es.covers, entity_id);
-    else if (domain == "camera")
-      es.add(es.cameras, entity_id);
-    else if (domain == "scene" || domain == "script")
-      es.add(es.scenes, entity_id);
+  for (size_t i = 0; i < 9; ++i) {
+    remove(entity_paths[i].c_str());
+    if (rename(entity_tmp_paths[i].c_str(), entity_paths[i].c_str()) != 0)
+      response.entity_file_failed = true;
+  }
+  if (response.entity_file_failed) {
+    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"Unable to finalize SPIFFS "
+                  "entity files\"}");
+    return;
+  }
+  if (save_to_sd && !response.sd_write_failed) {
+    remove(sd_path);
+    if (rename(sd_tmp_path.c_str(), sd_path) != 0) {
+      ESP_LOGW("web_admin_local.entity_options",
+               "Failed to finalize %s", sd_path);
+      remove(sd_tmp_path.c_str());
+    } else {
+      ESP_LOGI("web_admin_local.entity_options",
+               "Saved Home Assistant states response to %s", sd_path);
+    }
+  } else if (save_to_sd) {
+    ESP_LOGW("web_admin_local.entity_options",
+             "Failed to write complete Home Assistant states response");
+    remove(sd_tmp_path.c_str());
   }
 
-  // Build response in the format admin.js expects:
-  // {"success":true,"sensors":[{"v":"id","t":"id"}],...}
-  auto appendList = [](std::string& json, const char* key,
-                       const std::vector<std::string>& list) {
-    json += "\"";
-    json += key;
-    json += "\":[";
-    bool first = true;
-    for (const auto& e : list) {
-      if (!first) json += ",";
-      first = false;
-      json += "{\"v\":\"";
-      for (char c : e) {
-        if (c == '"' || c == '\\') json += '\\';
-        json += c;
-      }
-      json += "\",\"t\":\"";
-      // Use entity ID as display text (no HA bridge available)
-      for (char c : e) {
-        if (c == '"' || c == '\\') json += '\\';
-        json += c;
-      }
-      json += "\"}";
+  AsyncResponseStream* stream =
+      request->beginResponseStream("application/json; charset=utf-8");
+  stream->print("{\"success\":true");
+  for (size_t i = 0; i < 9; ++i) {
+    stream->print(",\"");
+    stream->print(category_names[i]);
+    stream->print("\":");
+    FILE* file = fopen(entity_paths[i].c_str(), "rb");
+    if (!file) {
+      stream->print("[]");
+      continue;
     }
-    json += "]";
-  };
-
-  std::string json = "{\"success\":true,";
-  appendList(json, "sensors", es.sensors);
-  json += ",";
-  appendList(json, "switches", es.switches);
-  json += ",";
-  appendList(json, "weathers", es.weathers);
-  json += ",";
-  appendList(json, "energy", es.energy);
-  json += ",";
-  appendList(json, "media", es.media);
-  json += ",";
-  appendList(json, "climates", es.climates);
-  json += ",";
-  appendList(json, "covers", es.covers);
-  json += ",";
-  appendList(json, "cameras", es.cameras);
-  json += ",";
-  appendList(json, "scenes", es.scenes);
-  json += "}";
-
-  request->send(200, "application/json; charset=utf-8", json.c_str());
+    char buffer[512];
+    size_t read_count;
+    while ((read_count = fread(buffer, 1, sizeof(buffer), file)) > 0)
+      for (size_t j = 0; j < read_count; ++j)
+        stream->write(static_cast<uint8_t>(buffer[j]));
+    fclose(file);
+  }
+  stream->print("}");
+  request->send(stream);
 }
 
 }  // namespace web_admin_local
