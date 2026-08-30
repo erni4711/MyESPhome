@@ -1,6 +1,5 @@
 // Text tile: displays a static text value.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 
 namespace web_admin_local {

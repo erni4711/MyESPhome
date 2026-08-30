@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <atomic>
-
+#include "ui_fonts.h"
 // Forward declaration of LVGL type — included only in .cpp files
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;

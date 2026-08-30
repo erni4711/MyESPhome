@@ -1,6 +1,5 @@
 // Clock tile: shows HH:MM time and optional date.
 #include "../tiles_lvgl.h"
-#include "../web_admin_lvgl_fonts.h"
 #include <lvgl.h>
 #include <ctime>
 #include <cstdio>
