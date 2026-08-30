@@ -81,7 +81,7 @@ void WebAdminLocal::setup() {
   this->server_->add_handler(handler);
 
   // Folders API
-  auto* folders_api = new web_admin_local::FoldersApiHandler(base);
+  auto* folders_api = new web_admin_local::ApiFolderHandler(base);
   this->server_->add_handler(folders_api);
 
   // Entity options

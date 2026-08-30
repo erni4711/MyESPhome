@@ -62,6 +62,15 @@ async def to_code(config):
         comp_dir = Path(__file__).parent
         gen_dir = comp_dir / 'generated'
         gen_script = comp_dir / 'tools' / 'generate-web-assets.mjs'
+        build_path = Path(CORE.build_path)
+        component_build_dir = build_path / 'src' / 'esphome' / 'components' / 'web_admin_local'
+        component_build_dir.mkdir(parents=True, exist_ok=True)
+
+        # ui_fonts.h is kept with the generated font sources but is included
+        # from the component root by all LVGL renderers.
+        ui_fonts_src = comp_dir / 'fonts' / 'ui_fonts.h'
+        if ui_fonts_src.exists():
+            shutil.copy2(ui_fonts_src, component_build_dir / 'ui_fonts.h')
 
         # Run the Node.js generator to keep generated files up to date (non-fatal).
         if gen_script.exists():
@@ -80,7 +89,6 @@ async def to_code(config):
 
         # Use CORE.build_path which ESPHome sets to the active build directory
         # (e.g. <config_dir>/.esphome/build/<nodename>).
-        build_path = Path(CORE.build_path)
         dest_dir = build_path / 'src' / 'esphome' / 'components' / 'web_admin_local' / 'generated'
         dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -107,29 +115,25 @@ async def to_code(config):
                 print(f"[web_admin_local] copied {tt_copied} tile_types file(s) to {tile_types_dst}")
 
         # Also copy tiles_lvgl.h and tiles_lvgl.cpp to the build root.
-        for fname in ('tiles_lvgl.h', 'tiles_lvgl.cpp', 'web_admin_lvgl_fonts.h',
+        for fname in ('tiles_lvgl.h', 'tiles_lvgl.cpp',
+                      'web_admin_lvgl_fonts.h',
                       'mdi_icons.h', 'mdi_icons.cpp'):
             src_file = comp_dir / fname
             if src_file.exists():
                 dst_file = build_path / 'src' / 'esphome' / 'components' / 'web_admin_local' / fname
                 shutil.copy2(src_file, dst_file)
 
-        # ESPHome does not compile nested component sources automatically.
-        # Copy the selected HomeTiles-generated LVGL fonts into the component
-        # root so the framework includes them in the firmware build.
+        # ESPHome does not synchronize nested component directories
+        # automatically. Copy the complete fonts directory so all generated
+        # font sources and headers remain available in the build tree.
         font_dir = comp_dir / 'fonts'
-        font_names = (
-            'ui_font_14.c', 'ui_font_16.c', 'ui_font_20.c',
-            'ui_font_20_semibold.c', 'ui_font_24.c', 'ui_font_28.c',
-            'ui_font_40.c', 'ui_font_48.c',
-            'ui_font_cyrillic_14.c', 'ui_font_cyrillic_16.c',
-            'ui_font_cyrillic_20.c', 'ui_font_cyrillic_24.c',
-            'mdi_icons_48.c',
-        )
-        for fname in font_names:
-            src_file = font_dir / fname
-            if src_file.exists():
-                shutil.copy2(src_file, build_path / 'src' / 'esphome' / 'components' / 'web_admin_local' / fname)
+        fonts_dst = component_build_dir / 'fonts'
+        if font_dir.is_dir():
+            shutil.copytree(font_dir, fonts_dst, dirs_exist_ok=True)
+            for font_file in font_dir.iterdir():
+                if font_file.is_file():
+                    shutil.copy2(font_file, component_build_dir / font_file.name)
+            print(f"[web_admin_local] copied fonts directory to {fonts_dst}")
     except Exception as e:
         # Non-fatal: log and continue
         print(f"[web_admin_local] failed to copy generated files: {e}")
