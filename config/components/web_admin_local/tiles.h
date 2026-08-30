@@ -29,11 +29,10 @@ class ApiTilesHandler : public AsyncWebHandler {
   bool body_too_large_ = false;
 };
 
-// Handles /api/folders (GET) and /api/folders/tab (GET)
-// so the admin SPA can enumerate folders and dynamically load tab HTML.
-class FoldersApiHandler : public AsyncWebHandler {
+// Handles folder metadata APIs and server-rendered Folder Settings HTML.
+class ApiFolderHandler : public AsyncWebHandler {
  public:
-  explicit FoldersApiHandler(const std::string &base);
+  explicit ApiFolderHandler(const std::string &base);
   bool canHandle(AsyncWebServerRequest *request) const override;
   void handleRequest(AsyncWebServerRequest *request) override;
  private:
@@ -41,6 +40,7 @@ class FoldersApiHandler : public AsyncWebHandler {
   // Build a nav-button + tab-content HTML pair for one folder, suitable for
   // returning in the /api/folders/tab response.
   static std::string buildFolderTabJson(int folder_id, const std::string &name);
+  static std::string buildFolderSettingsHtml();
 };
 
 // Serves /admin/entity_options — returns entity IDs gathered from all stored
