@@ -29,10 +29,14 @@ esphome:
 #  then:
 #    - delay: 2s
 
-external_components:
+components:
   - source:
       type: local
       path: components
+external_components:
+  - source:
+      type: local
+      path: external_components
   # # Explicit local web_admin component (copied into config/components/web_admin)
   # - source:
   #     type: local
@@ -101,10 +105,12 @@ esp32:
       disable_fatfs: false
 
     sdkconfig_options:
+      CONFIG_PARTITION_TABLE_OFFSET: "0x10000"
       CONFIG_FATFS_LFN: y
       CONFIG_FATFS_LFN_HEAP: y
       CONFIG_FATFS_MAX_LFN: "255"
       CONFIG_LV_USE_SNAPSHOT: "y"
+      CONFIG_LV_USE_SLIDER: "y"
       CONFIG_LV_FONT_FMT_TXT_LARGE: "y"
       CONFIG_LV_USE_FONT_COMPRESSED: "y"
       CONFIG_SDMMC_ENABLE_POWER_CONTROL: "y"
@@ -464,6 +470,8 @@ switch:
 
 # deep_sleep:
 #   touch_wakeup: true
+spiffs:
+
 sd_mmc_card:
   id: sdcard
   clk_pin: 43
@@ -482,6 +490,7 @@ sd_file_server:
   enable_deletion: true
 
 web_admin_local:
+  priority: -200
   web_server_base_id: my_web_server_base
   url_prefix: admin
   # Optional: populate /admin/entity_options from Home Assistant REST API.
@@ -575,15 +584,9 @@ api:
   #     then:
   #       - logger.log: "set_camera_resolution skipped (camera disabled)"
  
-# time:
-#   - platform: homeassistant
-#     id: homeassistant_time
-#     on_time_sync:
-#       - script.execute: time_update
-#     on_time:
-#       - seconds: /1
-#         then:
-#           - script.execute: time_update
+time:
+  - platform: homeassistant
+    id: homeassistant_time
 script:
   # - id: time_update
   #   then:

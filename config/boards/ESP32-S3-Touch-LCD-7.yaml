@@ -86,9 +86,11 @@ esp32:
   # board : ESP32-S3-Touch-LCD-7
   variant: esp32s3
   flash_size: 8MB
+  partitions: partitions-esp32s3-8mb-encrypted.csv
   framework:
     type: esp-idf
     sdkconfig_options:
+      CONFIG_PARTITION_TABLE_OFFSET: "0x10000"
       CONFIG_ESP32S3_SPIRAM_SUPPORT: y
       CONFIG_SPIRAM: y
       CONFIG_SPIRAM_MODE_OCT: y

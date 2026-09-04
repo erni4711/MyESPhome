@@ -81,6 +81,28 @@ docker run --rm -v "$(pwd)/config":/config -it esphome/esphome run 7i-sample.yam
 ### Home Assistant
 Add `7i-sample.yaml` to the ESPHome add-on dashboard and use the web UI to compile and flash.
 
+### Flash encryption
+
+Flash encryption and ESP-IDF NVS encryption are disabled in the project
+configurations. The ESP32-P4 LVGL PPA cannot process rotated buffers allocated
+in external PSRAM when flash encryption is enabled:
+
+* `ESP32-S3-Touch-LCD-7.yaml` — 8 MB
+* `ESP32-S3-Touch-LCD-7B.yaml` — 16 MB
+* `ESP32-P4-WIFI6-Touch-LCD-7B.yaml` — 32 MB
+* `ESP32-P4-WIFI6-TOUCH-LCD-10.1.yaml` — 32 MB
+
+To erase and reprovision a device (this destroys NVS data and the existing
+firmware), replace `COM7` with the device's port:
+
+```bash
+esptool --chip auto --port COM7 erase-flash
+esphome run <board-sample>.yaml --device COM7
+```
+
+NVS preferences, including captive-portal Wi-Fi credentials, are stored
+unencrypted in the normal ESP-IDF NVS partition.
+
 ### S3 sample screenshots
 
 #### About

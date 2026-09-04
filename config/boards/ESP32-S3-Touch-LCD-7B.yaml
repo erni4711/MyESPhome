@@ -65,12 +65,14 @@ esp32:
   board: esp32-s3-devkitc-1
   variant: esp32s3
   flash_size: 16MB
+  partitions: partitions-esp32s3-16mb-encrypted.csv
   framework:
     type: esp-idf
     advanced:
       execute_from_psram: true
 
     sdkconfig_options:
+      CONFIG_PARTITION_TABLE_OFFSET: "0x10000"
       CONFIG_FATFS_LFN: y
       CONFIG_FATFS_LFN_HEAP: y
       CONFIG_FATFS_MAX_LFN: "255"
