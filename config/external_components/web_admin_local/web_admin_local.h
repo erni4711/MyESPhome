@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include "esphome.h"
 #include "esphome/components/web_server_base/web_server_base.h"
 
@@ -13,6 +14,7 @@ class WebAdminLocal : public esphome::Component {
     : server_(server), url_prefix_("admin") {}
   void setup() override;
   void loop() override;
+  void start();
   void set_url_prefix(const char* prefix) {
     if (prefix && strlen(prefix) > 0) url_prefix_ = std::string(prefix);
   }
@@ -36,6 +38,10 @@ class WebAdminLocal : public esphome::Component {
   std::string home_assistant_url_;
   std::string home_assistant_token_;
   esphome::lvgl::LvglComponent *lvgl_ = nullptr;
+  bool started_ = false;
+  std::atomic<bool> start_requested_{false};
+
+  void start_internal();
 };
 
 class LocalHandler : public AsyncWebHandler {

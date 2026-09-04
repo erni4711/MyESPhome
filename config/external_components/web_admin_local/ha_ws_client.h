@@ -34,6 +34,13 @@ void ha_ws_client_start();
 // tile grids change (see TilesLvglRenderer::refresh_folder()).
 void ha_ws_client_set_entity_filter(const std::vector<std::string> &entity_ids);
 
+// Requests a fresh snapshot of current Home Assistant states. Safe to call
+// after authentication; otherwise the next authentication performs the pull.
+void ha_ws_client_request_states();
+
+// Discards state updates queued for widgets from a previous tile tree.
+void ha_ws_client_discard_pending_states();
+
 // Drains any Home Assistant state updates queued by the websocket task and
 // applies them to registered LVGL widgets (see register_ha_entity_widget()
 // in tiles_lvgl.h). MUST be called only from the ESPHome loop() task.

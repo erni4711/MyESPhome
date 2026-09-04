@@ -3,7 +3,6 @@
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
 #include <esp_log.h>
-#include <esp_spiffs.h>
 #include <sys/stat.h>
 
 #include <cerrno>
@@ -15,6 +14,7 @@
 #include <vector>
 
 #include "tiles_lvgl.h"
+#include "esphome/components/spiffs/spiffs.h"
 
 // Forward-declare asset accessors defined in web_admin_assets.cpp
 const char* adminJsAssetPath();
@@ -36,11 +36,12 @@ struct FolderMeta {
   std::string icon;
 };
 
-// Read folder list from /sdcard/_tile_grids/folders.json.
+// Read folder list from SPIFFS.
 // Falls back to synthetic entries if the file is absent.
 static std::vector<FolderMeta> readFolderMetaList() {
   std::vector<FolderMeta> list;
-  FILE* f = fopen("/sdcard/_tile_grids/folders.json", "rb");
+  if (!esphome::spiffs::ensure_mounted()) return list;
+  FILE* f = fopen("/spiffs/t_folders.json", "rb");
   if (f) {
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
@@ -68,7 +69,7 @@ static std::vector<FolderMeta> readFolderMetaList() {
   if (list.empty()) {
     for (int i = 0; i <= 9; i++) {
       char p[80];
-      snprintf(p, sizeof(p), "/sdcard/_tile_grids/f%d.json", i);
+      snprintf(p, sizeof(p), "/spiffs/t_f%d.json", i);
       FILE* gf = fopen(p, "rb");
       if (!gf) continue;
       fclose(gf);
@@ -225,6 +226,7 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
   h += "<option value=\"1\">Sensor</option>";
   h += "<option value=\"2\">Scene / Action</option>";
   h += "<option value=\"4\">Navigate</option>";
+  h += "<option value=\"8\">Back</option>";
   h += "<option value=\"5\">Switch / Light</option>";
   h += "<option value=\"9\">Clock</option>";
   h += "<option value=\"10\">Text</option>";
@@ -405,6 +407,16 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
         "<label class=\"inline-checkbox\">"
         "<input type=\"checkbox\" id=\"" +
         tid + "_clock_show_weekday\"> Show Weekday</label>";
+    inner +=
+        "<label class=\"inline-checkbox\">"
+        "<input type=\"checkbox\" id=\"" +
+        tid + "_clock_shadow\"> Text Shadow</label>";
+    inner += "<label>Time Alignment</label><select id=\"" + tid + "_clock_time_alignment\">"
+             "<option value=\"0\">Left</option><option value=\"1\" selected>Center</option>"
+             "<option value=\"2\">Right</option></select>";
+    inner += "<label>Date Alignment</label><select id=\"" + tid + "_clock_date_alignment\">"
+             "<option value=\"0\">Left</option><option value=\"1\" selected>Center</option>"
+             "<option value=\"2\">Right</option></select>";
     inner += "<label>Time Font Size</label>";
     inner += "<select id=\"" + tid + "_clock_time_font\">";
     for (int s : {20, 24, 28, 32, 40, 48, 56, 64, 72, 80, 96})
@@ -525,7 +537,7 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
   return h;
 }
 
-// Read tile array from /sdcard/_tile_grids/f{id}.json.
+// Read tile array from SPIFFS.
 // Returns a vector of 35 raw JSON objects (or empty objects for missing tiles).
 struct GridTileData {
   int type = 0;
@@ -544,8 +556,9 @@ static std::vector<GridTileData> readTileGrid(int folder_id) {
     out[i].row = i / COLS;
   }
 
+  if (!esphome::spiffs::ensure_mounted()) return out;
   char path[80];
-  snprintf(path, sizeof(path), "/sdcard/_tile_grids/f%d.json", folder_id);
+  snprintf(path, sizeof(path), "/spiffs/t_f%d.json", folder_id);
   FILE* f = fopen(path, "rb");
   if (!f) return out;
 
@@ -1253,9 +1266,14 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
            "handleRequest ApiTilesHandler: method=%d url=%s", request->method(),
            request_url(request).c_str());
   uint16_t folder = get_folder_id(request);
-  // Files are stored on the SD card under /sdcard/_tile_grids/
+  if (!esphome::spiffs::ensure_mounted()) {
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"SPIFFS is unavailable\"}");
+    return;
+  }
+  // Tile grids are stored as short filenames in the SPIFFS root.
   char pathBuf[80];
-  snprintf(pathBuf, sizeof(pathBuf), "/sdcard/_tile_grids/f%u.json",
+  snprintf(pathBuf, sizeof(pathBuf), "/spiffs/t_f%u.json",
            static_cast<unsigned>(folder));
   const char* filePath = pathBuf;
 
@@ -1430,7 +1448,8 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
           "energy_entity",    "media_entity",    "climate_entity",
           "cover_entity",     "camera_entity",   "animation_file",
           "climate_geometry", "text_value",      "key_macro",
-          "clock_show_time",  "clock_show_date", nullptr};
+          "clock_show_time",  "clock_show_date", "clock_show_weekday",
+          "clock_shadow", nullptr};
       for (int i = 0; strFields[i]; i++)
         setStrField(strFields[i], strFields[i]);
 
@@ -1452,6 +1471,8 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
                                         "animation_zoom",
                                         "clock_time_format",
                                         "clock_date_format",
+                                        "clock_time_alignment",
+                                        "clock_date_alignment",
                                         "key_code",
                                         "key_modifier",
                                         "text_value_font",
@@ -1466,7 +1487,6 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
       serializeJson(tile, tileStrings[tile_idx]);
 
       // Rebuild the full JSON array from all tile strings.
-      mkdir("/sdcard/_tile_grids", 0755);
       std::string out = "[";
       for (int i = 0; i < 35; i++) {
         if (i) out += ",";
@@ -1546,8 +1566,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
         std::string folderJson = "{\"folders\":";
         serializeJson(doc["folders"], folderJson);
         folderJson += "}";
-        mkdir("/sdcard/_tile_grids", 0755);
-        FILE* ff = fopen("/sdcard/_tile_grids/folders.json", "wb");
+        FILE* ff = fopen("/spiffs/t_folders.json", "wb");
         if (ff) {
           fwrite(folderJson.data(), 1, folderJson.size(), ff);
           fclose(ff);
@@ -1576,15 +1595,19 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
     }
 
     // Ensure the directory exists (create if needed)
-    mkdir("/sdcard/_tile_grids", 0755);
 
     // Write to temporary file and atomically rename using stdio
     std::string tmpPath = std::string(filePath) + ".tmp";
     FILE* wf = fopen(tmpPath.c_str(), "wb");
     if (!wf) {
+      const int open_errno = errno;
       ESP_LOGW("web_admin_local.api.tiles",
-               "Failed to open tmp file for write: %s", tmpPath.c_str());
-      request->send(500, "text/plain", "Failed to open temp file");
+               "Failed to open tmp file for write: %s: %s",
+               tmpPath.c_str(), strerror(open_errno));
+      std::string error = "{\"success\":false,\"error\":\"Failed to open temp file: ";
+      error += strerror(open_errno);
+      error += "\"}";
+      request->send(500, "application/json", error.c_str());
       return;
     }
     size_t written = fwrite(body_to_save.data(), 1, body_to_save.size(), wf);
@@ -1771,8 +1794,7 @@ void ApiFolderHandler::handleRequest(AsyncWebServerRequest* request) {
         created.icon =
             request->hasArg("icon_name") ? request->arg("icon_name") : "";
         metas.push_back(created);
-        mkdir("/sdcard/_tile_grids", 0755);
-        FILE* f = fopen("/sdcard/_tile_grids/folders.json", "wb");
+        FILE* f = fopen("/spiffs/t_folders.json", "wb");
         if (!f) {
           request->send(
               500, "application/json; charset=utf-8",
@@ -1835,8 +1857,7 @@ void ApiFolderHandler::handleRequest(AsyncWebServerRequest* request) {
                       "{\"success\":false,\"error\":\"Folder not found\"}");
         return;
       }
-      mkdir("/sdcard/_tile_grids", 0755);
-      FILE* f = fopen("/sdcard/_tile_grids/folders.json", "wb");
+      FILE* f = fopen("/spiffs/t_folders.json", "wb");
       if (!f) {
         request->send(
             500, "application/json; charset=utf-8",
@@ -2088,21 +2109,10 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
       "eo_c", "eo_cv", "eo_cam", "eo_sc"};
   std::array<std::string, 9> entity_tmp_paths;
   std::array<std::string, 9> entity_paths;
-  if (!esp_spiffs_mounted("spiffs")) {
-    esp_vfs_spiffs_conf_t spiffs_config = {};
-    spiffs_config.base_path = "/spiffs";
-    spiffs_config.partition_label = "spiffs";
-    spiffs_config.max_files = 16;
-    spiffs_config.format_if_mount_failed = true;
-    const esp_err_t mount_result = esp_vfs_spiffs_register(&spiffs_config);
-    if (mount_result != ESP_OK) {
-      ESP_LOGW("web_admin_local.entity_options",
-               "Failed to mount SPIFFS partition 'spiffs': %s",
-               esp_err_to_name(mount_result));
-      request->send(507, "application/json; charset=utf-8",
-                    "{\"success\":false,\"error\":\"SPIFFS is unavailable\"}");
-      return;
-    }
+  if (!esphome::spiffs::ensure_mounted()) {
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"SPIFFS is unavailable\"}");
+    return;
   }
   bool entity_files_ready = true;
   for (size_t i = 0; i < 9; ++i) {

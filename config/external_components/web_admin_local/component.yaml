@@ -11,28 +11,29 @@ files:
   - web_admin_local.cpp
   - ha_ws_client.cpp
   - ui_fonts.h
-  - ui_font_12.c
-  - ui_font_14.c
-  - ui_font_16.c
-  - ui_font_20.c
-  - ui_font_20_semibold.c
-  - ui_font_24.c
-  - ui_font_28.c
-  - ui_font_32.c
-  - ui_font_40.c
-  - ui_font_48.c
-  - ui_font_56.c
-  - ui_font_64.c
-  - ui_font_72.c
-  - ui_font_80.c
-  - ui_font_96.c
-  - ui_font_cyrillic_14.c
-  - ui_font_cyrillic_16.c
-  - ui_font_cyrillic_20.c
-  - ui_font_cyrillic_24.c
-  - mdi_icons_48.c
-  - ui_symbols_20.c
-  - ui_symbols_24.c
+  - fonts/ui_fonts.h
+  - fonts/ui_font_12.c
+  - fonts/ui_font_14.c
+  - fonts/ui_font_16.c
+  - fonts/ui_font_20.c
+  - fonts/ui_font_20_semibold.c
+  - fonts/ui_font_24.c
+  - fonts/ui_font_28.c
+  - fonts/ui_font_32.c
+  - fonts/ui_font_40.c
+  - fonts/ui_font_48.c
+  - fonts/ui_font_56.c
+  - fonts/ui_font_64.c
+  - fonts/ui_font_72.c
+  - fonts/ui_font_80.c
+  - fonts/ui_font_96.c
+  - fonts/ui_font_cyrillic_14.c
+  - fonts/ui_font_cyrillic_16.c
+  - fonts/ui_font_cyrillic_20.c
+  - fonts/ui_font_cyrillic_24.c
+  - fonts/mdi_icons_48.c
+  - fonts/ui_symbols_20.c
+  - fonts/ui_symbols_24.c
   - tiles.h
   - tiles_lvgl.h
   - web_admin_fonts.h
@@ -42,6 +43,7 @@ files:
   - ha_ws_client.h
 
 includes:
+  - fonts/ui_fonts.h
   - tiles.h
   - tiles_lvgl.h
   - web_admin_fonts.h
@@ -52,6 +54,7 @@ includes:
 dependencies:
   - lvgl
   - sd_file_server
+  - spiffs
 
 idf_components:
   # Managed via esphome.components.esp32.add_idf_component() in __init__.py;
