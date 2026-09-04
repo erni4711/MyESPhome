@@ -6,7 +6,7 @@
 
 #include "lvgl.h"
 
-#include "src/devices/device_select.h"
+//#include "src/devices/device_select.h"
 
 #ifndef MDI_ICONS_32
 #if defined(DEVICE_LAYOUT_480X480)

@@ -76,6 +76,21 @@ void LocalHandler::handleAssetRequest(AsyncWebServerRequest* request) {
 bool LocalHandler::isRequestHandlerTrivial() const { return false; }
 
 void WebAdminLocal::setup() {
+}
+
+void WebAdminLocal::start() {
+  ESP_LOGI(TAG, "API client connected; web admin startup queued");
+  start_requested_.store(true, std::memory_order_release);
+}
+
+void WebAdminLocal::start_internal() {
+  if (started_) {
+    ESP_LOGD(TAG, "Web admin startup already completed");
+    return;
+  }
+  started_ = true;
+  ESP_LOGI(TAG, "Starting web admin from ESPHome loop");
+
   const std::string base = std::string("/") + url_prefix_;
   auto* handler = new LocalHandler(base);
   this->server_->add_handler(handler);
@@ -105,11 +120,11 @@ void WebAdminLocal::setup() {
     g_tiles_renderer = new TilesLvglRenderer();
     // Use the screen configured and initialized by ESPHome's LVGL component.
     g_tiles_renderer->setup();
-    // Build all existing folder pages from SD card JSON files
-    g_tiles_renderer->refresh_all();
-    // Show home folder (0) on boot
+    // The renderer uses ESPHome's single active LVGL screen, so loading every
+    // folder at startup would leave the last (usually empty) folder visible.
+    // Start explicitly on the home folder instead.
     g_tiles_renderer->show_folder(0);
-    ESP_LOGI(TAG, "TilesLvglRenderer created and home page shown");
+    ESP_LOGI(TAG, "TilesLvglRenderer created; home page load queued");
   }
 
   // ── Home Assistant websocket live updates ────────────────────────────────
@@ -120,6 +135,13 @@ void WebAdminLocal::setup() {
 }
 
 void WebAdminLocal::loop() {
+  if (start_requested_.exchange(false, std::memory_order_acquire)) {
+    ESP_LOGI(TAG, "Processing queued web admin startup");
+    start_internal();
+  }
+  if (!started_) {
+    return;
+  }
   if (g_tiles_renderer != nullptr) {
     g_tiles_renderer->process_pending_refreshes();
   }

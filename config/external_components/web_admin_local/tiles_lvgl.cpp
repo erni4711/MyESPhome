@@ -13,10 +13,85 @@
 #include <cctype>
 #include <algorithm>
 #include <unordered_map>
+#include "esphome/components/spiffs/spiffs.h"
 
 static const char *TAG = "tiles_lvgl";
 
 namespace web_admin_local {
+
+static lv_obj_t *clock_label(lv_obj_t *parent, const char *text,
+                             const lv_font_t *font, lv_color_t color,
+                             bool shadow) {
+  if (shadow) {
+    lv_obj_t *shadow_label = lv_label_create(parent);
+    lv_label_set_text(shadow_label, text);
+    lv_obj_set_style_text_color(shadow_label, lv_color_black(), 0);
+    lv_obj_set_style_text_opa(shadow_label, LV_OPA_50, 0);
+    lv_obj_set_style_text_font(shadow_label, font, 0);
+    lv_obj_align(shadow_label, LV_ALIGN_CENTER, 2, 2);
+  }
+  lv_obj_t *label = lv_label_create(parent);
+  lv_label_set_text(label, text);
+  lv_obj_set_style_text_color(label, color, 0);
+  lv_obj_set_style_text_font(label, font, 0);
+  return label;
+}
+
+static const lv_font_t *clock_font(int raw_size, int fallback) {
+  const int size = raw_size >= 96 ? 96 : raw_size >= 80 ? 80 :
+                   raw_size >= 72 ? 72 : raw_size >= 64 ? 64 :
+                   raw_size >= 56 ? 56 : raw_size >= 48 ? 48 :
+                   raw_size >= 40 ? 40 : raw_size >= 32 ? 32 :
+                   raw_size >= 28 ? 28 : raw_size >= 24 ? 24 :
+                   raw_size >= 20 ? 20 : fallback;
+  return ui_font_for_size(static_cast<uint8_t>(size));
+}
+
+static void format_clock_time(char *buf, size_t size, const tm &tm_info,
+                              int format) {
+  if (format == 2) {
+    int hour = tm_info.tm_hour % 12;
+    if (hour == 0) hour = 12;
+    snprintf(buf, size, "%d:%02d %s", hour, tm_info.tm_min,
+             tm_info.tm_hour < 12 ? "AM" : "PM");
+    return;
+  }
+  strftime(buf, size, "%H:%M", &tm_info);
+}
+
+struct ClockTimerContext {
+  lv_obj_t *label;
+  lv_obj_t *date_label;
+  lv_timer_t *timer;
+  int format;
+  int date_format;
+  bool show_weekday;
+};
+
+static void clock_parent_delete_cb(lv_event_t *event) {
+  auto *context = static_cast<ClockTimerContext *>(lv_event_get_user_data(event));
+  if (context == nullptr) return;
+  if (context->timer != nullptr) {
+    lv_timer_delete(context->timer);
+    context->timer = nullptr;
+  }
+  delete context;
+}
+
+static void format_clock_date(char *buf, size_t size, const tm &tm_info,
+                              int format, bool show_weekday) {
+  const char *date_format = (format == 2) ? "%m/%d/%Y"
+                           : (format == 3) ? "%Y/%m/%d" : "%d.%m.%Y";
+  char date[32];
+  strftime(date, sizeof(date), date_format, &tm_info);
+  if (show_weekday) {
+    char weekday[16];
+    strftime(weekday, sizeof(weekday), "%A", &tm_info);
+    snprintf(buf, size, "%s, %s", weekday, date);
+  } else {
+    snprintf(buf, size, "%s", date);
+  }
+}
 
 TilesLvglRenderer *g_tiles_renderer = nullptr;
 static std::string home_assistant_url;
@@ -40,6 +115,17 @@ struct SensorWidgetBinding {
   lv_obj_t *gauge_arc = nullptr;
   lv_obj_t *switch_obj = nullptr;
   lv_obj_t *state_label = nullptr;
+  lv_obj_t *weather_icon = nullptr;
+  lv_obj_t *weather_temperature = nullptr;
+  lv_obj_t *weather_condition = nullptr;
+  lv_obj_t *weather_forecast[4] = {};
+  uint8_t weather_forecast_count = 0;
+  lv_obj_t *light_popup = nullptr;
+  lv_obj_t *light_brightness = nullptr;
+  lv_obj_t *light_color_temp = nullptr;
+  lv_obj_t *light_red = nullptr;
+  lv_obj_t *light_green = nullptr;
+  lv_obj_t *light_blue = nullptr;
   int decimals = -1;
   float gauge_min = 0.f;
   float gauge_max = 100.f;
@@ -63,7 +149,10 @@ struct MutexGuard {
 void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_label,
                                 lv_obj_t *gauge_arc, int decimals,
                                 float gauge_min, float gauge_max) {
-  if (entity_id.empty()) return;
+  if (entity_id.empty()) {
+    ESP_LOGW(TAG, "Ignoring entity widget with empty entity ID");
+    return;
+  }
   SensorWidgetBinding binding;
   binding.value_label = value_label;
   binding.gauge_arc = gauge_arc;
@@ -72,40 +161,186 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
   binding.gauge_max = gauge_max;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
+  if (value_label) {
+    lv_obj_add_event_cb(value_label, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  }
+  if (gauge_arc) {
+    lv_obj_add_event_cb(gauge_arc, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  }
+  ESP_LOGD(TAG, "Registered entity widget for %s", entity_id.c_str());
 }
 
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
                                lv_obj_t *state_label) {
-  if (entity_id.empty() || switch_obj == nullptr) return;
+  if (entity_id.empty() || switch_obj == nullptr) {
+    ESP_LOGW(TAG, "Ignoring invalid switch widget for entity '%s'", entity_id.c_str());
+    return;
+  }
   SensorWidgetBinding binding;
   binding.switch_obj = switch_obj;
   binding.state_label = state_label;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
+  lv_obj_add_event_cb(switch_obj, [](lv_event_t *event) {
+    if (lv_event_get_code(event) == LV_EVENT_DELETE)
+      unregister_ha_widget_object(
+          static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+  }, LV_EVENT_DELETE, nullptr);
+  if (state_label) {
+    lv_obj_add_event_cb(state_label, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  }
+  ESP_LOGD(TAG, "Registered switch widget for %s", entity_id.c_str());
+}
+
+void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_label,
+                                 lv_obj_t *temperature_label, lv_obj_t *condition_label,
+                                 lv_obj_t **forecast_labels, uint8_t forecast_count) {
+  if (entity_id.empty()) return;
+  SensorWidgetBinding binding;
+  binding.weather_icon = icon_label;
+  binding.weather_temperature = temperature_label;
+  binding.weather_condition = condition_label;
+  binding.weather_forecast_count = std::min<uint8_t>(forecast_count, 4);
+  for (uint8_t i = 0; i < binding.weather_forecast_count; ++i)
+    binding.weather_forecast[i] = forecast_labels[i];
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  const auto watch = [](lv_obj_t *object) {
+    if (!object) return;
+    lv_obj_add_event_cb(object, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  };
+  watch(icon_label);
+  watch(temperature_label);
+  watch(condition_label);
+  for (uint8_t i = 0; i < binding.weather_forecast_count; ++i)
+    watch(binding.weather_forecast[i]);
+  ESP_LOGD(TAG, "Registered weather widget for %s", entity_id.c_str());
+}
+
+void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
+                             lv_obj_t *brightness, lv_obj_t *color_temp,
+                             lv_obj_t *red, lv_obj_t *green, lv_obj_t *blue) {
+  if (entity_id.empty() || popup == nullptr) {
+    ESP_LOGW(TAG, "Ignoring invalid light popup for entity '%s'", entity_id.c_str());
+    return;
+  }
+  SensorWidgetBinding binding;
+  binding.light_popup = popup;
+  binding.light_brightness = brightness;
+  binding.light_color_temp = color_temp;
+  binding.light_red = red;
+  binding.light_green = green;
+  binding.light_blue = blue;
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  const auto watch = [](lv_obj_t *object) {
+    if (!object) return;
+    lv_obj_add_event_cb(object, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  };
+  watch(popup);
+  watch(brightness);
+  watch(color_temp);
+  watch(red);
+  watch(green);
+  watch(blue);
+  ESP_LOGD(TAG, "Registered light popup for %s", entity_id.c_str());
+}
+
+void unregister_ha_light_popup(lv_obj_t *popup) {
+  if (popup == nullptr) return;
+  MutexGuard lock(widget_registry_mutex());
+  for (auto it = g_sensor_widget_bindings.begin(); it != g_sensor_widget_bindings.end();) {
+    auto &bindings = it->second;
+    bindings.erase(std::remove_if(bindings.begin(), bindings.end(),
+                                  [popup](const SensorWidgetBinding &binding) {
+                                    return binding.light_popup == popup;
+                                  }),
+                   bindings.end());
+    if (bindings.empty()) it = g_sensor_widget_bindings.erase(it);
+    else ++it;
+  }
+}
+
+void unregister_ha_widget_object(lv_obj_t *object) {
+  if (object == nullptr) return;
+  MutexGuard lock(widget_registry_mutex());
+  for (auto it = g_sensor_widget_bindings.begin(); it != g_sensor_widget_bindings.end();) {
+    auto &bindings = it->second;
+    bindings.erase(std::remove_if(bindings.begin(), bindings.end(),
+                                  [object](const SensorWidgetBinding &binding) {
+      return binding.value_label == object || binding.gauge_arc == object ||
+             binding.switch_obj == object || binding.state_label == object ||
+             binding.weather_icon == object ||
+             binding.weather_temperature == object ||
+             binding.weather_condition == object ||
+             binding.light_popup == object ||
+             binding.light_brightness == object ||
+             binding.light_color_temp == object ||
+             binding.light_red == object ||
+             binding.light_green == object ||
+             binding.light_blue == object ||
+             std::any_of(std::begin(binding.weather_forecast),
+                         std::end(binding.weather_forecast),
+                         [object](lv_obj_t *forecast) { return forecast == object; });
+    }), bindings.end());
+    if (bindings.empty()) it = g_sensor_widget_bindings.erase(it);
+    else ++it;
+  }
 }
 
 void clear_ha_entity_widgets() {
   MutexGuard lock(widget_registry_mutex());
+  ESP_LOGD(TAG, "Clearing %u Home Assistant entity bindings",
+           static_cast<unsigned>(g_sensor_widget_bindings.size()));
   g_sensor_widget_bindings.clear();
 }
 
 void apply_ha_entity_state(const std::string &entity_id, const std::string &state,
                             const std::string &unit) {
   (void) unit;  // the unit label is fixed at tile-build time; only the value/gauge live-update.
-  if (entity_id.empty()) return;
+  if (entity_id.empty()) {
+    ESP_LOGW(TAG, "Ignoring entity state update with empty entity ID");
+    return;
+  }
 
   std::vector<SensorWidgetBinding> bindings;
   {
     MutexGuard lock(widget_registry_mutex());
     const auto it = g_sensor_widget_bindings.find(entity_id);
-    if (it == g_sensor_widget_bindings.end()) return;
+    if (it == g_sensor_widget_bindings.end()) {
+      ESP_LOGD(TAG, "No widget binding found for %s", entity_id.c_str());
+      return;
+    }
     bindings = it->second;  // copy out; LVGL calls below happen unlocked
   }
-
+  
+  
   char *num_end = nullptr;
   const double numeric_value = strtod(state.c_str(), &num_end);
   const bool is_numeric = num_end != state.c_str() && *num_end == '\0';
-
+  ESP_LOGD(TAG, "Applying %s state update for %s: %s (%u bindings)", entity_id.c_str(),
+           state.c_str(), static_cast<unsigned>(bindings.size()));
+  
   for (const auto &binding : bindings) {
     if (binding.switch_obj != nullptr) {
       std::string normalized = state;
@@ -137,6 +372,94 @@ void apply_ha_entity_state(const std::string &entity_id, const std::string &stat
   }
 }
 
+void apply_ha_weather_state(const std::string &entity_id, const std::string &state,
+                              const std::string &temperature, const std::string &condition,
+                              const std::string &unit, const std::string &forecast) {
+    std::vector<SensorWidgetBinding> bindings;
+    {
+      MutexGuard lock(widget_registry_mutex());
+      const auto it = g_sensor_widget_bindings.find(entity_id);
+      if (it == g_sensor_widget_bindings.end()) return;
+      bindings = it->second;
+    }
+    const std::string weather_condition = condition.empty() ? state : condition;
+    const std::string icon_name =
+        weather_condition == "sunny" ? "weather-sunny" :
+        weather_condition == "clear-night" ? "weather-night" :
+        weather_condition == "cloudy" ? "weather-cloudy" :
+        weather_condition == "partlycloudy" ? "weather-partly-cloudy" :
+        weather_condition == "rainy" ? "weather-rainy" :
+        weather_condition == "pouring" ? "weather-pouring" :
+        weather_condition == "snowy" ? "weather-snowy" :
+        weather_condition == "snowy-rainy" ? "weather-snowy-rainy" :
+        weather_condition == "fog" ? "weather-fog" :
+        weather_condition == "windy" ? "weather-windy" :
+        weather_condition == "hail" ? "weather-hail" :
+        weather_condition == "lightning" ? "weather-lightning" :
+        weather_condition == "lightning-rainy" ? "weather-lightning-rainy" :
+        "weather-partly-cloudy";
+    const std::string icon = getMdiChar(icon_name);
+    for (const auto &binding : bindings) {
+      if (binding.weather_icon && !icon.empty()) lv_label_set_text(binding.weather_icon, icon.c_str());
+      if (binding.weather_condition) lv_label_set_text(binding.weather_condition, weather_condition.c_str());
+      if (binding.weather_temperature) {
+        std::string text = temperature.empty() ? "--" : temperature;
+        if (!unit.empty()) text += " " + unit;
+        lv_label_set_text(binding.weather_temperature, text.c_str());
+      }
+      int offset = 0;
+      for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
+        long timestamp = 0;
+        float min_temp = 0, max_temp = 0;
+        char weather_icon[16] = {};
+        const int parsed = sscanf(forecast.c_str() + offset, "%ld,%f,%f,%15[^;];",
+                                  &timestamp, &min_temp, &max_temp, weather_icon);
+        if (parsed != 4) break;
+        while (forecast[offset] && forecast[offset] != ';') ++offset;
+        if (forecast[offset] == ';') ++offset;
+        time_t day_time = timestamp;
+        struct tm day_tm;
+        localtime_r(&day_time, &day_tm);
+        char day_name[4] = {};
+        strftime(day_name, sizeof(day_name), "%a", &day_tm);
+        char row[64];
+        snprintf(row, sizeof(row), "%s  %.1f/%.1f %s", day_name, min_temp, max_temp,
+                 weather_icon);
+        if (binding.weather_forecast[i]) lv_label_set_text(binding.weather_forecast[i], row);
+      }
+    }
+  }
+
+void apply_ha_light_state(const std::string &entity_id, const std::string &state,
+                              const std::string &brightness, const std::string &color_temp,
+                              const std::string &red, const std::string &green,
+                              const std::string &blue) {
+      std::vector<SensorWidgetBinding> bindings;
+      {
+        MutexGuard lock(widget_registry_mutex());
+        const auto it = g_sensor_widget_bindings.find(entity_id);
+        if (it == g_sensor_widget_bindings.end()) return;
+        bindings = it->second;
+      }
+      auto set_slider = [](lv_obj_t *slider, const std::string &value) {
+        if (slider && !value.empty()) lv_slider_set_value(slider, std::atoi(value.c_str()), LV_ANIM_OFF);
+      };
+      for (const auto &binding : bindings) {
+        if (!binding.light_popup) continue;
+        if (binding.light_brightness && !brightness.empty()) {
+          lv_slider_set_value(binding.light_brightness,
+                              std::atoi(brightness.c_str()) * 100 / 255, LV_ANIM_OFF);
+        }
+        if (binding.light_color_temp && !color_temp.empty()) {
+          int kelvin = std::atoi(color_temp.c_str());
+          if (kelvin > 0 && kelvin < 1000) kelvin = 1000000 / kelvin;
+          lv_slider_set_value(binding.light_color_temp, kelvin, LV_ANIM_OFF);
+        }
+        set_slider(binding.light_red, red);
+        set_slider(binding.light_green, green);
+        set_slider(binding.light_blue, blue);
+      }
+    }
 std::vector<std::string> collect_configured_ha_entities() {
   std::vector<std::string> entities;
   auto add_unique = [&](const std::string &id) {
@@ -148,7 +471,7 @@ std::vector<std::string> collect_configured_ha_entities() {
   };
   for (int folder_id = 0; folder_id <= 9; folder_id++) {
     char path[80];
-    snprintf(path, sizeof(path), "/sdcard/_tile_grids/f%d.json", folder_id);
+    snprintf(path, sizeof(path), "/spiffs/t_f%d.json", folder_id);
     FILE *probe = fopen(path, "rb");
     if (!probe) continue;
     fclose(probe);
@@ -158,6 +481,8 @@ std::vector<std::string> collect_configured_ha_entities() {
         add_unique(tile.energy_entity);
       } else if (tile.type == TILE_SWITCH) {
         add_unique(tile.switch_entity.empty() ? tile.sensor_entity : tile.switch_entity);
+      } else if (tile.type == TILE_WEATHER) {
+        add_unique(tile.weather_entity.empty() ? tile.sensor_entity : tile.weather_entity);
       }
     }
   }
@@ -213,6 +538,265 @@ bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
   return true;
 }
 
+bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct) {
+  if (entity_id == nullptr || entity_id[0] == '\0' ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot set brightness: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (dot == nullptr || dot == entity_id ||
+      std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "light") {
+    ESP_LOGW(TAG, "Cannot set brightness for non-light entity: %s", entity_id);
+    return false;
+  }
+  brightness_pct = std::max(0, std::min(100, brightness_pct));
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/light/turn_on";
+
+  esp_http_client_config_t config = {};
+  config.url = url.c_str();
+  config.method = HTTP_METHOD_POST;
+  config.timeout_ms = 5000;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize Home Assistant brightness client");
+    return false;
+  }
+  const std::string auth = "Bearer " + home_assistant_token;
+  char body[160];
+  snprintf(body, sizeof(body), "{\"entity_id\":\"%s\",\"brightness_pct\":%d}",
+           entity_id, brightness_pct);
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body, static_cast<int>(strlen(body)));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant brightness failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  return true;
+}
+
+static bool call_light_turn_on(const char *entity_id, const char *extra_json) {
+  if (entity_id == nullptr || entity_id[0] == '\0' ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot control light: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (dot == nullptr || dot == entity_id ||
+      std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "light") {
+    ESP_LOGW(TAG, "Cannot control non-light entity: %s", entity_id);
+    return false;
+  }
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/light/turn_on";
+  esp_http_client_config_t config = {};
+  config.url = url.c_str();
+  config.method = HTTP_METHOD_POST;
+  config.timeout_ms = 5000;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) return false;
+  const std::string auth = "Bearer " + home_assistant_token;
+  char body[220];
+  snprintf(body, sizeof(body), "{\"entity_id\":\"%s\",%s}", entity_id, extra_json);
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body, static_cast<int>(strlen(body)));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant light control failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  return true;
+}
+
+bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin) {
+  kelvin = std::max(2000, std::min(6500, kelvin));
+  char extra[64];
+  snprintf(extra, sizeof(extra), "\"color_temp_kelvin\":%d", kelvin);
+  return call_light_turn_on(entity_id, extra);
+}
+
+bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int blue) {
+  red = std::max(0, std::min(255, red));
+  green = std::max(0, std::min(255, green));
+  blue = std::max(0, std::min(255, blue));
+  char extra[96];
+  snprintf(extra, sizeof(extra), "\"rgb_color\":[%d,%d,%d]", red, green, blue);
+  return call_light_turn_on(entity_id, extra);
+}
+
+namespace {
+
+struct LightPopupContext {
+  char entity_id[128];
+  lv_obj_t *overlay = nullptr;
+  lv_obj_t *brightness = nullptr;
+  lv_obj_t *color_temp = nullptr;
+  lv_obj_t *red = nullptr;
+  lv_obj_t *green = nullptr;
+  lv_obj_t *blue = nullptr;
+};
+
+void close_light_popup(lv_event_t *e) {
+  auto *context = static_cast<LightPopupContext *>(lv_event_get_user_data(e));
+  if (context && context->overlay) {
+    lv_obj_del(context->overlay);
+  }
+}
+
+void light_popup_brightness_cb(lv_event_t *e) {
+  if (lv_event_get_code(e) != LV_EVENT_RELEASED) return;
+  auto *context = static_cast<LightPopupContext *>(lv_event_get_user_data(e));
+  if (!context || !context->brightness) return;
+  const int value = lv_slider_get_value(context->brightness);
+  if (!set_home_assistant_light_brightness(context->entity_id, value)) {
+    lv_slider_set_value(context->brightness, 100, LV_ANIM_OFF);
+  }
+}
+
+void light_popup_color_cb(lv_event_t *e) {
+  if (lv_event_get_code(e) != LV_EVENT_RELEASED) return;
+  auto *context = static_cast<LightPopupContext *>(lv_event_get_user_data(e));
+  lv_obj_t *slider = static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+  if (!context || !slider) return;
+  bool ok = true;
+  if (slider == context->color_temp) {
+    ok = set_home_assistant_light_color_temp(
+        context->entity_id, lv_slider_get_value(slider));
+  } else if (slider == context->red || slider == context->green || slider == context->blue) {
+    ok = set_home_assistant_light_rgb(
+        context->entity_id, lv_slider_get_value(context->red),
+        lv_slider_get_value(context->green), lv_slider_get_value(context->blue));
+  }
+  if (!ok) ESP_LOGW(TAG, "Light popup control request was rejected");
+}
+
+void light_popup_power_cb(lv_event_t *e) {
+  auto *context = static_cast<LightPopupContext *>(lv_event_get_user_data(e));
+  lv_obj_t *button = static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+  lv_obj_t *label = button ? lv_obj_get_child(button, 0) : nullptr;
+  if (!context || !label) return;
+  const bool turn_on = std::strcmp(lv_label_get_text(label), "On") == 0;
+  toggle_home_assistant_entity(context->entity_id, turn_on);
+}
+
+}  // namespace
+
+void show_light_popup(const char *entity_id, const char *title) {
+  if (entity_id == nullptr || entity_id[0] == '\0') return;
+  lv_obj_t *overlay = lv_obj_create(lv_layer_top());
+  lv_obj_set_size(overlay, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_style_bg_color(overlay, lv_color_make(0, 0, 0), 0);
+  lv_obj_set_style_bg_opa(overlay, LV_OPA_70, 0);
+  lv_obj_set_style_border_width(overlay, 0, 0);
+  lv_obj_clear_flag(overlay, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t *panel = lv_obj_create(overlay);
+  lv_obj_set_size(panel, LV_PCT(84), 300);
+  lv_obj_set_style_bg_color(panel, lv_color_make(0x2A, 0x2A, 0x2A), 0);
+  lv_obj_set_style_radius(panel, 12, 0);
+  lv_obj_set_style_border_width(panel, 0, 0);
+  lv_obj_align(panel, LV_ALIGN_CENTER, 0, 0);
+
+  lv_obj_t *heading = lv_label_create(panel);
+  lv_label_set_text(heading, (title && title[0]) ? title : entity_id);
+  lv_obj_set_style_text_color(heading, lv_color_white(), 0);
+  lv_obj_set_style_text_font(heading, ui_font_for_size(16), 0);
+  lv_obj_align(heading, LV_ALIGN_TOP_LEFT, 8, 8);
+
+  auto *context = new LightPopupContext{};
+  std::strncpy(context->entity_id, entity_id, sizeof(context->entity_id) - 1);
+  context->entity_id[sizeof(context->entity_id) - 1] = '\0';
+  context->overlay = overlay;
+
+  lv_obj_t *slider = lv_slider_create(panel);
+  context->brightness = slider;
+  lv_obj_t *brightness_label = lv_label_create(panel);
+  lv_label_set_text(brightness_label, "Brightness");
+  lv_obj_set_style_text_color(brightness_label, lv_color_white(), 0);
+  lv_obj_align(brightness_label, LV_ALIGN_TOP_LEFT, 10, 42);
+  lv_obj_set_size(slider, LV_PCT(62), 14);
+  lv_slider_set_range(slider, 1, 100);
+  lv_slider_set_value(slider, 100, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(slider, lv_color_make(0x3B, 0x82, 0xF6),
+                            LV_PART_INDICATOR);
+  lv_obj_align(slider, LV_ALIGN_TOP_RIGHT, -10, 44);
+  lv_obj_add_event_cb(slider, light_popup_brightness_cb, LV_EVENT_RELEASED, context);
+
+  context->color_temp = lv_slider_create(panel);
+  lv_obj_t *temperature_label = lv_label_create(panel);
+  lv_label_set_text(temperature_label, "Color temperature");
+  lv_obj_set_style_text_color(temperature_label, lv_color_white(), 0);
+  lv_obj_align(temperature_label, LV_ALIGN_TOP_LEFT, 10, 68);
+  lv_obj_set_size(context->color_temp, LV_PCT(62), 14);
+  lv_slider_set_range(context->color_temp, 2000, 6500);
+  lv_slider_set_value(context->color_temp, 4000, LV_ANIM_OFF);
+  lv_obj_align(context->color_temp, LV_ALIGN_TOP_RIGHT, -10, 72);
+  lv_obj_add_event_cb(context->color_temp, light_popup_color_cb, LV_EVENT_RELEASED, context);
+  register_ha_light_popup(entity_id, overlay, context->brightness, context->color_temp,
+                          context->red, context->green, context->blue);
+
+  lv_obj_t *colors[] = {
+      context->red = lv_slider_create(panel),
+      context->green = lv_slider_create(panel),
+      context->blue = lv_slider_create(panel)};
+  const lv_color_t color_values[] = {
+      lv_color_make(0xEF, 0x44, 0x44), lv_color_make(0x22, 0xC5, 0x5E),
+      lv_color_make(0x3B, 0x82, 0xF6)};
+  const char *color_labels[] = {"Red", "Green", "Blue"};
+  for (int i = 0; i < 3; ++i) {
+    lv_obj_t *color_label = lv_label_create(panel);
+    lv_label_set_text(color_label, color_labels[i]);
+    lv_obj_set_style_text_color(color_label, lv_color_white(), 0);
+    lv_obj_align(color_label, LV_ALIGN_TOP_LEFT, 10, 88 + i * 28);
+    lv_obj_set_size(colors[i], LV_PCT(62), 12);
+    lv_slider_set_range(colors[i], 0, 255);
+    lv_slider_set_value(colors[i], i == 0 ? 255 : 0, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(colors[i], color_values[i], LV_PART_INDICATOR);
+    lv_obj_align(colors[i], LV_ALIGN_TOP_RIGHT, -10, 94 + i * 28);
+    lv_obj_add_event_cb(colors[i], light_popup_color_cb, LV_EVENT_RELEASED, context);
+  }
+
+  const char *power_labels[] = {"On", "Off"};
+  for (int i = 0; i < 2; ++i) {
+    lv_obj_t *power = lv_button_create(panel);
+    lv_obj_set_size(power, 64, 30);
+    lv_obj_align(power, LV_ALIGN_BOTTOM_LEFT, 16 + i * 72, -8);
+    lv_obj_t *power_label = lv_label_create(power);
+    lv_label_set_text(power_label, power_labels[i]);
+    lv_obj_set_style_text_color(power_label, lv_color_white(), 0);
+    lv_obj_align(power_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_event_cb(power, light_popup_power_cb, LV_EVENT_CLICKED, context);
+  }
+
+  lv_obj_t *close = lv_button_create(panel);
+  lv_obj_set_size(close, 72, 30);
+  lv_obj_align(close, LV_ALIGN_BOTTOM_RIGHT, -16, -8);
+  lv_obj_t *close_label = lv_label_create(close);
+  lv_label_set_text(close_label, "Close");
+  lv_obj_set_style_text_color(close_label, lv_color_white(), 0);
+  lv_obj_align(close_label, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_add_event_cb(close, close_light_popup, LV_EVENT_CLICKED, context);
+  lv_obj_add_event_cb(overlay, [](lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_DELETE) {
+      auto *context = static_cast<LightPopupContext *>(lv_event_get_user_data(e));
+      unregister_ha_light_popup(context ? context->overlay : nullptr);
+      delete context;
+    }
+  }, LV_EVENT_DELETE, context);
+}
+
 // ── JSON reader ───────────────────────────────────────────────────────────────
 
 std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
@@ -223,8 +807,9 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     result[i].row = i / 7;
   }
 
+  if (!esphome::spiffs::ensure_mounted()) return result;
   char path[80];
-  snprintf(path, sizeof(path), "/sdcard/_tile_grids/f%d.json", folder_id);
+  snprintf(path, sizeof(path), "/spiffs/t_f%d.json", folder_id);
   FILE *f = fopen(path, "rb");
   if (!f) return result;
 
@@ -281,8 +866,23 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
       d.navigate_target = t["navigate_target"] | 0;
     }
     d.clock_flags       = t["clock_flags"]      | 1;
+    if (t["clock_show_time"].is<const char *>() ||
+        t["clock_show_date"].is<const char *>()) {
+      const bool show_time = (t["clock_show_time"] | "0") == std::string("1");
+      const bool show_date = (t["clock_show_date"] | "0") == std::string("1");
+      d.clock_flags = (show_time ? 1 : 0) | (show_date ? 2 : 0);
+      if (d.clock_flags == 0) d.clock_flags = 1;
+    }
     d.clock_time_format = t["clock_time_format"]| 0;
     d.clock_date_format = t["clock_date_format"]| 0;
+    d.clock_show_weekday = t["clock_show_weekday"].is<const char *>()
+        ? (std::strcmp(t["clock_show_weekday"] | "0", "1") == 0)
+        : (t["clock_show_weekday"] | false);
+    d.clock_shadow = t["clock_shadow"].is<const char *>()
+        ? (std::strcmp(t["clock_shadow"] | "0", "1") == 0)
+        : (t["clock_shadow"] | false);
+    d.clock_time_alignment = t["clock_time_alignment"] | 1;
+    d.clock_date_alignment = t["clock_date_alignment"] | 1;
     d.key_code          = t["key_code"]         | 40;
     d.key_modifier      = t["key_modifier"]     | 20;
     idx++;
@@ -497,6 +1097,8 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
 
 void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
                                               const std::vector<TileData> &tiles) {
+  ESP_LOGI(TAG, "Folder %d rebuild begin: page=%p tiles=%u", folder_id,
+           static_cast<void *>(page), static_cast<unsigned>(tiles.size()));
   // Forget any Home Assistant websocket widget bindings for the tiles this
   // page currently holds *before* destroying them, so a state update that
   // arrives mid-rebuild can never touch a dangling LVGL object pointer.
@@ -504,6 +1106,7 @@ void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
 
   // Remove all existing children
   lv_obj_clean(page);
+  ESP_LOGI(TAG, "Folder %d old LVGL children cleaned", folder_id);
 
   // Dark background
   lv_obj_set_style_bg_color(page, lv_color_make(0x0A, 0x0A, 0x0A), 0);
@@ -513,6 +1116,8 @@ void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
 
   for (const auto &tile : tiles) {
     build_tile(page, tile);
+    // Keep the LVGL object-tree replacement atomic with respect to redraws.
+    esp_task_wdt_reset();
   }
 
   ESP_LOGI(TAG, "Built folder %d with %zu tiles", folder_id,
@@ -554,6 +1159,7 @@ void TilesLvglRenderer::setup() {
 
 void TilesLvglRenderer::refresh_folder(int folder_id) {
   if (folder_id < 0 || folder_id > 9) return;
+  ESP_LOGI(TAG, "Refreshing folder %d", folder_id);
   const auto tiles = read_tile_grid_for_lvgl(folder_id);
   lv_obj_t *page = get_or_create_page(folder_id);
   build_folder_on_page(folder_id, page, tiles);
@@ -561,6 +1167,12 @@ void TilesLvglRenderer::refresh_folder(int folder_id) {
   // currently configured across all folders (cheap: a handful of small
   // SD-card JSON files).
   ha_ws_client_set_entity_filter(collect_configured_ha_entities());
+  // Drop updates queued for the old LVGL object tree while the folder was
+  // rebuilt. The fresh snapshot below repopulates the new widgets.
+  ha_ws_client_discard_pending_states();
+  // A saved tile configuration may keep the same entities while changing
+  // their presentation; refresh their values after rebuilding the folder.
+  ha_ws_client_request_states();
 }
 
 void TilesLvglRenderer::request_refresh_folder(int folder_id) {
@@ -573,34 +1185,33 @@ void TilesLvglRenderer::process_pending_refreshes() {
   const uint16_t pending = pending_refresh_mask_.exchange(0, std::memory_order_relaxed);
   for (int folder_id = 0; folder_id <= 9; ++folder_id) {
     if ((pending & static_cast<uint16_t>(1U << folder_id)) != 0) {
+      ESP_LOGI(TAG, "Processing pending folder %d (mask=0x%04x)", folder_id,
+               static_cast<unsigned>(pending));
       refresh_folder(folder_id);
+      // Process at most one folder per loop iteration. A folder rebuild can
+      // still be substantial even after yielding between individual tiles.
+      const uint16_t remaining = pending & static_cast<uint16_t>(
+          ~static_cast<uint16_t>(1U << folder_id));
+      pending_refresh_mask_.fetch_or(remaining, std::memory_order_relaxed);
+      break;
     }
   }
 }
 
 void TilesLvglRenderer::refresh_all() {
-  for (int i = 0; i <= 9; i++) {
-    char path[80];
-    snprintf(path, sizeof(path), "/sdcard/_tile_grids/f%d.json", i);
-    FILE *f = fopen(path, "rb");
-    if (!f) continue;
-    fclose(f);
-    refresh_folder(i);
-  }
+  // Defer filesystem access and LVGL construction to loop(), one folder at a
+  // time, instead of blocking startup with all folders in one call.
+  pending_refresh_mask_.fetch_or(0x03FF, std::memory_order_relaxed);
 }
 
 void TilesLvglRenderer::show_folder(int folder_id) {
+  if (folder_id < 0 || folder_id > 9) return;
   lv_obj_t *page = get_page(folder_id);
-  if (!page) {
-    refresh_folder(folder_id);
-    page = get_page(folder_id);
-  }
-  if (page) {
-    // The page pointer is the active ESPHome LVGL screen. Rebuild it instead
-    // of loading a screen that was not created by the ESPHome component.
-    refresh_folder(folder_id);
-    ESP_LOGI(TAG, "Showing folder %d", folder_id);
-  }
+  // The page pointer is the active ESPHome LVGL screen. Queue the rebuild so
+  // navigation never performs SPIFFS I/O and widget destruction synchronously
+  // from an LVGL event callback.
+  request_refresh_folder(folder_id);
+  ESP_LOGI(TAG, "%s folder %d", page ? "Refreshing" : "Loading", folder_id);
 }
 
 }  // namespace web_admin_local
@@ -674,18 +1285,17 @@ void tile_widget_build_sensor(lv_obj_t *parent, const TileData &tile) {
 
 namespace web_admin_local {
 
-
 void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t white = lv_color_white();
-  const lv_color_t muted = lv_color_make(0x8A, 0x8A, 0x8A);
   bool show_time = (tile.clock_flags & 1) != 0;
   bool show_date = (tile.clock_flags & 2) != 0;
+  ClockTimerContext *timer_context = nullptr;
 
   // Title (optional)
   if (!tile.title.empty()) {
     lv_obj_t *lbl = lv_label_create(parent);
     lv_label_set_text(lbl, tile.title.c_str());
-    lv_obj_set_style_text_color(lbl, muted, 0);
+    lv_obj_set_style_text_color(lbl, lv_color_make(0xAA, 0xAA, 0xAA), 0);
     lv_obj_set_style_text_font(lbl, ui_font_for_size(16), 0);
     lv_obj_align(lbl, LV_ALIGN_TOP_LEFT, 0, 0);
   }
@@ -696,21 +1306,28 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     struct tm tm_info;
     localtime_r(&now, &tm_info);
     char tbuf[16];
-    strftime(tbuf, sizeof(tbuf), "%H:%M", &tm_info);
+    format_clock_time(tbuf, sizeof(tbuf), tm_info, tile.clock_time_format);
 
-    lv_obj_t *time_lbl = lv_label_create(parent);
-    lv_label_set_text(time_lbl, tbuf);
-    lv_obj_set_style_text_color(time_lbl, white, 0);
     // Time font size from key_code (stored as clock time font size, default 40)
-    const lv_font_t *font = ui_font_for_size(static_cast<uint8_t>(tile.key_code));
-    lv_obj_set_style_text_font(time_lbl, font, 0);
+    const lv_font_t *font = clock_font(tile.key_code, 40);
+    lv_obj_t *time_lbl = clock_label(parent, tbuf, font, white, tile.clock_shadow);
+    const lv_text_align_t time_alignment = tile.clock_time_alignment == 0
+        ? LV_TEXT_ALIGN_LEFT : tile.clock_time_alignment == 2
+        ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_CENTER;
+    lv_obj_set_style_text_align(time_lbl, time_alignment, 0);
     int y_offset = show_date ? -12 : 0;
     lv_obj_align(time_lbl, LV_ALIGN_CENTER, 0, y_offset);
 
     // Register a 1-second timer to keep the display updated
-    lv_timer_create([](lv_timer_t *timer) {
-      lv_obj_t *lbl = (lv_obj_t *)lv_timer_get_user_data(timer);
-      if (!lbl || !lv_obj_is_valid(lbl)) {
+    timer_context = new ClockTimerContext{time_lbl, nullptr, nullptr,
+                                          tile.clock_time_format,
+                                          tile.clock_date_format, tile.clock_show_weekday};
+    timer_context->timer = lv_timer_create([](lv_timer_t *timer) {
+      auto *context = static_cast<ClockTimerContext *>(lv_timer_get_user_data(timer));
+      if (!context || !context->label || !lv_obj_is_valid(context->label)) {
+        if (context != nullptr) {
+          context->timer = nullptr;
+        }
         lv_timer_delete(timer);
         return;
       }
@@ -718,9 +1335,17 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
       struct tm tm;
       localtime_r(&n, &tm);
       char b[16];
-      strftime(b, sizeof(b), "%H:%M", &tm);
-      lv_label_set_text(lbl, b);
-    }, 1000, time_lbl);
+      format_clock_time(b, sizeof(b), tm, context->format);
+      lv_label_set_text(context->label, b);
+      if (context->date_label) {
+        char date[100];
+        format_clock_date(date, sizeof(date), tm, context->date_format,
+                          context->show_weekday);
+        lv_label_set_text(context->date_label, date);
+      }
+    }, 1000, timer_context);
+    lv_obj_add_event_cb(parent, clock_parent_delete_cb, LV_EVENT_DELETE,
+                        timer_context);
   }
 
   // Date
@@ -728,18 +1353,19 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     time_t now = time(nullptr);
     struct tm tm_info;
     localtime_r(&now, &tm_info);
-    char dbuf[32];
-    // Format based on clock_date_format: 0=auto, 1=DD.MM.YYYY, 2=MM/DD/YYYY
-    const char *fmt = (tile.clock_date_format == 2) ? "%m/%d/%Y"
-                    : (tile.clock_date_format == 3) ? "%Y/%m/%d"
-                    : "%d.%m.%Y";
-    strftime(dbuf, sizeof(dbuf), fmt, &tm_info);
+    char dbuf[100];
+    format_clock_date(dbuf, sizeof(dbuf), tm_info, tile.clock_date_format,
+                      tile.clock_show_weekday);
 
-    lv_obj_t *date_lbl = lv_label_create(parent);
-    lv_label_set_text(date_lbl, dbuf);
-    lv_obj_set_style_text_color(date_lbl, lv_color_make(0xCC, 0xCC, 0xCC), 0);
-    lv_obj_set_style_text_font(date_lbl, ui_font_for_size(20), 0);
+    lv_obj_t *date_lbl = clock_label(parent, dbuf, clock_font(tile.key_modifier, 20),
+                                      lv_color_make(0xCC, 0xCC, 0xCC),
+                                      tile.clock_shadow);
+    const lv_text_align_t date_alignment = tile.clock_date_alignment == 0
+        ? LV_TEXT_ALIGN_LEFT : tile.clock_date_alignment == 2
+        ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_CENTER;
+    lv_obj_set_style_text_align(date_lbl, date_alignment, 0);
     lv_obj_align(date_lbl, LV_ALIGN_CENTER, 0, show_time ? 22 : 0);
+    if (timer_context) timer_context->date_label = date_lbl;
   }
 }
 
@@ -767,8 +1393,14 @@ static void switch_toggle_cb(lv_event_t *e) {
   if (context->state_label) lv_label_set_text(context->state_label, state);
 }
 
+static void switch_popup_cb(lv_event_t *e) {
+  auto *context = static_cast<SwitchToggleContext *>(lv_event_get_user_data(e));
+  if (context && std::strncmp(context->entity_id, "light.", 6) == 0) {
+    show_light_popup(context->entity_id, context->title);
+  }
+}
+
 void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
-  const lv_color_t white = lv_color_white();
   const lv_color_t muted = lv_color_make(0x8A, 0x8A, 0x8A);
   const std::string &entity = tile.switch_entity.empty()
                               ? tile.sensor_entity : tile.switch_entity;
@@ -783,30 +1415,48 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_text_font(title, ui_font_for_size(16), 0);
   lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
 
-  // Toggle button.  Using a checkable button keeps this compatible with the
-  // small LVGL feature set used by ESPHome builds.
-  lv_obj_t *btn = lv_button_create(parent);
-  lv_obj_set_size(btn, LV_PCT(70), 36);
-  lv_obj_set_style_bg_color(btn, lv_color_make(0x2A, 0x2A, 0x2A), 0);
-  lv_obj_set_style_bg_color(btn, lv_color_make(0x3B, 0x82, 0xF6), LV_STATE_CHECKED);
-  lv_obj_set_style_radius(btn, 8, 0);
-  lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
-  lv_obj_t *btn_lbl = lv_label_create(btn);
-  lv_label_set_text(btn_lbl, "OFF");
-  lv_obj_set_style_text_color(btn_lbl, lv_color_white(), 0);
-  lv_obj_align(btn_lbl, LV_ALIGN_CENTER, 0, 0);
-  // State label at bottom
+  lv_obj_t *switch_obj = nullptr;
+  if (tile.switch_style == 1) {
+    // Brightness slider style. Brightness commands are not available in the
+    // local Home Assistant REST adapter yet.
+    lv_obj_t *slider = lv_slider_create(parent);
+    lv_obj_set_size(slider, LV_PCT(85), 14);
+    lv_slider_set_range(slider, 0, 255);
+    lv_slider_set_value(slider, 0, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(slider, lv_color_make(0x3B, 0x82, 0xF6),
+                              LV_PART_INDICATOR);
+    lv_obj_align(slider, LV_ALIGN_CENTER, 0, 0);
+  } else {
+    // Toggle button, matching the HomeTiles standard switch tile.
+    switch_obj = lv_button_create(parent);
+    lv_obj_set_size(switch_obj, LV_PCT(70), 36);
+    lv_obj_set_style_bg_color(switch_obj, lv_color_make(0x2A, 0x2A, 0x2A), 0);
+    lv_obj_set_style_bg_color(switch_obj, lv_color_make(0x3B, 0x82, 0xF6),
+                              LV_STATE_CHECKED);
+    lv_obj_set_style_radius(switch_obj, 8, 0);
+    lv_obj_align(switch_obj, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(switch_obj, LV_OBJ_FLAG_CHECKABLE);
+    lv_obj_t *caption = lv_label_create(switch_obj);
+    lv_label_set_text(caption, "OFF");
+    lv_obj_set_style_text_color(caption, lv_color_white(), 0);
+    lv_obj_align(caption, LV_ALIGN_CENTER, 0, 0);
+  }
+
   lv_obj_t *state_lbl = lv_label_create(parent);
   lv_label_set_text(state_lbl, "OFF");
   lv_obj_set_style_text_color(state_lbl, muted, 0);
   lv_obj_set_style_text_font(state_lbl, ui_font_for_size(16), 0);
   lv_obj_align(state_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-  auto *context = new SwitchToggleContext{state_lbl, {}};
-  std::strncpy(context->entity_id, entity.c_str(), sizeof(context->entity_id) - 1);
-  context->entity_id[sizeof(context->entity_id) - 1] = '\0';
-  lv_obj_add_event_cb(btn, switch_toggle_cb, LV_EVENT_VALUE_CHANGED, context);
-  if (!entity.empty()) register_ha_switch_widget(entity, btn, state_lbl);
+  if (switch_obj != nullptr) {
+    auto *context = new SwitchToggleContext{state_lbl, {}, {}};
+    std::strncpy(context->entity_id, entity.c_str(), sizeof(context->entity_id) - 1);
+    context->entity_id[sizeof(context->entity_id) - 1] = '\0';
+    std::strncpy(context->title, tile.title.c_str(), sizeof(context->title) - 1);
+    context->title[sizeof(context->title) - 1] = '\0';
+    lv_obj_add_event_cb(switch_obj, switch_toggle_cb, LV_EVENT_VALUE_CHANGED, context);
+    lv_obj_add_event_cb(switch_obj, switch_popup_cb, LV_EVENT_LONG_PRESSED, context);
+    if (!entity.empty()) register_ha_switch_widget(entity, switch_obj, state_lbl);
+  }
 }
 
 }  // namespace web_admin_local
@@ -884,20 +1534,20 @@ namespace web_admin_local {
 
 void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t white = lv_color_white();
-  const lv_color_t muted = lv_color_make(0x8A, 0x8A, 0x8A);
 
-  // Title
-  if (!tile.title.empty()) {
-    lv_obj_t *t = lv_label_create(parent);
-    lv_label_set_text(t, tile.title.c_str());
-    lv_obj_set_style_text_color(t, muted, 0);
-    lv_obj_set_style_text_font(t, ui_font_for_size(16), 0);
-    lv_obj_align(t, LV_ALIGN_TOP_LEFT, 0, 0);
-  }
+  const std::string &entity = tile.weather_entity.empty()
+                              ? tile.sensor_entity : tile.weather_entity;
+  const char *location = tile.title.empty()
+      ? (entity.empty() ? "--" : entity.c_str()) : tile.title.c_str();
+  lv_obj_t *t = lv_label_create(parent);
+  lv_label_set_text(t, location);
+  lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(t, LV_PCT(70));
+  lv_obj_set_style_text_color(t, white, 0);
+  lv_obj_set_style_text_font(t, ui_font_for_size(16), 0);
+  lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_RIGHT, 0);
+  lv_obj_align(t, LV_ALIGN_TOP_RIGHT, 0, 4);
 
-  // Resolve the configured MDI icon first, falling back to a useful weather
-  // icon.  LV_SYMBOL_WARNING is not part of the MDI font and renders
-  // inconsistently across LVGL font configurations.
   lv_obj_t *icon = lv_label_create(parent);
   const std::string icon_name = tile_icon_name(tile);
   const std::string icon_char = getMdiChar(
@@ -905,26 +1555,32 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_label_set_text(icon, icon_char.empty() ? "?" : icon_char.c_str());
   lv_obj_set_style_text_color(icon, lv_color_make(0xFF, 0xD5, 0x4F), 0);
   lv_obj_set_style_text_font(icon, FONT_MDI_ICONS, 0);
-  lv_obj_align(icon, LV_ALIGN_CENTER, -20, 0);
+  lv_obj_align(icon, LV_ALIGN_TOP_LEFT, 0, 0);
 
-  // Temperature placeholder
   lv_obj_t *temp = lv_label_create(parent);
-  lv_label_set_text(temp, "--°");
+  lv_label_set_text(temp, "--");
   lv_obj_set_style_text_color(temp, white, 0);
-  lv_obj_set_style_text_font(temp, ui_font_for_size(28), 0);
-  lv_obj_align(temp, LV_ALIGN_CENTER, 28, 0);
+  lv_obj_set_style_text_font(temp, ui_font_for_size(40), 0);
+  lv_obj_align(temp, LV_ALIGN_CENTER, 0, 8);
 
-  // Entity hint
-  const std::string &entity = tile.weather_entity.empty()
-                              ? tile.sensor_entity : tile.weather_entity;
+  lv_obj_t *condition = lv_label_create(parent);
+  lv_label_set_text(condition, "--");
+  lv_obj_set_style_text_color(condition, white, 0);
+  lv_obj_set_style_text_font(condition, ui_font_for_size(16), 0);
+  lv_obj_set_style_text_align(condition, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_width(condition, LV_PCT(100));
+  lv_obj_align(condition, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_t *forecast[4] = {};
+  uint8_t forecast_count = (tile.span_h >= 2 || tile.span_w >= 2) ? 4 : 0;
+  for (uint8_t i = 0; i < forecast_count; ++i) {
+    forecast[i] = lv_label_create(parent);
+    lv_label_set_text(forecast[i], "--");
+    lv_obj_set_style_text_color(forecast[i], white, 0);
+    lv_obj_set_style_text_font(forecast[i], ui_font_for_size(12), 0);
+    lv_obj_align(forecast[i], LV_ALIGN_BOTTOM_LEFT, 0, -static_cast<int>(i * 16));
+  }
   if (!entity.empty()) {
-    lv_obj_t *e = lv_label_create(parent);
-    lv_label_set_text(e, entity.c_str());
-    lv_label_set_long_mode(e, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(e, LV_PCT(100));
-    lv_obj_set_style_text_color(e, muted, 0);
-    lv_obj_set_style_text_font(e, ui_font_for_size(16), 0);
-    lv_obj_align(e, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    register_ha_weather_widget(entity, icon, temp, condition, forecast, forecast_count);
   }
 }
 
