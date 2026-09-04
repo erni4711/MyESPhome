@@ -12,10 +12,15 @@ namespace web_admin_local {
 
 void set_home_assistant_credentials(const std::string &url, const std::string &token);
 bool toggle_home_assistant_entity(const char *entity_id, bool turn_on);
+bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct);
+bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin);
+bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int blue);
+void show_light_popup(const char *entity_id, const char *title);
 
 struct SwitchToggleContext {
   lv_obj_t *state_label;
   char entity_id[128];
+  char title[128];
 };
 
 // ── Home Assistant websocket live entity updates ─────────────────────────
@@ -34,6 +39,14 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
                                 float gauge_min, float gauge_max);
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
                                lv_obj_t *state_label);
+void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_label,
+                                 lv_obj_t *temperature_label, lv_obj_t *condition_label,
+                                 lv_obj_t **forecast_labels = nullptr, uint8_t forecast_count = 0);
+void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
+                             lv_obj_t *brightness, lv_obj_t *color_temp,
+                             lv_obj_t *red, lv_obj_t *green, lv_obj_t *blue);
+void unregister_ha_light_popup(lv_obj_t *popup);
+void unregister_ha_widget_object(lv_obj_t *object);
 
 // Forgets every registered widget binding. Must be called before a
 // folder's tiles are torn down (lv_obj_clean) so a later websocket update
@@ -46,6 +59,13 @@ void clear_ha_entity_widgets();
 // websocket client task.
 void apply_ha_entity_state(const std::string &entity_id, const std::string &state,
                             const std::string &unit);
+void apply_ha_weather_state(const std::string &entity_id, const std::string &state,
+                             const std::string &temperature, const std::string &condition,
+                             const std::string &unit, const std::string &forecast);
+void apply_ha_light_state(const std::string &entity_id, const std::string &state,
+                          const std::string &brightness, const std::string &color_temp,
+                          const std::string &red, const std::string &green,
+                          const std::string &blue);
 
 // Scans every stored folder tile grid (f0..f9) on the SD card and returns
 // the sensor_entity / energy_entity ids currently configured, in no
@@ -86,6 +106,10 @@ struct TileData {
   int     clock_flags         = 1;   // bit0=show_time, bit1=show_date
   int     clock_time_format   = 0;
   int     clock_date_format   = 0;
+  bool    clock_show_weekday  = false;
+  bool    clock_shadow        = false;
+  int     clock_time_alignment = 1;
+  int     clock_date_alignment = 1;
   int     key_code            = 40;  // clock time font
   int     key_modifier        = 20;  // clock date font
 };
@@ -187,7 +211,7 @@ class TilesLvglRenderer {
 // Declared here, defined in tiles_lvgl.cpp.
 extern TilesLvglRenderer *g_tiles_renderer;
 
-// Read tile grid for one folder from /sdcard/_tile_grids/fN.json.
+// Read tile grid for one folder from SPIFFS.
 std::vector<TileData> read_tile_grid_for_lvgl(int folder_id);
 
 }  // namespace web_admin_local

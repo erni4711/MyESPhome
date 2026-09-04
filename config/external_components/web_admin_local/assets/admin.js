@@ -3050,6 +3050,10 @@ function t(key) {
     const clockDateFontSelect = document.getElementById(prefix + '_clock_date_font');
     const clockTimeFormatSelect = document.getElementById(prefix + '_clock_time_format');
     const clockDateFormatSelect = document.getElementById(prefix + '_clock_date_format');
+    const clockWeekdayCheck = document.getElementById(prefix + '_clock_show_weekday');
+    const clockShadowCheck = document.getElementById(prefix + '_clock_shadow');
+    const clockTimeAlignmentSelect = document.getElementById(prefix + '_clock_time_alignment');
+    const clockDateAlignmentSelect = document.getElementById(prefix + '_clock_date_alignment');
     const settingsPanel = document.getElementById(prefix + 'Settings');
 
     bindLive(titleInput, 'input', 'tileTitle', () => { updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
@@ -3253,7 +3257,9 @@ function t(key) {
         if (!target || !target.id) return;
         if (
           target.id === (prefix + '_clock_show_time') ||
-          target.id === (prefix + '_clock_show_date')
+          target.id === (prefix + '_clock_show_date') ||
+          target.id === (prefix + '_clock_show_weekday') ||
+          target.id === (prefix + '_clock_shadow')
         ) {
           ensureClockSelection(prefix);
           updateTilePreview(tab);
@@ -3266,6 +3272,8 @@ function t(key) {
           target.id === (prefix + '_clock_date_font') ||
           target.id === (prefix + '_clock_time_format') ||
           target.id === (prefix + '_clock_date_format')
+          || target.id === (prefix + '_clock_time_alignment') ||
+          target.id === (prefix + '_clock_date_alignment')
         ) {
           updateClockValuePreview(tab);
           updateDraft(tab);
@@ -3465,7 +3473,11 @@ function t(key) {
       const clockTimeFormat = document.getElementById(prefix + '_clock_time_format')?.value || '0';
       const clockDateFormat = document.getElementById(prefix + '_clock_date_format')?.value || '0';
       if (flags & 1) html += '<div class="tile-clock-time" ' + getClockPreviewTextStyle(clockTimeFont, 40, '#fff') + '>' + getClockPreviewTime(clockTimeFormat) + '</div>';
-      if (flags & 2) html += '<div class="tile-clock-date" ' + getClockPreviewTextStyle(clockDateFont, 24, '#fff') + '>' + getClockPreviewDate(clockDateFormat) + '</div>';
+      if (flags & 2) {
+        const dateText = getClockPreviewDate(clockDateFormat);
+        const weekday = tile.clock_show_weekday ? new Date().toLocaleDateString(undefined, { weekday: 'long' }) + ', ' : '';
+        html += '<div class="tile-clock-date" ' + getClockPreviewTextStyle(clockDateFont, 24, '#fff') + '>' + weekday + dateText + '</div>';
+      }
     }
 
     if (previewKind === 'text') {
@@ -3673,7 +3685,8 @@ function t(key) {
       for (const opt of sel.options) {
         // Ordner behalten und Leeren/Loeschen bleiben erlaubt; alle anderen
         // Typen sind gesperrt, solange der Ordner noch Kacheln enthaelt.
-        opt.disabled = locked && opt.value !== '4' && opt.value !== '0';
+        opt.disabled = locked && opt.value !== '4' && opt.value !== '8' &&
+          opt.value !== '0';
       }
     }
     const hint = document.getElementById(tab + '_tile_type_hint');
@@ -3841,9 +3854,9 @@ function t(key) {
             }
             syncFolderPinControls(tab);
             const navTargetNum = parseInt(resolvedNavTarget, 10);
-            const titleVal = snapshot.title || '';
-            const iconVal = snapshot.icon || '';
-            ensureFolderTabUi(navTargetNum, titleVal, iconVal).then(ok => {
+            // Loading the target tab must not use the navigate tile's title or
+            // icon as folder metadata.
+            ensureFolderTabUi(navTargetNum).then(ok => {
               restoreCurrentTileSelectionUi();
               if (!ok) {
                 persistSelectedTileState();
@@ -7386,6 +7399,8 @@ async function openFolderSettings(tabId) {
   async function saveFolderSettings() {
     const panel = document.getElementById('FolderSettingsPanel');
     const tid = String(panel?.dataset?.tabId || '');
+    const activeTabName =
+      document.querySelector('.tab-content.active.tile-tab')?.id || '';
     const tabEl = document.getElementById('tab-tiles-' + tid);
     const folderId = Number(tabEl?.dataset?.folderId);
     const nameInput = document.getElementById('folder_settings_name');
@@ -7415,6 +7430,9 @@ async function openFolderSettings(tabId) {
       });
       if (!putRes.ok) throw new Error('Save failed');
       updateFolderTabUi(folderId, folders[idx].name, folders[idx].icon_name);
+      if (activeTabName && document.getElementById(activeTabName)) {
+        await switchTab(activeTabName);
+      }
       closeFolderSettings(tid);
       showNotification(t('folderSaved') || 'Folder saved');
     } catch (e) {
@@ -10870,6 +10888,10 @@ function getClockPreviewLanguage() {
   }
 
   function loadClockFields(tab, data) {
+    const clockWeekdayCheck = document.getElementById(tab + '_clock_show_weekday');
+    const clockShadowCheck = document.getElementById(tab + '_clock_shadow');
+    const clockTimeAlignmentSelect = document.getElementById(tab + '_clock_time_alignment');
+    const clockDateAlignmentSelect = document.getElementById(tab + '_clock_date_alignment');
     const timeFontEl = document.getElementById(tab + '_clock_time_font');
     if (timeFontEl) {
       const timeFont = (data && data.key_code !== undefined) ? Number(data.key_code) : 40;
@@ -10900,12 +10922,17 @@ function getClockPreviewLanguage() {
       if (showDate) flags |= 2;
       if (flags === 0) flags = 1;
       applyClockFlagsToInputs(tab, flags);
-      return;
+      if (clockWeekdayCheck) clockWeekdayCheck.checked = String(data.clock_show_weekday || '0') === '1';
+    } else {
+      const flags = (data && data.clock_flags !== undefined && data.clock_flags !== null)
+        ? data.clock_flags
+        : (data ? data.sensor_decimals : 1);
+      applyClockFlagsToInputs(tab, flags);
     }
-    const flags = (data && data.clock_flags !== undefined && data.clock_flags !== null)
-      ? data.clock_flags
-      : (data ? data.sensor_decimals : 1);
-    applyClockFlagsToInputs(tab, flags);
+    if (clockWeekdayCheck) clockWeekdayCheck.checked = !!(data && (data.clock_show_weekday === true || String(data.clock_show_weekday) === '1'));
+    if (clockShadowCheck) clockShadowCheck.checked = !!(data && (data.clock_shadow === true || String(data.clock_shadow) === '1'));
+    if (clockTimeAlignmentSelect) clockTimeAlignmentSelect.value = String(data?.clock_time_alignment ?? 1);
+    if (clockDateAlignmentSelect) clockDateAlignmentSelect.value = String(data?.clock_date_alignment ?? 1);
   }
 
   function updateClockValuePreview(tab) {
@@ -10923,6 +10950,7 @@ function getClockPreviewLanguage() {
     const dateFormat = document.getElementById(prefix + '_clock_date_format')?.value || '0';
     const timeEl = tileElem.querySelector('.tile-clock-time');
     const dateEl = tileElem.querySelector('.tile-clock-date');
+    const weekdayEl = document.getElementById(prefix + '_clock_show_weekday');
 
     const needsTime = (flags & 1) !== 0;
     const needsDate = (flags & 2) !== 0;
@@ -10936,7 +10964,8 @@ function getClockPreviewLanguage() {
       applyClockPreviewTextStyle(timeEl, timeFont, 40, '#fff', '1');
     }
     if (dateEl) {
-      dateEl.textContent = getClockPreviewDate(dateFormat);
+      const weekday = weekdayEl?.checked ? new Date().toLocaleDateString(undefined, { weekday: 'long' }) + ', ' : '';
+      dateEl.textContent = weekday + getClockPreviewDate(dateFormat);
       applyClockPreviewTextStyle(dateEl, dateFont, 24, '#fff', '1.1');
     }
   }
@@ -10950,6 +10979,10 @@ function getClockPreviewLanguage() {
     formData.append('key_modifier', document.getElementById(tab + '_clock_date_font')?.value || '20');
     formData.append('clock_time_format', document.getElementById(tab + '_clock_time_format')?.value || '0');
     formData.append('clock_date_format', document.getElementById(tab + '_clock_date_format')?.value || '0');
+    formData.append('clock_show_weekday', document.getElementById(tab + '_clock_show_weekday')?.checked ? '1' : '0');
+    formData.append('clock_shadow', document.getElementById(tab + '_clock_shadow')?.checked ? '1' : '0');
+    formData.append('clock_time_alignment', document.getElementById(tab + '_clock_time_alignment')?.value || '1');
+    formData.append('clock_date_alignment', document.getElementById(tab + '_clock_date_alignment')?.value || '1');
   }
 
   function resetClockFields(tab) {
@@ -10962,6 +10995,14 @@ function getClockPreviewLanguage() {
     if (timeFormatEl) timeFormatEl.value = '0';
     const dateFormatEl = document.getElementById(tab + '_clock_date_format');
     if (dateFormatEl) dateFormatEl.value = '0';
+    const weekdayEl = document.getElementById(tab + '_clock_show_weekday');
+    if (weekdayEl) weekdayEl.checked = false;
+    const shadowEl = document.getElementById(tab + '_clock_shadow');
+    if (shadowEl) shadowEl.checked = false;
+    const timeAlignmentEl = document.getElementById(tab + '_clock_time_alignment');
+    if (timeAlignmentEl) timeAlignmentEl.value = '1';
+    const dateAlignmentEl = document.getElementById(tab + '_clock_date_alignment');
+    if (dateAlignmentEl) dateAlignmentEl.value = '1';
   }
 
 function normalizeTextValueFont(value) {

@@ -1,0 +1,11 @@
+{
+	"name": "web_admin_local",
+	"version": "1.0.0",
+	"description": "Local web administration component for ESPHome.",
+	"files": [
+		"__init__.py",
+		"web_admin_local.h",
+		"web_admin_local.cpp",
+		"fonts/ui_fonts.h"
+	]
+}

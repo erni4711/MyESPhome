@@ -26,7 +26,7 @@ LV_FONT_DECLARE(ui_font_72);
 LV_FONT_DECLARE(ui_font_80);
 LV_FONT_DECLARE(ui_font_96);
 
-static inline const lv_font_t *ui_font_for_size(uint8_t size) {
+static inline const lv_font_t* ui_font_for_size(uint8_t size) {
   switch (size) {
 #if defined(DEVICE_LAYOUT_480X480)
     case 12: return &ui_font_12;
