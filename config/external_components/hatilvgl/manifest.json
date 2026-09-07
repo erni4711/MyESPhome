@@ -17,9 +17,6 @@
     "tile_widget_sensor.cpp",
     "tile_widget_switch.cpp",
     "tile_widget_text.cpp",
-    "tile_widget_weather.cpp",
-    "tile_widget_climate.cpp",
-    "tile_widget_camera.cpp",
-    "tile_widget_settings.cpp"
+    "tile_widget_weather.cpp"
   ]
 }

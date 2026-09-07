@@ -4,7 +4,8 @@
 #include <ctime>
 #include <cstdio>
 
-
+// Diagnostic build: disable every LVGL event callback registration.
+#define lv_obj_add_event_cb(...) /* disabled for LVGL crash isolation */
 
 namespace web_admin_local {
 
