@@ -1,0 +1,22 @@
+{
+  "name": "hatilvgl",
+  "version": "0.1.0",
+  "description": "Internal LVGL tile renderer for the MyESPhome tile system.",
+  "files": [
+    "tiles_lvgl.cpp",
+    "tiles_lvgl.h",
+    "ha_ws_client.cpp",
+    "ha_ws_client.h",
+    "hatilvgl.cpp",
+    "hatilvgl.h",
+    "tile_widget_clock.cpp",
+    "tile_widget_energy.cpp",
+    "tile_widget_media.cpp",
+    "tile_widget_navigate.cpp",
+    "tile_widget_scene.cpp",
+    "tile_widget_sensor.cpp",
+    "tile_widget_switch.cpp",
+    "tile_widget_text.cpp",
+    "tile_widget_weather.cpp"
+  ]
+}

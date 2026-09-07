@@ -349,7 +349,6 @@ switch:
 #     id: speaker_media_player
 #     internal: false
 #     disabled_by_default: false
-#     codec_support_enabled: true
 #     # minimal pipelines for announcements and media
 #     announcement_pipeline:
 #       speaker: announcement_resampling_speaker
@@ -489,7 +488,11 @@ sd_file_server:
   enable_upload: true
   enable_deletion: true
 
-web_admin_local:
+hatilvgl:
+  home_assistant_url: "http://homeassistant.local:8123"
+  home_assistant_token: !secret ha_long_lived_token
+
+hatiadmin:
   priority: -200
   web_server_base_id: my_web_server_base
   url_prefix: admin
@@ -508,10 +511,12 @@ web_admin_local:
 # LCD Back light
 #-------------------------------------------
 image:
-  - file: "image/esphome.png"
+  - platform: file
+    file: "image/esphome.png"
     id: boot_logo
     resize: 200x200
     type: RGB565
+    byte_order: little_endian
     transparency: alpha_channel
 
 

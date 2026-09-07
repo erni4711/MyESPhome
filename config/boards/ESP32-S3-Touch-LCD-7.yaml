@@ -119,10 +119,12 @@ http_request:
   
 
 image:
-  - file: "image/esphome.png"
+  - platform: file
+    file: "image/esphome.png"
     id: boot_logo
     resize: 200x200
     type: RGB565
+    byte_order: little_endian
     transparency: alpha_channel
 
 

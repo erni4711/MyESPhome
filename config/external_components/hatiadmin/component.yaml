@@ -1,0 +1,26 @@
+name: "hatiadmin"
+version: "0.1"
+
+files:
+  - root_page.cpp
+  - tiles.cpp
+  - web_admin_assets.cpp
+  - web_admin_fonts.cpp
+  - web_admin_local.cpp
+  - tiles.h
+  - web_admin_fonts.h
+  - web_admin_local.h
+
+includes:
+  - tiles.h
+  - web_admin_fonts.h
+  - web_admin_local.h
+
+dependencies:
+  - lvgl
+  - sd_file_server
+  - spiffs
+
+idf_components:
+  # Managed via esphome.components.esp32.add_idf_component() in __init__.py;
+  # listed here for documentation only.
