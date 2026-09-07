@@ -590,7 +590,6 @@ void ha_ws_client_unsubscribe_events() {
                                  static_cast<int>(std::strlen(kUnsubscribe)),
                                  pdMS_TO_TICKS(5000));
   ESP_LOGI(TAG, "Unsubscribed from Home Assistant state_changed events (id=1)");
-  printf("[ha_ws] unsubscribed from Home Assistant state_changed events (id=1)\n");
   g_subscribed = false;
 }
 void ha_ws_client_subscribe_events() {
@@ -611,7 +610,6 @@ void ha_ws_client_subscribe_events() {
                                  pdMS_TO_TICKS(5000));
   g_subscribed = true;
   ESP_LOGI(TAG, "Subscribed to Home Assistant state_changed events (id=1)");
-  printf("[ha_ws] subscribed to Home Assistant state_changed events (id=1)\n");
 }
 
 void ha_ws_client_request_states() {

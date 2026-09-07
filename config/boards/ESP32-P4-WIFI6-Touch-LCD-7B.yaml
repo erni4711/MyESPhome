@@ -542,10 +542,11 @@ ota:
 # If you need a hardware UART for a peripheral, add it here with pins
 # that are not used by the display. To view logs on Windows use:
 #   esphome logs 7inch.yaml --device COM9
-
 logger:
   level: DEBUG
-
+  logs:
+    ha_ws_client: DEBUG
+    hatilvgl: DEBUG
 
 
 
