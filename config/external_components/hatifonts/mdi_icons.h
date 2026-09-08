@@ -8,7 +8,21 @@
 #include <string>
 
 LV_FONT_DECLARE(mdi_icons_48);
-#define FONT_MDI_ICONS (&mdi_icons_48)
+LV_FONT_DECLARE(mdi_icons_40);
+LV_FONT_DECLARE(mdi_icons_32);
+
+inline const lv_font_t *mdi_font_for_display() {
+  const lv_display_t *display = lv_display_get_default();
+  if (display == nullptr) return &mdi_icons_48;
+  const int width = lv_display_get_horizontal_resolution(display);
+  const int height = lv_display_get_vertical_resolution(display);
+  const int largest_dimension = width > height ? width : height;
+  if (largest_dimension <= 480) return &mdi_icons_32;
+  if (largest_dimension <= 800) return &mdi_icons_40;
+  return &mdi_icons_48;
+}
+
+#define FONT_MDI_ICONS (mdi_font_for_display())
 
 // Icon-Name zu Unicode-Codepoint Mapping
 // Gibt den Codepoint zurück für einen Icon-Namen (z.B. "home" -> 0xF02DC)

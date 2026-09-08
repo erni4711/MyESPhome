@@ -11,11 +11,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <cctype>
+#include <cmath>
 #include <algorithm>
 #include <unordered_map>
 #include "esphome/components/spiffs/spiffs.h"
-
-
 
 static const char *TAG = "tiles_lvgl";
 
@@ -55,6 +54,15 @@ struct SensorWidgetBinding {
   lv_obj_t *weather_condition = nullptr;
   lv_obj_t *weather_forecast[4] = {};
   uint8_t weather_forecast_count = 0;
+  lv_obj_t *climate_current_temperature = nullptr;
+  lv_obj_t *climate_setpoint = nullptr;
+  lv_obj_t *climate_mode = nullptr;
+  lv_obj_t *climate_icon = nullptr;
+  lv_obj_t *media_title = nullptr;
+  lv_obj_t *media_subtitle = nullptr;
+  lv_obj_t *media_state = nullptr;
+  lv_obj_t *media_play_pause = nullptr;
+  lv_obj_t *media_icon = nullptr;
   lv_obj_t *light_popup = nullptr;
   lv_obj_t *light_brightness = nullptr;
   lv_obj_t *light_color_temp = nullptr;
@@ -88,6 +96,7 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
     ESP_LOGW(TAG, "Ignoring entity widget with empty entity ID");
     return;
   }
+
   SensorWidgetBinding binding;
   binding.value_label = value_label;
   binding.gauge_arc = gauge_arc;
@@ -124,6 +133,65 @@ void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label)
       unregister_ha_widget_object(
           static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
   }, LV_EVENT_DELETE, nullptr);
+}
+
+void register_ha_climate_widget(const std::string &entity_id,
+                                lv_obj_t *current_temperature,
+                                lv_obj_t *setpoint,
+                                lv_obj_t *mode,
+                                lv_obj_t *icon) {
+  if (entity_id.empty()) return;
+  SensorWidgetBinding binding;
+  binding.climate_current_temperature = current_temperature;
+  binding.climate_setpoint = setpoint;
+  binding.climate_mode = mode;
+  binding.climate_icon = icon;
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  const auto watch = [](lv_obj_t *object) {
+    if (!object) return;
+    lv_obj_add_event_cb(object, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  };
+  watch(current_temperature);
+  watch(setpoint);
+  watch(mode);
+  watch(icon);
+  ESP_LOGD(TAG, "Registered climate widget for %s", entity_id.c_str());
+}
+
+void register_ha_media_widget(const std::string &entity_id,
+                              lv_obj_t *title,
+                              lv_obj_t *subtitle,
+                              lv_obj_t *state,
+                              lv_obj_t *play_pause,
+                              lv_obj_t *icon) {
+  if (entity_id.empty()) return;
+  SensorWidgetBinding binding;
+  binding.media_title = title;
+  binding.media_subtitle = subtitle;
+  binding.media_state = state;
+  binding.media_play_pause = play_pause;
+  binding.media_icon = icon;
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  const auto watch = [](lv_obj_t *object) {
+    if (!object) return;
+    lv_obj_add_event_cb(object, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  };
+  watch(title);
+  watch(subtitle);
+  watch(state);
+  watch(play_pause);
+  watch(icon);
+  ESP_LOGD(TAG, "Registered media widget for %s", entity_id.c_str());
 }
 
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
@@ -165,6 +233,10 @@ void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_lab
     binding.weather_forecast[i] = forecast_labels[i];
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
+  if (entity_id != "sensor.owm_onecall_daily")
+    g_sensor_widget_bindings["sensor.owm_onecall_daily"].push_back(binding);
+  if (entity_id != "sensor.owm_onecall_hourly")
+    g_sensor_widget_bindings["sensor.owm_onecall_hourly"].push_back(binding);
   const auto watch = [](lv_obj_t *object) {
     if (!object) return;
     lv_obj_add_event_cb(object, [](lv_event_t *event) {
@@ -242,6 +314,15 @@ void unregister_ha_widget_object(lv_obj_t *object) {
              binding.weather_icon == object ||
              binding.weather_temperature == object ||
              binding.weather_condition == object ||
+             binding.climate_current_temperature == object ||
+             binding.climate_setpoint == object ||
+             binding.climate_mode == object ||
+             binding.climate_icon == object ||
+             binding.media_title == object ||
+             binding.media_subtitle == object ||
+             binding.media_state == object ||
+             binding.media_play_pause == object ||
+             binding.media_icon == object ||
              binding.light_popup == object ||
              binding.light_brightness == object ||
              binding.light_color_temp == object ||
@@ -394,6 +475,33 @@ void apply_ha_entity_state(const JsonDocument &state) {
     return;
   }
 
+  if (id == "sensor.owm_onecall_daily" || id == "sensor.owm_onecall_hourly") {
+    const char *array_name =
+        id == "sensor.owm_onecall_daily" ? "daily" : "hourly";
+    const JsonArrayConst forecast = attributes[array_name].as<JsonArrayConst>();
+    std::string encoded;
+    int count = 0;
+    for (JsonObjectConst item : forecast) {
+      if (count++ >= 4) break;
+      const long timestamp = item["dt"] | 0L;
+      const float min_temp = id == "sensor.owm_onecall_daily"
+                                 ? (item["temp"]["min"] | item["temp"]["day"] | 0.0f)
+                                 : (item["temp"] | 0.0f);
+      const float max_temp = id == "sensor.owm_onecall_daily"
+                                 ? (item["temp"]["max"] | item["temp"]["day"] | 0.0f)
+                                 : min_temp;
+      const char *weather_icon = item["weather"][0]["icon"] | "";
+      char row[96];
+      const int written = snprintf(row, sizeof(row), "%ld,%.1f,%.1f,%s;",
+                                   timestamp, min_temp, max_temp, weather_icon);
+      if (written > 0 && static_cast<size_t>(written) < sizeof(row)) {
+        encoded += row;
+      }
+    }
+    apply_ha_weather_forecast_state(id, encoded);
+    return;
+  }
+
   if (id.rfind("light.", 0) == 0) {
     auto number_attribute = [&attributes](const char *name) {
       char result[16] = {};
@@ -410,6 +518,37 @@ void apply_ha_entity_state(const JsonDocument &state) {
     const std::string blue = rgb.size() >= 3 ? std::to_string(rgb[2].as<int>()) : "";
     apply_ha_light_state(id, value, number_attribute("brightness"), color_temp,
                          red, green, blue);
+    return;
+  }
+
+  if (id.rfind("climate.", 0) == 0) {
+    auto attribute_string = [&attributes](const char *name) {
+      char result[24] = {};
+      JsonVariantConst attribute = attributes[name];
+      if (attribute.is<const char *>()) {
+        snprintf(result, sizeof(result), "%s", attribute.as<const char *>());
+      } else if (!attribute.isNull()) {
+        snprintf(result, sizeof(result), "%.1f", attribute.as<float>());
+      }
+      return std::string(result);
+    };
+    const std::string current_temperature =
+        attribute_string("current_temperature");
+    const std::string setpoint = attribute_string("temperature");
+    const std::string hvac_mode = attributes["hvac_mode"] | value;
+    apply_ha_climate_state(id, current_temperature, setpoint, hvac_mode,
+                           unit, icon);
+    return;
+  }
+
+  if (id.rfind("media_player.", 0) == 0) {
+    const std::string media_title = attributes["media_title"] | "";
+    const std::string artist = attributes["media_artist"] | "";
+    const std::string album = attributes["media_album_name"] | "";
+    std::string subtitle = artist;
+    if (!artist.empty() && !album.empty()) subtitle += " - ";
+    subtitle += album;
+    apply_ha_media_state(id, value, media_title, subtitle, icon);
     return;
   }
 
@@ -474,6 +613,128 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
     }
   }
 
+void apply_ha_weather_forecast_state(const std::string &entity_id,
+                                     const std::string &forecast) {
+  std::vector<SensorWidgetBinding> bindings;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    const auto it = g_sensor_widget_bindings.find(entity_id);
+    if (it == g_sensor_widget_bindings.end()) return;
+    bindings = it->second;
+  }
+
+  for (const auto &binding : bindings) {
+    int offset = 0;
+    for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
+      long timestamp = 0;
+      float min_temp = 0.0f;
+      float max_temp = 0.0f;
+      char weather_icon[16] = {};
+      const int parsed = sscanf(forecast.c_str() + offset, "%ld,%f,%f,%15[^;];",
+                                &timestamp, &min_temp, &max_temp, weather_icon);
+      if (parsed != 4) break;
+      while (forecast[offset] && forecast[offset] != ';') ++offset;
+      if (forecast[offset] == ';') ++offset;
+      time_t day_time = timestamp;
+      struct tm day_tm;
+      localtime_r(&day_time, &day_tm);
+      char day_name[4] = {};
+      strftime(day_name, sizeof(day_name), "%a", &day_tm);
+      char row[64];
+      snprintf(row, sizeof(row), "%s  %.1f/%.1f %s", day_name, min_temp,
+               max_temp, weather_icon);
+      if (binding.weather_forecast[i])
+        lv_label_set_text(binding.weather_forecast[i], row);
+    }
+  }
+}
+
+void apply_ha_climate_state(const std::string &entity_id,
+                            const std::string &current_temperature,
+                            const std::string &setpoint,
+                            const std::string &hvac_mode,
+                            const std::string &unit,
+                            const std::string &icon) {
+  std::vector<SensorWidgetBinding> bindings;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    const auto it = g_sensor_widget_bindings.find(entity_id);
+    if (it == g_sensor_widget_bindings.end()) return;
+    bindings = it->second;
+  }
+  const std::string suffix = unit.empty() ? "" : " " + unit;
+  for (const auto &binding : bindings) {
+    if (binding.climate_current_temperature) {
+      const std::string text = current_temperature.empty()
+                                   ? "--"
+                                   : current_temperature + suffix;
+      lv_label_set_text(binding.climate_current_temperature, text.c_str());
+    }
+    if (binding.climate_setpoint) {
+      const std::string text = setpoint.empty() ? "--" : setpoint + suffix;
+      lv_label_set_text(binding.climate_setpoint, text.c_str());
+    }
+    if (binding.climate_mode) {
+      lv_label_set_text(binding.climate_mode,
+                        hvac_mode.empty() ? "--" : hvac_mode.c_str());
+    }
+    if (binding.climate_icon && !icon.empty()) {
+      const std::string icon_name = normalizeMdiIconName(icon);
+      const std::string icon_char = getMdiChar(icon_name);
+      if (!icon_char.empty()) {
+        lv_label_set_text(binding.climate_icon, icon_char.c_str());
+      }
+    }
+  }
+}
+
+void apply_ha_media_state(const std::string &entity_id,
+                          const std::string &state,
+                          const std::string &title,
+                          const std::string &subtitle,
+                          const std::string &icon) {
+  std::vector<SensorWidgetBinding> bindings;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    const auto it = g_sensor_widget_bindings.find(entity_id);
+    if (it == g_sensor_widget_bindings.end()) return;
+    bindings = it->second;
+  }
+  std::string normalized = state;
+  std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  const bool playing = normalized == "playing";
+  for (const auto &binding : bindings) {
+    if (binding.media_title) {
+      lv_label_set_text(binding.media_title,
+                        title.empty() ? "--" : title.c_str());
+    }
+    if (binding.media_subtitle) {
+      lv_label_set_text(binding.media_subtitle,
+                        subtitle.empty() ? "--" : subtitle.c_str());
+    }
+    if (binding.media_state) {
+      const char *display_state = playing ? "Playing" :
+                                   normalized == "paused" ? "Paused" :
+                                   state.empty() ? "--" : state.c_str();
+      lv_label_set_text(binding.media_state, display_state);
+    }
+    if (binding.media_play_pause) {
+      const std::string icon_name = playing ? "pause" : "play";
+      const std::string icon_char = getMdiChar(icon_name);
+      if (!icon_char.empty()) {
+        lv_label_set_text(binding.media_play_pause, icon_char.c_str());
+      }
+    }
+    if (binding.media_icon && !icon.empty()) {
+      const std::string icon_char = getMdiChar(normalizeMdiIconName(icon));
+      if (!icon_char.empty()) {
+        lv_label_set_text(binding.media_icon, icon_char.c_str());
+      }
+    }
+  }
+}
+
 void apply_ha_light_state(const std::string &entity_id, const std::string &state,
                               const std::string &brightness, const std::string &color_temp,
                               const std::string &red, const std::string &green,
@@ -524,7 +785,11 @@ std::vector<std::string> collect_configured_ha_entities() {
         add_unique(tile.entity_id);
       } else if (tile.type == TILE_SWITCH) {
         add_unique(tile.entity_id);
-      } else if (tile.type == TILE_WEATHER || tile.type == TILE_MEDIA ||
+      } else if (tile.type == TILE_WEATHER) {
+        add_unique(tile.entity_id);
+        add_unique("sensor.owm_onecall_daily");
+        add_unique("sensor.owm_onecall_hourly");
+      } else if (tile.type == TILE_MEDIA ||
                  tile.type == TILE_CLIMATE || tile.type == TILE_CAMERA ||
                  tile.type == TILE_COVER) {
         add_unique(tile.entity_id);
@@ -577,6 +842,109 @@ bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
 
   if (result != ESP_OK || status < 200 || status >= 300) {
     ESP_LOGW(TAG, "Home Assistant toggle failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  return true;
+}
+
+bool set_home_assistant_climate_temperature(const char *entity_id,
+                                            float temperature) {
+  if (entity_id == nullptr || entity_id[0] == '\0' ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot set climate temperature: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (dot == nullptr || dot == entity_id ||
+      std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "climate") {
+    ESP_LOGW(TAG, "Cannot set climate temperature for non-climate entity: %s",
+             entity_id);
+    return false;
+  }
+  if (!std::isfinite(temperature)) {
+    ESP_LOGW(TAG, "Cannot set non-finite climate temperature");
+    return false;
+  }
+
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/climate/set_temperature";
+  esp_http_client_config_t config = {};
+  config.url = url.c_str();
+  config.method = HTTP_METHOD_POST;
+  config.timeout_ms = 5000;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize Home Assistant climate client");
+    return false;
+  }
+
+  const std::string auth = "Bearer " + home_assistant_token;
+  char body[160];
+  snprintf(body, sizeof(body),
+           "{\"entity_id\":\"%s\",\"temperature\":%.1f}",
+           entity_id, static_cast<double>(temperature));
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body, static_cast<int>(strlen(body)));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant climate temperature failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  return true;
+}
+
+bool call_home_assistant_media_command(const char *entity_id,
+                                       const char *command) {
+  if (entity_id == nullptr || entity_id[0] == '\0' ||
+      command == nullptr || command[0] == '\0' ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot control media player: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (dot == nullptr || dot == entity_id ||
+      std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "media_player") {
+    ESP_LOGW(TAG, "Cannot control non-media-player entity: %s", entity_id);
+    return false;
+  }
+  if (strcmp(command, "media_play_pause") != 0 &&
+      strcmp(command, "media_previous_track") != 0 &&
+      strcmp(command, "media_next_track") != 0) {
+    ESP_LOGW(TAG, "Unsupported media-player command: %s", command);
+    return false;
+  }
+
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/media_player/";
+  url += command;
+  esp_http_client_config_t config = {};
+  config.url = url.c_str();
+  config.method = HTTP_METHOD_POST;
+  config.timeout_ms = 5000;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize Home Assistant media client");
+    return false;
+  }
+
+  const std::string auth = "Bearer " + home_assistant_token;
+  char body[160];
+  snprintf(body, sizeof(body), "{\"entity_id\":\"%s\"}", entity_id);
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body, static_cast<int>(strlen(body)));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant media command failed for %s (status=%d, error=%s)",
              entity_id, status, esp_err_to_name(result));
     return false;
   }
@@ -950,6 +1318,9 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_energy(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_media(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_text(lv_obj_t *parent, const TileData &tile);
+void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile);
+void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile);
+void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile);
 
 // ── Shared helper: create a label with given text, colour, font size ──────────
 
@@ -1097,15 +1468,15 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
     case TILE_WEATHER:  tile_widget_build_weather(tile_obj, tile); break;
     case TILE_MEDIA:    tile_widget_build_media(tile_obj, tile);  break;
     case TILE_TEXT:     tile_widget_build_text(tile_obj, tile);   break;
-    case TILE_CLIMATE:
-    case TILE_CAMERA:
+    case TILE_CLIMATE:  tile_widget_build_climate(tile_obj, tile); break;
+    case TILE_CAMERA:   tile_widget_build_camera(tile_obj, tile);  break;
+    case TILE_SETTINGS: tile_widget_build_settings(tile_obj, tile); break;
     case TILE_COVER:
     case TILE_ANIMATE:
       {
         const std::string icon = configured_icon;
         const std::string label = tile.title.empty()
-          ? (tile.type == TILE_CLIMATE ? "Climate" :
-             tile.type == TILE_CAMERA ? "Camera" :
+          ? (tile.type == TILE_CAMERA ? "Camera" :
              tile.type == TILE_COVER ? "Cover" : "Animation")
           : tile.title;
         lv_obj_t *value = lv_label_create(tile_obj);
@@ -1118,7 +1489,6 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
         (void)icon;
       }
       break;
-    case TILE_SETTINGS:
     case TILE_BACK:
       {
         lv_obj_t *lbl = lv_label_create(tile_obj);
@@ -1230,7 +1600,7 @@ void TilesLvglRenderer::refresh_folder(int folder_id) {
   // A saved tile configuration may keep the same entities while changing
   // their presentation; refresh their values after rebuilding the folder.
   ESP_LOGI(TAG, "Requesting HA state refresh for folder %d", folder_id);
-  ESP_LOGI(TAG, "Connecting to Home Assistant WebSocket for state refresh");
+
   //ha_ws_client_start();
   ha_ws_client_request_states();
   ha_ws_client_subscribe_events();
@@ -1278,4 +1648,3 @@ void TilesLvglRenderer::show_folder(int folder_id) {
 }
 
 }  // namespace web_admin_local
-

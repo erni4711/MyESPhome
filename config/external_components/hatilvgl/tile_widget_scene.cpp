@@ -1,5 +1,6 @@
 // Scene / Script tile: tap-to-trigger action tile.
 #include "tiles_lvgl.h"
+#include "../hatifonts/mdi_icons.h"
 #include <lvgl.h>
 
 namespace web_admin_local {
@@ -10,9 +11,10 @@ void tile_widget_build_scene(lv_obj_t *parent, const TileData &tile) {
 
   // Large play icon
   lv_obj_t *icon = lv_label_create(parent);
-  lv_label_set_text(icon, LV_SYMBOL_PLAY);
+  const std::string play_icon = getMdiChar("play");
+  lv_label_set_text(icon, play_icon.empty() ? "?" : play_icon.c_str());
   lv_obj_set_style_text_color(icon, accent, 0);
-  lv_obj_set_style_text_font(icon, ui_font_for_size(28), 0);
+  lv_obj_set_style_text_font(icon, FONT_MDI_ICONS, 0);
   lv_obj_align(icon, LV_ALIGN_CENTER, 0, -10);
 
   // Scene / script name

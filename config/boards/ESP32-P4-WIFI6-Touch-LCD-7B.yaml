@@ -19,8 +19,8 @@ esphome:
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1 -DLV_USE_FONT_COMPRESSED=1 -DCONFIG_SDMMC_ENABLE_POWER_CONTROL=1 -DDEVICE_LAYOUT_1024X600
   on_boot:
     - logger.log: "ESPHome booted"
-    - delay: 5s
-    - lvgl.widget.hide: boot_screen
+#    - delay: 5s
+#    - lvgl.widget.hide: boot_screen
 
 
 # We won't need this once this board is added to ESPhome
@@ -497,6 +497,8 @@ hatilvgl:
   id: hatilvgl_component
   home_assistant_url: "http://192.168.10.187:8123"
   home_assistant_token: !secret ha_long_lived_token
+  backlight: display_backlight
+  screen_timeout: display_timeout
 
 
 hatiadmin:

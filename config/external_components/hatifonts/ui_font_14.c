@@ -13,11 +13,7 @@
 extern const lv_font_t ui_font_cyrillic_14;
 
 #ifndef UI_FONT_14
-#if defined(DEVICE_LAYOUT_480X480)
 #define UI_FONT_14 1
-#else
-#define UI_FONT_14 1
-#endif
 #endif
 
 #if UI_FONT_14
