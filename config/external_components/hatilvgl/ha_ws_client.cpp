@@ -1,9 +1,10 @@
+#include "tiles_lvgl.h"
 #include "ha_ws_client.h"
 
-#include <ArduinoJson.h>
-#include <esp_heap_caps.h>
 #include <esp_log.h>
+#include <esp_heap_caps.h>
 #include <esp_websocket_client.h>
+#include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
@@ -14,7 +15,6 @@
 #include <cstdio>
 #include <set>
 
-#include "../hatilvgl/tiles_lvgl.h"
 
 static const char* TAG = "ha_ws_client";  // "hatilvgl";
 
@@ -91,7 +91,9 @@ std::string g_url;
 std::string g_token;
 bool g_started = false;
 bool g_authenticated = false;
-bool g_subscribed = false;
+uint32_t g_subscribed_id = 0;
+uint32_t g_get_states_id = 0;
+uint32_t g_last_message_id = 0;
 PsramString g_rx_buffer;
 std::string g_stream_probe;
 
@@ -205,6 +207,9 @@ void handle_new_state(JsonObject new_state, const char* source) {
   const bool interesting =
       entity_id[0] != '\0' && entity_is_interesting(entity_id);
   if (!interesting) return;
+  
+  printf("[ha_ws] entity_id=%s interesting=%d source=%s\n",
+             entity_id, interesting ? 1 : 0, source);
   ESP_LOGD(TAG, "Accepted Home Assistant state: entity_id=%s source=%s",
            entity_id, source);
   enqueue_json(new_state);
@@ -413,7 +418,7 @@ void handle_websocket_data(const char* message, size_t message_size,
     }
     const size_t stream_start = find_result_array_start(g_stream_probe);
     if (stream_start != std::string::npos &&
-        g_stream_probe.find("\"id\":2") != std::string::npos &&
+        g_stream_probe.find("\"id\":" + std::to_string(g_get_states_id) + "") != std::string::npos &&
         g_stream_probe.find("\"type\":\"result\"") != std::string::npos) {
       g_get_states_stream = true;
       const std::string tail = g_stream_probe.substr(stream_start);
@@ -478,12 +483,14 @@ void ha_ws_event_handler(void* handler_args, esp_event_base_t base,
                static_cast<unsigned>(data->data_len),
                static_cast<unsigned>(data->payload_len),
                static_cast<unsigned>(data->payload_offset));
-      //std::printf("[ha_ws] data opcode=%u bytes=%u payload=%u offset=%u\n",
-      //            static_cast<unsigned>(data->op_code),
-      //            static_cast<unsigned>(data->data_len),
-      //            static_cast<unsigned>(data->payload_len),
-      //            static_cast<unsigned>(data->payload_offset));
-
+      // std::printf("[ha_ws] data opcode=%u bytes=%u payload=%u offset=%u\n",
+      //             static_cast<unsigned>(data->op_code),
+      //             static_cast<unsigned>(data->data_len),
+      //             static_cast<unsigned>(data->payload_len),
+      //             static_cast<unsigned>(data->payload_offset));
+      // std::printf("[ha_ws] %.*s\n",
+      //             static_cast<unsigned>(data->data_len),
+      //             data->data_ptr);
       if (data->payload_offset == 0) {
         g_rx_buffer.clear();
         g_stream_probe.clear();
@@ -508,6 +515,7 @@ void ha_ws_event_handler(void* handler_args, esp_event_base_t base,
         if (final_chunk) g_rx_buffer.clear();
         break;
       }
+
       handle_websocket_data(data->data_ptr, static_cast<size_t>(data->data_len),
                             static_cast<size_t>(data->payload_len),
                             final_chunk);
@@ -577,39 +585,47 @@ void ha_ws_client_set_entity_filter(
 
 void ha_ws_client_unsubscribe_events() {
   if (!g_authenticated || g_client == nullptr) return;
-  if (!g_subscribed) {
+  if (g_subscribed_id == 0) {
     ESP_LOGI(TAG, "Not subscribed to Home Assistant state_changed events");
     return;
   }
-  static const char* kUnsubscribe =
-      "{\"id\":1,\"type\":\"unsubscribe_events\",\"event_type\":\"state_"
-      "changed\"}";
+  std::string kUnsubscribe =
+      "{\"id\":"
+      + std::to_string(++g_last_message_id) 
+      + ",\"type\":\"unsubscribe_events\",\"subscription\":"
+      + std::to_string(g_subscribed_id) 
+      + "}";
   ESP_LOGD(TAG,
-           "WebSocket TX: unsubscribe_events (id=1, event_type=state_changed)");
-  esp_websocket_client_send_text(g_client, kUnsubscribe,
-                                 static_cast<int>(std::strlen(kUnsubscribe)),
+           "WebSocket TX: unsubscribe_events (id=%u, event_type=state_changed)",
+           g_last_message_id);
+  esp_websocket_client_send_text(g_client, kUnsubscribe.c_str(),
+                                 static_cast<int>(kUnsubscribe.size()),
                                  pdMS_TO_TICKS(5000));
-  ESP_LOGI(TAG, "Unsubscribed from Home Assistant state_changed events (id=1)");
-  g_subscribed = false;
+  ESP_LOGI(TAG, "Unsubscribed from Home Assistant state_changed events (id=%u)",
+           g_subscribed_id);
+  g_subscribed_id = 0;
 }
 void ha_ws_client_subscribe_events() {
-  ESP_LOGD(TAG, "Subscribe requested (authenticated=%d subscribed=%d)",
-           g_authenticated ? 1 : 0, g_subscribed ? 1 : 0);
+  ESP_LOGD(TAG, "Subscribe requested (authenticated=%d subscribed=%u)",
+           g_authenticated ? 1 : 0, g_subscribed_id);
   if (!g_authenticated || g_client == nullptr) return;
-  if (g_subscribed) {
+  if (g_subscribed_id != 0) {
     ESP_LOGI(TAG, "Already subscribed to Home Assistant state_changed events");
     return;
   }
-  static const char* kSubscribe =
-      "{\"id\":1,\"type\":\"subscribe_events\",\"event_type\":\"state_"
-      "changed\"}";
+  g_subscribed_id = ++g_last_message_id;  // Use a non-zero id to indicate subscription in progress
+  std::string kSubscribe =
+      "{\"id\":" 
+      + std::to_string(g_subscribed_id) 
+      + ",\"type\":\"subscribe_events\",\"event_type\":\"state_changed\"}";
   ESP_LOGD(TAG,
-           "WebSocket TX: subscribe_events (id=1, event_type=state_changed)");
-  esp_websocket_client_send_text(g_client, kSubscribe,
-                                 static_cast<int>(std::strlen(kSubscribe)),
+           "WebSocket TX: subscribe_events (id=%u, event_type=state_changed)",
+           g_subscribed_id);
+  esp_websocket_client_send_text(g_client, kSubscribe.c_str(),
+                                 static_cast<int>(kSubscribe.size()),
                                  pdMS_TO_TICKS(5000));
-  g_subscribed = true;
-  ESP_LOGI(TAG, "Subscribed to Home Assistant state_changed events (id=1)");
+  ESP_LOGI(TAG, "Subscribed to Home Assistant state_changed events (id=%u)",
+           g_subscribed_id);
 }
 
 void ha_ws_client_request_states() {
@@ -618,16 +634,21 @@ void ha_ws_client_request_states() {
            "client=%p)",
            g_authenticated, g_client);
   if (!g_authenticated || g_client == nullptr) return;
-  static const char* kGetStates = "{\"id\":2,\"type\":\"get_states\"}";
+  g_get_states_id = ++g_last_message_id;  // Use a non-zero id to indicate get_states request in progress
+  std::string kGetStates = 
+    "{\"id\":"
+    + std::to_string(g_get_states_id)
+    + ",\"type\":\"get_states\"}";
   const int sent = esp_websocket_client_send_text(
-      g_client, kGetStates, static_cast<int>(std::strlen(kGetStates)),
+      g_client, kGetStates.c_str(), static_cast<int>(kGetStates.size()),
       pdMS_TO_TICKS(5000));
   if (sent < 0) {
     ESP_LOGW(TAG, "Failed to request current Home Assistant entity states");
+    printf("[ha_ws] request states failed: %d\n", sent);
     return;
   }
   ESP_LOGD(TAG, "WebSocket TX: %s", kGetStates);
-  ESP_LOGI(TAG, "Requested current Home Assistant entity states (id=2)");
+  ESP_LOGI(TAG, "Requested current Home Assistant entity states (id=%u)", g_get_states_id);
 }
 
 void ha_ws_client_discard_pending_states() {
