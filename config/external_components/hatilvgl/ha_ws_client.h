@@ -22,6 +22,7 @@ namespace web_admin_local {
 // declared in tiles_lvgl.h. Never logs the token.
 void ha_ws_client_configure(const std::string &home_assistant_url,
                              const std::string &home_assistant_token);
+void ha_ws_client_reconfigure();
 
 // Starts the websocket client (idempotent; a no-op once already started).
 // Does nothing if the Home Assistant URL/token have not been configured.

@@ -2,6 +2,7 @@
 #include <atomic>
 #include "esphome.h"
 #include "esphome/components/web_server_base/web_server_base.h"
+#include "esphome/core/preferences.h"
 
 // Forward-declare LVGL component to avoid pulling in all LVGL headers here.
 namespace esphome::lvgl { class LvglComponent; }
@@ -24,6 +25,10 @@ class WebAdminLocal : public esphome::Component {
   void set_home_assistant_token(const char* token) {
     home_assistant_token_ = token ? std::string(token) : std::string();
   }
+  const std::string &home_assistant_url() const { return home_assistant_url_; }
+  bool has_home_assistant_token() const { return !home_assistant_token_.empty(); }
+  bool save_home_assistant_credentials(const std::string &url,
+                                       const std::string &token);
   // Optional: connect the LVGL component so tile changes update the display.
   void set_lvgl(esphome::lvgl::LvglComponent *lv) { lvgl_ = lv; }
   float get_setup_priority() const override {
@@ -40,18 +45,24 @@ class WebAdminLocal : public esphome::Component {
   esphome::lvgl::LvglComponent *lvgl_ = nullptr;
   bool started_ = false;
   std::atomic<bool> start_requested_{false};
+  struct StoredCredentials {
+    char url[256];
+    char token[512];
+  };
+  esphome::ESPPreferenceObject credentials_pref_;
 
   void start_internal();
 };
 
 class LocalHandler : public AsyncWebHandler {
   public:
-    LocalHandler(const std::string &base);
+    LocalHandler(const std::string &base, WebAdminLocal *owner);
     bool canHandle(AsyncWebServerRequest *request) const override;
     void handleRequest(AsyncWebServerRequest *request) override;
     bool isRequestHandlerTrivial() const override;
   protected:
     void handleRoot(AsyncWebServerRequest *request);
+    void handleSave(AsyncWebServerRequest *request);
     void handleAssetRequest(AsyncWebServerRequest *request);
     void sendWebFontRegular(AsyncWebServerRequest *request);
     void sendWebFontSemibold(AsyncWebServerRequest *request);
@@ -61,6 +72,7 @@ class LocalHandler : public AsyncWebHandler {
     std::string getSuccessPage();
   private:
     std::string base_;
+    WebAdminLocal *owner_;
 };
 
 }
