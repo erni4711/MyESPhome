@@ -18,6 +18,13 @@ bool hatilvgl_is_api_connected() {
   return g_api_connected.load(std::memory_order_acquire);
 }
 
+void hatilvgl_update_home_assistant_credentials(const std::string &url,
+                                                const std::string &token) {
+  set_home_assistant_credentials(url, token);
+  ha_ws_client_configure(url, token);
+  ha_ws_client_reconfigure();
+}
+
 void settings_set_display_controls(esphome::light::LightState *backlight,
                                    esphome::number::Number *timeout) {
   g_backlight = backlight;
