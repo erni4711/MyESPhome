@@ -13,6 +13,8 @@ namespace web_admin_local {
 
 void set_home_assistant_credentials(const std::string &url, const std::string &token);
 bool toggle_home_assistant_entity(const char *entity_id, bool turn_on);
+bool set_home_assistant_climate_temperature(const char *entity_id, float temperature);
+bool call_home_assistant_media_command(const char *entity_id, const char *command);
 bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct);
 bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin);
 bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int blue);
@@ -39,6 +41,17 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
                                 lv_obj_t *gauge_arc, int decimals,
                                 float gauge_min, float gauge_max);
 void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label);
+void register_ha_climate_widget(const std::string &entity_id,
+                                lv_obj_t *current_temperature,
+                                lv_obj_t *setpoint,
+                                lv_obj_t *mode,
+                                lv_obj_t *icon);
+void register_ha_media_widget(const std::string &entity_id,
+                              lv_obj_t *title,
+                              lv_obj_t *subtitle,
+                              lv_obj_t *state,
+                              lv_obj_t *play_pause,
+                              lv_obj_t *icon);
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
                                lv_obj_t *state_label);
 void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_label,
@@ -66,6 +79,19 @@ void apply_ha_entity_state(const JsonDocument &state);
 void apply_ha_weather_state(const std::string &entity_id, const std::string &state,
                              const std::string &temperature, const std::string &condition,
                              const std::string &unit, const std::string &forecast);
+void apply_ha_weather_forecast_state(const std::string &entity_id,
+                                     const std::string &forecast);
+void apply_ha_climate_state(const std::string &entity_id,
+                            const std::string &current_temperature,
+                            const std::string &setpoint,
+                            const std::string &hvac_mode,
+                            const std::string &unit,
+                            const std::string &icon);
+void apply_ha_media_state(const std::string &entity_id,
+                          const std::string &state,
+                          const std::string &title,
+                          const std::string &subtitle,
+                          const std::string &icon);
 void apply_ha_light_state(const std::string &entity_id, const std::string &state,
                           const std::string &brightness, const std::string &color_temp,
                           const std::string &red, const std::string &green,

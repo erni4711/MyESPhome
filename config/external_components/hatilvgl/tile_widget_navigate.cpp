@@ -1,5 +1,6 @@
 // Navigate tile: tapping navigates to another folder page.
 #include "tiles_lvgl.h"
+#include "../hatifonts/mdi_icons.h"
 #include <lvgl.h>
 #include <cstdint>
 
@@ -19,9 +20,10 @@ void tile_widget_build_navigate(lv_obj_t *parent, const TileData &tile, int /*fo
 
   // Arrow icon at centre-top
   lv_obj_t *arrow = lv_label_create(parent);
-  lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+  const std::string arrow_icon = getMdiChar("arrow-right");
+  lv_label_set_text(arrow, arrow_icon.empty() ? "?" : arrow_icon.c_str());
   lv_obj_set_style_text_color(arrow, lv_color_make(0x26, 0xA6, 0x9A), 0);
-  lv_obj_set_style_text_font(arrow, ui_font_for_size(14), 0);
+  lv_obj_set_style_text_font(arrow, FONT_MDI_ICONS, 0);
   lv_obj_align(arrow, LV_ALIGN_TOP_RIGHT, 0, 0);
 
   // Folder name
