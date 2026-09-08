@@ -4,6 +4,7 @@
 
 
 #include "esphome/components/web_server_idf/web_server_idf.h"
+#include "esphome/core/helpers.h"
 #include <esp_log.h>
 
 // Forward-declare asset path accessors defined in web_admin_assets.cpp
@@ -19,7 +20,8 @@ static std::string request_url(AsyncWebServerRequest *request) {
   return request->url_to(url_buffer).str();
 }
 
-LocalHandler::LocalHandler(const std::string& base) : base_(base) {}
+LocalHandler::LocalHandler(const std::string& base, WebAdminLocal *owner)
+    : base_(base), owner_(owner) {}
 
 static const char* method_to_string(AsyncWebServerRequest* req) {
   switch (req->method()) {
@@ -36,6 +38,7 @@ bool LocalHandler::canHandle(AsyncWebServerRequest* request) const {
   const auto url = request_url(request);
   ESP_LOGD(TAG, "canHandle check: url=%s method=%s base=%s", url.c_str(), method_to_string(request), base_.c_str());
   if (url == base_) return true;
+  if (url == base_ + "/save" && request->method() == HTTP_POST) return true;
   if (url.starts_with(base_ + "/assets")) return true;
   return false;
 }
@@ -49,6 +52,10 @@ void LocalHandler::handleRequest(AsyncWebServerRequest* request) {
   }
   if (request_url(request) == base_) {
     handleRoot(request);
+    return;
+  }
+  if (request_url(request) == base_ + "/save" && request->method() == HTTP_POST) {
+    handleSave(request);
     return;
   }
   if (request_url(request).starts_with(base_+ "/assets")) {
@@ -76,7 +83,62 @@ void LocalHandler::handleAssetRequest(AsyncWebServerRequest* request) {
 
 bool LocalHandler::isRequestHandlerTrivial() const { return false; }
 
+void LocalHandler::handleSave(AsyncWebServerRequest *request) {
+  if (owner_ == nullptr || !request->hasParam("ha_url")) {
+    request->send(400, "text/plain", "Home Assistant URL is required");
+    return;
+  }
+  const std::string url = request->getParam("ha_url")->value().c_str();
+  const std::string token =
+      request->hasParam("ha_token")
+          ? request->getParam("ha_token")->value().c_str()
+          : std::string();
+  if (url.empty() || (url.rfind("http://", 0) != 0 &&
+                      url.rfind("https://", 0) != 0) ||
+      url.find_first_of("\r\n") != std::string::npos ||
+      token.find_first_of("\r\n") != std::string::npos) {
+    request->send(400, "text/plain", "Invalid Home Assistant configuration");
+    return;
+  }
+  if (!owner_->save_home_assistant_credentials(url, token)) {
+    request->send(500, "text/plain", "Unable to save Home Assistant configuration");
+    return;
+  }
+  request->send(200, "text/html; charset=utf-8", getSuccessPage().c_str());
+}
+
 void WebAdminLocal::setup() {
+  this->credentials_pref_ =
+      esphome::global_preferences->make_preference<StoredCredentials>(
+          esphome::fnv1_hash("hatiadmin_credentials"), true);
+  StoredCredentials stored{};
+  if (this->credentials_pref_.load(&stored) && stored.url[0] != '\0') {
+    this->home_assistant_url_ = stored.url;
+    this->home_assistant_token_ = stored.token;
+    ESP_LOGI(TAG, "Loaded persisted Home Assistant configuration");
+  }
+}
+
+bool WebAdminLocal::save_home_assistant_credentials(const std::string &url,
+                                                    const std::string &token) {
+  const std::string effective_token =
+      token.empty() ? this->home_assistant_token_ : token;
+  StoredCredentials stored{};
+  if (url.empty() || effective_token.empty() || url.size() >= sizeof(stored.url) ||
+      effective_token.size() >= sizeof(stored.token)) {
+    return false;
+  }
+  this->home_assistant_url_ = url;
+  this->home_assistant_token_ = effective_token;
+  std::strncpy(stored.url, url.c_str(), sizeof(stored.url) - 1);
+  std::strncpy(stored.token, effective_token.c_str(), sizeof(stored.token) - 1);
+  if (!this->credentials_pref_.save(&stored) ||
+      !esphome::global_preferences->sync()) {
+    return false;
+  }
+  hatilvgl_update_home_assistant_credentials(this->home_assistant_url_,
+                                             this->home_assistant_token_);
+  return true;
 }
 
 void WebAdminLocal::start() {
@@ -94,7 +156,7 @@ void WebAdminLocal::start_internal() {
   ESP_LOGI(TAG, "Starting web admin from ESPHome loop");
 
   const std::string base = std::string("/") + url_prefix_;
-  auto* handler = new LocalHandler(base);
+  auto* handler = new LocalHandler(base, this);
   this->server_->add_handler(handler);
 
   // Folders API

@@ -566,6 +566,17 @@ void ha_ws_client_configure(const std::string& home_assistant_url,
   g_token = home_assistant_token;
 }
 
+void ha_ws_client_reconfigure() {
+  if (g_client != nullptr) {
+    esp_websocket_client_stop(g_client);
+    esp_websocket_client_destroy(g_client);
+    g_client = nullptr;
+  }
+  g_started = false;
+  ha_ws_client_discard_pending_states();
+  ha_ws_client_start();
+}
+
 void ha_ws_client_set_entity_filter(
     const std::vector<std::string>& entity_ids) {
   SemaphoreHandle_t mtx = filter_mutex();
