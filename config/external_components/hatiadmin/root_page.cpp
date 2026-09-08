@@ -10,13 +10,36 @@ static void appendWebFontFaceStylesStd(std::string &html) {
 
 namespace web_admin_local {
 
+static std::string escape_html_attribute(const std::string &value) {
+  std::string escaped = value;
+  for (size_t pos = 0; (pos = escaped.find('&', pos)) != std::string::npos;
+       pos += 5) {
+    escaped.replace(pos, 1, "&amp;");
+  }
+  for (size_t pos = 0; (pos = escaped.find('"', pos)) != std::string::npos;
+       pos += 6) {
+    escaped.replace(pos, 1, "&quot;");
+  }
+  for (size_t pos = 0; (pos = escaped.find('<', pos)) != std::string::npos;
+       pos += 4) {
+    escaped.replace(pos, 1, "&lt;");
+  }
+  for (size_t pos = 0; (pos = escaped.find('>', pos)) != std::string::npos;
+       pos += 4) {
+    escaped.replace(pos, 1, "&gt;");
+  }
+  return escaped;
+}
+
 void LocalHandler::handleRoot(AsyncWebServerRequest* request) {
   request->send(200, "text/html; charset=utf-8", getConfigPage().c_str());
 }
 
 std::string LocalHandler::getConfigPage() {
-  // Minimal, self-contained config page for ESPHome build integration.
-  const std::string ap_page_title = "HomeTiles WiFi Configuration";
+  const std::string ap_page_title = "HATi Configuration";
+  const std::string current_url =
+      owner_ ? owner_->home_assistant_url() : std::string();
+  const std::string escaped_url = escape_html_attribute(current_url);
 
   std::string html = "<!DOCTYPE html>\n<html lang=\"en\">\n";
   html += R"html(<head>
@@ -145,32 +168,29 @@ std::string LocalHandler::getConfigPage() {
         <path d="M33 26h5v6.5h6.5v5H38V44h-5v-6.5h-6.5v-5H33z" fill="#26a69a"/>
       </svg>
       <div>
-        <h1>HomeTiles</h1>
-        <div class="device">)html";
-  html += "HomeTiles";
-  html += R"html(</div>
+        <h1>HATi</h1>
+        <div class="device">Home Assistant Tiles</div>
       </div>
     </div>
 
     <form action="save" method="POST">
       <div class="form-group">
-        <label for="wifi_ssid">Network</label>
-        <input type="text" id="wifi_ssid" name="wifi_ssid" placeholder="My WiFi" value=")html";
-  html += "";
+        <label for="ha_url">Home Assistant URL</label>
+        <input type="url" id="ha_url" name="ha_url" placeholder="http://homeassistant.local:8123" value=")html";
+  html += escaped_url;
   html += R"html(" required>
+        <div class="hint">The base URL without <code>/api</code>.</div>
       </div>
       <div class="form-group">
-        <label for="wifi_pass">Password</label>
+        <label for="ha_token">Long-lived access token</label>
         <div class="password-field">
-          <input type="password" id="wifi_pass" name="wifi_pass" placeholder="Password" value=")html";
-  html += "";
-  html += R"html(">
-          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('wifi_pass', this)">Show</button>
+          <input type="password" id="ha_token" name="ha_token" placeholder="Leave blank to keep the current token">
+          <button type="button" class="password-toggle" onclick="togglePasswordVisibility('ha_token', this)">Show</button>
         </div>
-        <div class="hint">Leave empty for an open network</div>
+        <div class="hint">The token is stored locally and is never displayed.</div>
       </div>
 
-      <button type="submit" class="btn">Connect</button>
+      <button type="submit" class="btn">Save and connect</button>
     </form>
   </div>
   <script>
@@ -182,10 +202,9 @@ std::string LocalHandler::getConfigPage() {
       buttonEl.textContent = isHidden ? 'Hide' : 'Show';
     }
   </script>
-</body>
-</html>
+ </body>
+ </html>
 )html";
-
   return html;
 }
 

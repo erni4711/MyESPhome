@@ -10,6 +10,8 @@ namespace web_admin_local {
 
 void hatilvgl_set_api_connected(bool connected);
 bool hatilvgl_is_api_connected();
+void hatilvgl_update_home_assistant_credentials(const std::string &url,
+                                                const std::string &token);
 void settings_set_display_controls(esphome::light::LightState *backlight,
                                    esphome::number::Number *timeout);
 void settings_set_brightness(float brightness);
