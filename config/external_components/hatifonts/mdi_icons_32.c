@@ -9,11 +9,7 @@
 //#include "src/devices/device_select.h"
 
 #ifndef MDI_ICONS_32
-#if defined(DEVICE_LAYOUT_480X480)
 #define MDI_ICONS_32 1
-#else
-#define MDI_ICONS_32 0
-#endif
 #endif
 
 #if MDI_ICONS_32

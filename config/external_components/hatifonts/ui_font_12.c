@@ -11,11 +11,7 @@
 #endif
 
 #ifndef UI_FONT_12
-#if defined(DEVICE_LAYOUT_480X480)
 #define UI_FONT_12 1
-#else
-#define UI_FONT_12 0
-#endif
 #endif
 
 #if UI_FONT_12
