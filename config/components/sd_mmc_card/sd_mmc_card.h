@@ -49,6 +49,7 @@ class SdMmcCard : public Component {
   bool waiting_for_wifi_{false};
   bool mount_scheduled_{false};
   uint32_t mount_at_ms_{0};
+  uint32_t wifi_wait_deadline_ms_{0};
   bool format_on_mount_failure_{false};
   uint8_t clk_pin_{255};
   uint8_t cmd_pin_{255};

@@ -67,6 +67,7 @@ void SdMmcCard::setup() {
       return;
     }
     this->waiting_for_wifi_ = true;
+    this->wifi_wait_deadline_ms_ = millis() + 30000;
     ESP_LOGI(TAG, "Waiting for WiFi before SDMMC mount");
     return;
   }
@@ -90,6 +91,11 @@ void SdMmcCard::loop() {
       this->mount_at_ms_ = millis() + 10000;
       this->mount_scheduled_ = true;
       ESP_LOGI(TAG, "WiFi is up; SDMMC mount scheduled in 10s");
+    } else if ((int32_t) (millis() - this->wifi_wait_deadline_ms_) >= 0) {
+      this->waiting_for_wifi_ = false;
+      this->mount_at_ms_ = millis();
+      this->mount_scheduled_ = true;
+      ESP_LOGW(TAG, "WiFi did not connect; attempting delayed SDMMC mount");
     }
   }
 #endif
@@ -121,7 +127,9 @@ bool SdMmcCard::mount() {
 
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
   host.slot = SDMMC_HOST_SLOT_0;
-  host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+  // Match the native Waveshare 05_sdmmc example while validating the board
+  // wiring and ESP-Hosted coexistence.
+  host.max_freq_khz = SDMMC_FREQ_DEFAULT;
   esp_err_t err = ESP_OK;
 #if ESPHOME_SDMMC_HAS_PWR_CTRL
   sd_pwr_ctrl_ldo_config_t ldo_config = {
@@ -140,10 +148,10 @@ bool SdMmcCard::mount() {
   
   sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
   if (this->mode_1bit_) {
-    host.flags = SDMMC_HOST_FLAG_1BIT;
+    host.flags = SDMMC_HOST_FLAG_1BIT | SDMMC_HOST_FLAG_DEINIT_ARG;
     slot_config.width = 1;
   } else {
-    host.flags = SDMMC_HOST_FLAG_4BIT;
+    host.flags = SDMMC_HOST_FLAG_1BIT | SDMMC_HOST_FLAG_4BIT | SDMMC_HOST_FLAG_DEINIT_ARG;
     slot_config.width = 4;
   }
   ESP_LOGI(TAG, "SDMMC bus width: %ubit", this->mode_1bit_ ? 1U : 4U);
@@ -168,11 +176,17 @@ bool SdMmcCard::mount() {
   esp_vfs_fat_sdmmc_mount_config_t mount_config = {
       .format_if_mount_failed = this->format_on_mount_failure_,
       .max_files = 5,
-      .allocation_unit_size = 64 * 1024};
+      .allocation_unit_size = 16 * 1024};
 
   err = esp_vfs_fat_sdmmc_mount(MOUNT_POINT, &host, &slot_config, &mount_config, &this->mounted_card_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "SDMMC mount failed: %s", esp_err_to_name(err));
+#if ESPHOME_SDMMC_HAS_PWR_CTRL
+    const esp_err_t power_err = sd_pwr_ctrl_del_on_chip_ldo(pwr_ctrl_handle);
+    if (power_err != ESP_OK) {
+      ESP_LOGE(TAG, "Failed to release SDMMC LDO power control: %s", esp_err_to_name(power_err));
+    }
+#endif
     this->mounted_card_ = nullptr;
     return false;
   }
@@ -184,8 +198,17 @@ bool SdMmcCard::mount() {
 void SdMmcCard::unmount() {
   if (this->mounted_) {
     if (this->mounted_card_ != nullptr) {
+#if ESPHOME_SDMMC_HAS_PWR_CTRL
+      const sd_pwr_ctrl_handle_t pwr_ctrl_handle = this->mounted_card_->host.pwr_ctrl_handle;
+#endif
       esp_vfs_fat_sdcard_unmount(MOUNT_POINT, this->mounted_card_);
       this->mounted_card_ = nullptr;
+#if ESPHOME_SDMMC_HAS_PWR_CTRL
+      const esp_err_t power_err = sd_pwr_ctrl_del_on_chip_ldo(pwr_ctrl_handle);
+      if (power_err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to release SDMMC LDO power control: %s", esp_err_to_name(power_err));
+      }
+#endif
     }
     this->mounted_ = false;
   }

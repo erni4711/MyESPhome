@@ -134,7 +134,7 @@
         "sensor_value_y_offset": 0,
         "sensor_graph_height": 60,
         "image_slideshow_sec": 10,
-        "scene_alias": "",
+        "scene_alias": "CLG2:000000000000000000000000",
         "key_macro": "",
         "key_code": 0,
         "key_modifier": 0,
@@ -375,16 +375,16 @@
         "clock_date_format": 0
       },
       {
-        "type": 0,
-        "title": "",
+        "type": 4,
+        "title": "Haustür",
         "icon_name": "",
-        "bg_color": 0,
+        "bg_color": 3487029,
         "background_opacity": 255,
-        "col": 3,
-        "row": 1,
+        "col": 4,
+        "row": 0,
         "span_w": 1,
         "span_h": 1,
-        "entity_id": "",
+        "entity_id": "weather.openweathermap",
         "sensor_unit": "",
         "sensor_decimals": -1,
         "sensor_value_font": 0,
@@ -397,14 +397,21 @@
         "sensor_value_y_offset": 0,
         "sensor_graph_height": 60,
         "image_slideshow_sec": 10,
-        "scene_alias": "",
+        "scene_alias": "CLG2:000000000000000000000000",
         "key_macro": "",
         "key_code": 0,
         "key_modifier": 0,
         "popup_open_mode": 0,
         "switch_style": 0,
-        "navigate_target": 0,
-        "folder_empty": false
+        "navigate_target": "4",
+        "folder_empty": false,
+        "animation_file": "",
+        "text_value": "",
+        "clock_show_time": "on",
+        "clock_show_date": "on",
+        "animation_fps": 10,
+        "clock_time_format": 0,
+        "clock_date_format": 0
       },
       {
         "type": 0,
@@ -472,15 +479,15 @@
       },
       {
         "type": 5,
-        "title": "St Buero Mf0",
+        "title": "Buro",
         "icon_name": "",
         "bg_color": 3487029,
         "background_opacity": 255,
-        "col": 0,
+        "col": 1,
         "row": 3,
         "span_w": 1,
         "span_h": 1,
-        "entity_id": "media_player.bernds_echo_show_11_2",
+        "entity_id": "",
         "sensor_unit": "",
         "sensor_decimals": 1,
         "sensor_value_font": 0,
@@ -582,15 +589,15 @@
       },
       {
         "type": 5,
-        "title": "Buro",
-        "icon_name": "",
-        "bg_color": 3487029,
+        "title": "Tür",
+        "icon_name": "power-socket-eu",
+        "bg_color": 3289600,
         "background_opacity": 255,
         "col": 1,
         "row": 3,
         "span_w": 1,
         "span_h": 1,
-        "entity_id": "climate.buro",
+        "entity_id": "switch.st_buro",
         "sensor_unit": "",
         "sensor_decimals": 1,
         "sensor_value_font": 0,
@@ -607,7 +614,7 @@
         "key_macro": "",
         "key_code": 0,
         "key_modifier": 0,
-        "popup_open_mode": 1,
+        "popup_open_mode": 0,
         "switch_style": 0,
         "navigate_target": "0",
         "folder_empty": false,
@@ -834,15 +841,15 @@
       },
       {
         "type": 14,
-        "title": "Grid Imported (kWh)",
+        "title": "",
         "icon_name": "",
-        "bg_color": 3487029,
+        "bg_color": 15590924,
         "background_opacity": 255,
-        "col": 1,
+        "col": 0,
         "row": 4,
         "span_w": 1,
         "span_h": 1,
-        "entity_id": "",
+        "entity_id": "sensor.senec_webapi_powergenerated_total_2",
         "sensor_unit": "",
         "sensor_decimals": 1,
         "sensor_value_font": 0,
@@ -1268,7 +1275,7 @@
         "key_modifier": 0,
         "popup_open_mode": 0,
         "switch_style": 0,
-        "navigate_target": "2",
+        "navigate_target": "0",
         "folder_empty": false
       },
       {
@@ -2544,7 +2551,17 @@
         "entity_id": ""
       },
       {
-        "entity_id": ""
+        "entity_id": "",
+        "type": 5,
+        "title": "Lampe",
+        "icon_name": "",
+        "col": 0,
+        "row": 1,
+        "span_w": 3,
+        "span_h": 2,
+        "bg_color": 0,
+        "popup_open_mode": 1,
+        "switch_style": 0
       },
       {
         "entity_id": ""
@@ -2571,6 +2588,145 @@
         "clock_date_alignment": 1,
         "key_code": 40,
         "key_modifier": 24,
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": "climate.schlafzimmer",
+        "type": 17,
+        "title": "Schlafzimmer",
+        "icon_name": "",
+        "col": 3,
+        "row": 3,
+        "span_w": 2,
+        "span_h": 2,
+        "bg_color": 0,
+        "scene_alias": "",
+        "climate_geometry": "",
+        "sensor_gauge_min": 0,
+        "sensor_gauge_max": 1129054000.0,
+        "popup_open_mode": 1,
+        "climate_slots_packed": 0,
+        "climate_layouts_packed": 0
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      }
+    ],
+    "4": [
+      {
+        "type": 18,
+        "title": "Haustür Live view",
+        "icon_name": "",
+        "col": 0,
+        "row": 1,
+        "span_w": 7,
+        "span_h": 4,
+        "bg_color": 0,
+        "entity_id": "camera.haustur_live_view"
+      },
+      {
+        "type": 4,
+        "title": "Home",
+        "icon_name": "home",
+        "col": 0,
+        "row": 0,
+        "span_w": 1,
+        "span_h": 1,
+        "bg_color": 0,
+        "entity_id": "",
+        "navigate_target": "0"
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
+        "entity_id": ""
+      },
+      {
         "entity_id": ""
       },
       {
@@ -2646,7 +2802,6 @@
         "entity_id": ""
       }
     ],
-    "4": [],
     "5": [],
     "6": [],
     "7": [],
