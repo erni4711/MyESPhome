@@ -6,21 +6,31 @@ esphome:
   name_add_mac_suffix: false
   build_flags:
     - -DLV_USE_SNAPSHOT=1
+    - -DLV_FONT_FMT_TXT_LARGE=1
     - -DBOARD_HAS_PSRAM=1
     - -DCONFIG_SDMMC_ENABLE_POWER_CONTROL=1
+    - -DINIT_SD_AFTER_WIFI_INIT=1
+  environment_variables:
+    IDF_PATH: C:\esp\v6.1\esp-idf
+    IDF_TOOLS_PATH: C:\Espressif\tools
+    IDF_PYTHON_ENV_PATH: C:\Espressif\tools\python\v6.1\venv
+    ESP_IDF_VERSION: "6.1"
+    PYTHONUTF8: "1"
+    PATH: C:\Espressif\tools\python\v6.1\venv\Scripts;C:\Espressif\tools\riscv32-esp-elf\esp-15.2.0_20251204\riscv32-esp-elf\bin;C:\Espressif\tools\cmake\4.0.3\bin;C:\Espressif\tools\ninja\1.12.1;C:\Espressif\tools\ccache\4.12.1\ccache-4.12.1-windows-x86_64;C:\esp\v6.1\esp-idf\tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows
+
   platformio_options:
-    board_build.extra_flags: -DLV_USE_SNAPSHOT=1 -DBOARD_HAS_PSRAM=1 -DCONFIG_SDMMC_ENABLE_POWER_CONTROL=1
-    # build_flags:
-    #   - -DWAVE7SD_CS_EXPANDER_PIN=4
-    #   board_build.flash_mode: qio
-    #   board_build.psram_mode: opi
-    #   board_upload.maximum_ram_size: 524288
+    build_flags:
+      - -DLV_FONT_FMT_TXT_LARGE=1
+      - -DLV_USE_FONT_COMPRESSED=1
+    board_build.extra_flags: -DLV_USE_SNAPSHOT=1 -DLV_FONT_FMT_TXT_LARGE=1 -DBOARD_HAS_PSRAM=1 -DCONFIG_SDMMC_ENABLE_POWER_CONTROL=1
   on_boot:
     - logger.log: "Boot sequence started"
     - lvgl.widget.show: boot_screen
     - light.turn_on: display_backlight
-    - delay: 5s
-    - lvgl.widget.hide: boot_screen
+  #  - delay: 5s
+  #  - lvgl.widget.hide: boot_screen
+
+
 ## on_boot temporarily disabled for build tracing
 # on_boot:
 #  priority: -200
@@ -31,6 +41,13 @@ external_components:
   - source:
       type: local
       path: components
+  - source:
+      type: local
+      path: external_components
+  # # Explicit local web_admin component (copied into config/components/web_admin)
+  # - source:
+  #     type: local
+  #     path: components/web_admin
 
 substitutions:
   screen_height: ${1280 if rotation | default("0") not in ["90", "270"] else 800}
@@ -81,38 +98,37 @@ substitutions:
   ui_climate_knob_diameter: 205
 
 esp32:
-  board: esp32-p4-evboard
   variant: esp32p4
+  engineering_sample: false
   flash_size: 32MB
-  cpu_frequency: 360MHz
+  flash_mode: dio
+  flash_frequency: 80MHz
+  partitions: partitions-esp32p4-32mb.csv
+  cpu_frequency: 400MHz
   framework:
     type: esp-idf
+    version: "6.1"
     advanced:
       enable_idf_experimental_features: true
       # Required by sd_file_server directory listing (/file UI)
       disable_vfs_support_dir: false
       disable_fatfs: false
-
     sdkconfig_options:
-      CONFIG_FATFS_LFN: y
-      CONFIG_FATFS_LFN_HEAP: y
+      CONFIG_PARTITION_TABLE_OFFSET: "0x10000"
+      CONFIG_FATFS_LFN_NONE: "n"
+      CONFIG_FATFS_LFN_HEAP: "y"
+      CONFIG_FATFS_LFN_STACK: "n"
       CONFIG_FATFS_MAX_LFN: "255"
-      CONFIG_LV_USE_SNAPSHOT: "y"
+      CONFIG_VFS_SUPPORT_DIR: "y"
+      CONFIG_WIFI_RMT_NVS_ENABLED: "n"
+      CONFIG_LV_USE_SLIDER: "y"
+      CONFIG_LV_FONT_FMT_TXT_LARGE: "y"
+      CONFIG_LV_USE_FONT_COMPRESSED: "y"
       CONFIG_SDMMC_ENABLE_POWER_CONTROL: "y"
-      CONFIG_ESP_TASK_WDT_EN: "y"
-      # CONFIG_ESP_INT_WDT: n
-      # CONFIG_ESP_INT_WDT_TIMEOUT_MS: "20000"
+      CONFIG_CACHE_L2_CACHE_256KB: "y"
+      # Allow tasks that explicitly opt in to allocate their stacks from PSRAM.
+      CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM: "y"
       CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"
-      # ISP / Video pipeline and camera support
-      CONFIG_ESP_VIDEO_ENABLE_ISP_PIPELINE_CONTROLLER: "y"
-      CONFIG_SOC_ISP_SUPPORTED: "y"
-      CONFIG_SOC_ISP_DVP_SUPPORTED: "y"
-      CONFIG_SOC_ISP_DEMOSAIC_SUPPORTED: "y"
-      CONFIG_SOC_ISP_LSC_SUPPORTED: "y"
-      CONFIG_SOC_ISP_WBG_SUPPORTED: "y"
-      CONFIG_SOC_ISP_SHARPEN_SUPPORTED: "y"
-      CONFIG_SOC_ISP_CCM_SUPPORTED: "y"
-      CONFIG_SOC_ISP_BF_SUPPORTED: "y"
 
 psram:
   mode: hex
@@ -144,12 +160,25 @@ esp32_hosted:
 # Firmware update for esp32_hosted ESP32-C6
 update:
   - platform: esp32_hosted
-    name: ESP-Hosted Firmware
+    name: ESP32 C6 Hosted Firmware
+    id: c6_hosted_update
     icon: mdi:chip
     type: http
     source: https://esphome.github.io/esp-hosted-firmware/manifest/esp32c6.json
     update_interval: 6h
 
+button:
+  - platform: template
+    name: ESP32 C6 Hosted Flash
+    icon: mdi:chip
+    on_press:
+      - update.perform:
+          id: c6_hosted_update
+          force_update: true
+  - platform: restart
+    name: "${friendly_name} Restart"
+    id: device_restart
+    icon: "mdi:restart"
 # -------------------------------------------
 # Touchscreen GT911/GT9271 i2c
 # -------------------------------------------
@@ -326,134 +355,135 @@ switch:
             - lvgl.widget.redraw:
 
 
-# DISABLE: media_player - memory optimization
-media_player:
-  - platform: speaker
-    name: "${friendly_name} Speaker"
-    id: speaker_media_player
-    internal: false
-    disabled_by_default: false
-    codec_support_enabled: true
-    # minimal pipelines for announcements and media
-    announcement_pipeline:
-      speaker: announcement_resampling_speaker
-      format: FLAC
-      sample_rate: 48000
-      num_channels: 1
-    media_pipeline:
-      speaker: media_resampling_speaker
-      format: FLAC
-      num_channels: 1
-      sample_rate: 48000
-    on_announcement:
-      - if:
-          condition:
-            - microphone.is_capturing
-          then:
-            - micro_wake_word.stop
-            - voice_assistant.stop
-      - mixer_speaker.apply_ducking:
-          id: media_mixing_input
-          decibel_reduction: 20
-          duration: 0.0s
-      - switch.turn_on: audio_amplifier
-      - delay: 100ms
-    on_turn_on:
-      - switch.turn_on: audio_amplifier
-      - delay: 100ms
-    on_turn_off:
-      - media_player.stop: speaker_media_player
-      - delay: 100ms
-      - switch.turn_off: audio_amplifier
-    on_state:
-      if:
-        condition:
-          and:
-            - not:
-                voice_assistant.is_running:
-            - not:
-                media_player.is_announcing:
-        then:
-          - mixer_speaker.apply_ducking:
-              id: media_mixing_input
-              decibel_reduction: 0
-              duration: 1.0s
-    on_play:
-      - logger.log: "Media player started playing, disabling microphone"
-      - switch.turn_on: audio_amplifier
-      - delay: 100ms
-      - micro_wake_word.stop
-      - voice_assistant.stop
-    on_idle:
-      - delay: 100ms
-      - switch.turn_off: audio_amplifier
-      - if:
-          condition:
-            not:
-              voice_assistant.is_running:
-          then:
-            - script.execute: start_micro_wake_word
+# # DISABLE: media_player - memory optimization
+# media_player:
+#   - platform: speaker
+#     name: "${friendly_name} Speaker"
+#     id: speaker_media_player
+#     internal: false
+#     disabled_by_default: false
+#     # minimal pipelines for announcements and media
+#     announcement_pipeline:
+#       speaker: announcement_resampling_speaker
+#       format: FLAC
+#       sample_rate: 48000
+#       num_channels: 1
+#     media_pipeline:
+#       speaker: media_resampling_speaker
+#       format: FLAC
+#       num_channels: 1
+#       sample_rate: 48000
+#     on_announcement:
+#       - if:
+#           condition:
+#             - microphone.is_capturing
+#           then:
+#             - micro_wake_word.stop
+#             - voice_assistant.stop
+#       - mixer_speaker.apply_ducking:
+#           id: media_mixing_input
+#           decibel_reduction: 20
+#           duration: 0.0s
+#       - switch.turn_on: audio_amplifier
+#       - delay: 100ms
+#     on_turn_on:
+#       - switch.turn_on: audio_amplifier
+#       - delay: 100ms
+#     on_turn_off:
+#       - media_player.stop: speaker_media_player
+#       - delay: 100ms
+#       - switch.turn_off: audio_amplifier
+#     on_state:
+#       if:
+#         condition:
+#           and:
+#             - not:
+#                 voice_assistant.is_running:
+#             - not:
+#                 media_player.is_announcing:
+#         then:
+#           - mixer_speaker.apply_ducking:
+#               id: media_mixing_input
+#               decibel_reduction: 0
+#               duration: 1.0s
+#     on_play:
+#       - logger.log: "Media player started playing, disabling microphone"
+#       - switch.turn_on: audio_amplifier
+#       - delay: 100ms
+#       - micro_wake_word.stop
+#       - voice_assistant.stop
+#     on_idle:
+#       - delay: 100ms
+#       - switch.turn_off: audio_amplifier
+#       - if:
+#           condition:
+#             not:
+#               voice_assistant.is_running:
+#           then:
+#             - script.execute: start_micro_wake_word
 
 
-# voice assistant enabled
-micro_wake_word:
-  id: my_wake_word
-  vad:
-  models:
-    - model: "okay_nabu"
-  on_wake_word_detected:
-    then:
-      - logger.log: "Wake word detected"
-      - switch.turn_off: switch_antiburn
-      - if:
-          condition: lvgl.is_paused
-          then:
-            - lvgl.resume:
-            - lvgl.widget.redraw:
-      - light.turn_on: display_backlight
-      - lvgl.page.show: voice_page
-      - voice_assistant.start:
-          wake_word: !lambda return wake_word;
+# # voice assistant enabled
+# micro_wake_word:
+#   id: my_wake_word
+#   vad:
+#   models:
+#     - model: "okay_nabu"
+#   on_wake_word_detected:
+#     then:
+#       - logger.log: "Wake word detected"
+#       - switch.turn_off: switch_antiburn
+#       - if:
+#           condition: lvgl.is_paused
+#           then:
+#             - lvgl.resume:
+#             - lvgl.widget.redraw:
+#       - light.turn_on: display_backlight
+#       - lvgl.page.show: voice_page
+#       - voice_assistant.start:
+#           wake_word: !lambda return wake_word;
 
-voice_assistant:
-  microphone: esp32_microphone
-  media_player: speaker_media_player
-  micro_wake_word: my_wake_word
-  noise_suppression_level: 2
-  auto_gain: 31dBFS
-  volume_multiplier: 2.0
-  conversation_timeout: 300s
-  on_start:
-    - text_sensor.template.publish:
-        id: voice_spoken_sentence
-        state: ""
-  on_end:
-    # Wait a short amount of time to see if an announcement starts
-    - wait_until:
-        condition:
-          - media_player.is_announcing:
-        timeout: 0.5s
-    # Announcement is finished and the I2S bus is free
-    - wait_until:
-        - and:
-            - not:
-                media_player.is_announcing:
-            - not:
-                media_player.is_playing:
-    - script.execute: start_micro_wake_word
-  on_stt_end:
-    - text_sensor.template.publish:
-        id: voice_spoken_sentence
-        state: !lambda return x;
-  on_client_connected:
-    - script.execute: start_micro_wake_word
-  on_client_disconnected:
-    - script.execute: stop_micro_wake_word
+# voice_assistant:
+#   microphone: esp32_microphone
+#   media_player: speaker_media_player
+#   micro_wake_word: my_wake_word
+#   noise_suppression_level: 2
+#   auto_gain: 31dBFS
+#   volume_multiplier: 2.0
+#   conversation_timeout: 300s
+#   on_start:
+#     - text_sensor.template.publish:
+#         id: voice_spoken_sentence
+#         state: ""
+#   on_end:
+#     # Wait a short amount of time to see if an announcement starts
+#     - wait_until:
+#         condition:
+#           - media_player.is_announcing:
+#         timeout: 0.5s
+#     # Announcement is finished and the I2S bus is free
+#     - wait_until:
+#         - and:
+#             - not:
+#                 media_player.is_announcing:
+#             - not:
+#                 media_player.is_playing:
+#     - script.execute: start_micro_wake_word
+#   on_stt_end:
+#     - text_sensor.template.publish:
+#         id: voice_spoken_sentence
+#         state: !lambda return x;
+#   on_client_connected:
+#     - script.execute: start_micro_wake_word
+#   on_client_disconnected:
+#     - script.execute: stop_micro_wake_word
 
 
 
 # deep_sleep:
 #   touch_wakeup: true
+spiffs:
+
 sd_mmc_card:
   id: sdcard
   clk_pin: 43
@@ -463,23 +493,45 @@ sd_mmc_card:
   d2_pin: 41
   d3_pin: 42
 
-sd_file_server:
-  sd_mmc_id: sdcard
-  web_server_base_id: my_web_server_base
-  url_prefix: sd
-  enable_download: true
-  enable_upload: true
-  enable_deletion: true
+# sd_file_server:
+#   sd_mmc_id: sdcard
+#   web_server_base_id: my_web_server_base
+#   url_prefix: sd
+#   enable_download: true
+#   enable_upload: true
+#   enable_deletion: true
 
+hatilvgl:
+  home_assistant_url: "http://homeassistant.local:8123"
+  home_assistant_token: !secret ha_long_lived_token
+  backlight: display_backlight
+  screen_timeout: display_timeout
+
+hatiadmin:
+  id: hatiadmin_component
+  web_server_base_id: my_web_server_base
+  url_prefix: admin
+  # Optional: populate /admin/entity_options from Home Assistant REST API.
+  home_assistant_url: "http://homeassistant.local:8123"
+  home_assistant_token: !secret ha_long_lived_token
+
+# web_admin:
+#   web_server_base_id: my_web_server_base
+#   url_prefix: admin
+#   # enable_authentication: true
+#   # username: !secret web_admin_username
+#   # password: !secret web_admin_password
 
 #-------------------------------------------
 # LCD Back light
 #-------------------------------------------
 image:
-  - file: "image/esphome.png"
+  - platform: file
+    file: "image/esphome.png"
     id: boot_logo
     resize: 200x200
     type: RGB565
+    byte_order: little_endian
     transparency: alpha_channel
 
 
@@ -490,8 +542,8 @@ ota:
   on_begin:
     then:
       - switch.turn_off: switch_antiburn
-      - lvgl.pause:
       - light.turn_off: display_backlight
+      - lvgl.pause:
       - logger.log: "LVGL paused for OTA"
   on_end:
     then:
@@ -505,8 +557,6 @@ logger:
   level: DEBUG
   hardware_uart: UART0
   baud_rate: 115200
-
-
 
 number:
   - platform: template
@@ -526,75 +576,75 @@ number:
 
 api:
   on_client_connected:
-    - if:
-        condition:
-          lambda: 'return (0 == client_info.find("Home Assistant "));'
-        then:
-          - lvgl.widget.show: lbl_hastatus
-  on_client_disconnected:
-    - if:
-        condition:
-          lambda: 'return (0 == client_info.find("Home Assistant "));'
-        then:
-          - lvgl.widget.hide: lbl_hastatus
-  services:
-    # Camera services disabled while p4_camera component is temporarily removed
-    - service: start_camera_stream
-      then:
-        - logger.log: "start_camera_stream skipped (camera disabled)"
-    - service: stop_camera_stream
-      then:
-        - logger.log: "stop_camera_stream skipped (camera disabled)"
-    - service: capture_camera_frame
-      then:
-        - logger.log: "capture_camera_frame skipped (camera disabled)"
-    - service: set_camera_resolution
-      variables:
-        resolution: string
-      then:
-        - logger.log: "set_camera_resolution skipped (camera disabled)"
+    - lambda: |-
+        id(hatiadmin_component).start();
+    - lvgl.widget.hide: boot_screen
+  # on_client_connected:
+  #   - if:
+  #       condition:
+  #         lambda: 'return (0 == client_info.find("Home Assistant "));'
+  #       then:
+  #         - lvgl.widget.show: lbl_hastatus
+  # on_client_disconnected:
+  #   - if:
+  #       condition:
+  #         lambda: 'return (0 == client_info.find("Home Assistant "));'
+  #       then:
+  #         - lvgl.widget.hide: lbl_hastatus
+  # services:
+  #   # Camera services disabled while p4_camera component is temporarily removed
+  #   - service: start_camera_stream
+  #     then:
+  #       - logger.log: "start_camera_stream skipped (camera disabled)"
+  #   - service: stop_camera_stream
+  #     then:
+  #       - logger.log: "stop_camera_stream skipped (camera disabled)"
+  #   - service: capture_camera_frame
+  #     then:
+  #       - logger.log: "capture_camera_frame skipped (camera disabled)"
+  #   - service: set_camera_resolution
+  #     variables:
+  #       resolution: string
+  #     then:
+  #       - logger.log: "set_camera_resolution skipped (camera disabled)"
  
 time:
   - platform: homeassistant
     id: homeassistant_time
-    on_time_sync:
-      - script.execute: time_update
-    on_time:
-      - seconds: /1
-        then:
-          - script.execute: time_update
 script:
-  - id: time_update
-    then:
-      - lvgl.label.update:
-          id: clock_label
-          text:
-            time_format: "%H:%M:%S"
+  # - id: time_update
+  #   then:
+  #     - lvgl.label.update:
+  #         id: clock_label
+  #         text:
+  #           time_format: "%H:%M:%S"
   - id: start_micro_wake_word
     then:
-      - if:
-          condition:
-            and:
-              - voice_assistant.connected:
-              - not:
-                  voice_assistant.is_running:
-              - not:
-                  media_player.is_announcing:
-              - not:
-                  media_player.is_playing:
-              - not:
-                  micro_wake_word.is_running:
-          then:
-            - logger.log: "Starting wake word detection"
-            - micro_wake_word.start
+      - logger.log: "disabled"
+      # - if:
+      #     condition:
+      #       and:
+      #         - voice_assistant.connected:
+      #         - not:
+      #             voice_assistant.is_running:
+      #         - not:
+      #             media_player.is_announcing:
+      #         - not:
+      #             media_player.is_playing:
+      #         - not:
+      #             micro_wake_word.is_running:
+      #     then:
+      #       - logger.log: "Starting wake word detection"
+      #       - micro_wake_word.start
   - id: stop_micro_wake_word
     then:
-      - if:
-          condition:
-            micro_wake_word.is_running:
-          then:
-            - logger.log: "Stopping wake word detection"
-            - micro_wake_word.stop
+      - logger.log: "disabled"
+      # - if:
+      #     condition:
+      #       micro_wake_word.is_running:
+      #     then:
+      #       - logger.log: "Stopping wake word detection"
+      #       - micro_wake_word.stop
 
 <<: !include ../common/7i-fonts.yaml
 
@@ -667,12 +717,13 @@ web_server_base:
 web_server:
   port: 80
   web_server_base_id: my_web_server_base
+
+hatiserve:
+  web_server_base_id: my_web_server_base
  
-# screenshot:
-#   id: screenshot_component
-#   sd_mmc_id: sdcard
-#   # camera_id: ov5647_camera  # disabled while p4_camera is temporarily removed
-# Screenshot component disabled while p4_camera is temporarily removed
+screenshot:
+  id: screenshot_component
+  sd_mmc_id: sdcard
 
 text_sensor:
   - platform: wifi_info
@@ -699,40 +750,40 @@ text_sensor:
     internal: true
     update_interval: never
     lambda: return {""};
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: voice_transcript_label
-            text: !lambda |-
-              if (x.empty()) {
-                return std::string("Waiting for speech...");
-              }
-              return x;
+    # on_value:
+    #   then:
+    #     - lvgl.label.update:
+    #         id: voice_transcript_label
+    #         text: !lambda |-
+    #           if (x.empty()) {
+    #             return std::string("Waiting for speech...");
+    #           }
+    #           return x;
 
 
-interval:
-  - interval: 5s
-    then:
-      - lvgl.label.update:
-          id: battery_text
-          text: !lambda |-
-            char buf[16];
-            sprintf(buf, "%.0f%%", id(battery_percent).state);
-            return std::string(buf);
-      - lvgl.label.update:
-          id: boot_network_label
-          text: !lambda |-
-            std::string ssid = id(wifi_ssid).state;
-            std::string ip = id(wifi_ip).state;
-            if (ssid.empty() && ip.empty()) {
-              return std::string("Network: disconnected");
-            }
-            if (ssid.empty()) ssid = "unknown";
-            if (ip.empty()) ip = "no ip";
-            return std::string("Network: ") + ssid + " (" + ip + ")";
-      - lvgl.label.update:
-          id: boot_sd_label
-          text: "SD: not configured"
+# interval:
+#   - interval: 5s
+#     then:
+#       - lvgl.label.update:
+#           id: battery_text
+#           text: !lambda |-
+#             char buf[16];
+#             sprintf(buf, "%.0f%%", id(battery_percent).state);
+#             return std::string(buf);
+#       - lvgl.label.update:
+#           id: boot_network_label
+#           text: !lambda |-
+#             std::string ssid = id(wifi_ssid).state;
+#             std::string ip = id(wifi_ip).state;
+#             if (ssid.empty() && ip.empty()) {
+#               return std::string("Network: disconnected");
+#             }
+#             if (ssid.empty()) ssid = "unknown";
+#             if (ip.empty()) ip = "no ip";
+#             return std::string("Network: ") + ssid + " (" + ip + ")";
+#       - lvgl.label.update:
+#           id: boot_sd_label
+#           text: "SD: not configured"
 
 
 lvgl:
@@ -761,107 +812,118 @@ lvgl:
       - switch.turn_on: switch_antiburn
       - lvgl.pause:
   <<: !include ../gui/styles.yaml
+  widgets:
+  - slider:
+      id: lvgl_feature_slider
+      hidden: true
+  - button:
+      id: lvgl_feature_button
+      hidden: true
+      layout:
+        type: flex
+        flex_flow: row
+      widgets: []
   top_layer:
     widgets:
-      - obj:
-          styles: header_footer
-          bg_opa: COVER
-          align: top_left
-          width: 40
-          layout:
-            type: flex
-            flex_flow: row
-            pad_column: 4
-            flex_align_main: start
-            flex_align_cross: start
+      # - obj:
+      #     styles: header_footer
+      #     bg_opa: COVER
+      #     align: top_left
+      #     width: 40
+      #     layout:
+      #       type: flex
+      #       flex_flow: row
+      #       pad_column: 4
+      #       flex_align_main: start
+      #       flex_align_cross: start
             
-          widgets:
-            - button:
-                id: reboot_button
-                styles: style_circle_button_mini
-                text: ${mdi_power}
-                on_press:
-                  then:
-                    - lambda: |-
-                        esp_restart();
-      - obj:
-          styles: header_footer
-          align: top_right
-          width: 330
-          bg_opa: COVER
-          layout:
-            type: flex
-            flex_flow: row
-            pad_column: 4
-            flex_align_main: end
-            flex_align_cross: start
-            flex_align_track: end
-          widgets:
-            - label:
-                id: clock_label
-                text:
-                  time_format: "%H:%M:%S"
-                text_color: 0xFFFFFF
-                text_font: font_mono
-            - label:
-                id: lbl_battery_status
-                text_font: battery_icons_20
-                text_align: center
-                text: "${mdi_battery_unknown}" # start with mdi-battery-unknown
-            - label:
-                id: battery_text 
-                text: "~50%"
-                text_font: font_mono
-                align: TOP_RIGHT
-                # x: -10 
-                # y: 40
-            - label:
-                text_font: roboto_reg
-                text: "${mdi_wifi}"
-                id: lbl_hastatus
-                hidden: true
-                text_align: center
-            - button:
-                id: about_button
-                styles: style_circle_button_mini
-                text: ${mdi_info}
-                on_press:
-                  then:
-                    - lvgl.widget.show: boot_about_label
-                    - lvgl.widget.show: boot_screen
-      - buttonmatrix:
-          align: bottom_mid
-          bg_opa: COVER
-          styles: header_footer
-          pad_all: 0
-          outline_width: 0
-          height: ${ui_footer_height}
-          width: 100%
-          id: top_layer
-          items:
-            styles: header_footer
-          rows:
-            - buttons:
-              - id: page_prev
-                text: "\uF053"
-                on_press:
-                  then:
-                    - lvgl.page.previous:
-              - id: page_home
-                text: "\uF015"
-                on_press:
-                  then:
-                    - lvgl.page.show: main_page
-              - id: page_sleep
-                text: "Z"
-                on_press:
-                  then:
-                    - logger.log: "Sleep not supported on ESP32-P4"
-              - id: page_next
-                text: "\uF054"
-                on_press:
-                  then:
-                    - lvgl.page.next:
+      #     widgets:
+      #       - button:
+      #           id: reboot_button
+      #           styles: style_circle_button_mini
+      #           text: ${mdi_power}
+      #           on_press:
+      #             then:
+      #               - lambda: |-
+      #                   esp_restart();
+      # - obj:
+      #     styles: header_footer
+      #     align: top_right
+      #     width: 330
+      #     bg_opa: COVER
+      #     layout:
+      #       type: flex
+      #       flex_flow: row
+      #       pad_column: 4
+      #       flex_align_main: end
+      #       flex_align_cross: start
+      #       flex_align_track: end
+      #     widgets:
+      #       - label:
+      #           id: clock_label
+      #           text:
+      #             time_format: "%H:%M:%S"
+      #           text_color: 0xFFFFFF
+      #           text_font: font_mono
+      #       - label:
+      #           id: lbl_battery_status
+      #           text_font: battery_icons_20
+      #           text_align: center
+      #           text: "${mdi_battery_unknown}" # start with mdi-battery-unknown
+      #       - label:
+      #           id: battery_text 
+      #           text: "~50%"
+      #           text_font: font_mono
+      #           align: TOP_RIGHT
+      #           # x: -10 
+      #           # y: 40
+      #       - label:
+      #           text_font: roboto_reg
+      #           text: "${mdi_wifi}"
+      #           id: lbl_hastatus
+      #           hidden: true
+      #           text_align: center
+      #       - button:
+      #           id: about_button
+      #           styles: style_circle_button_mini
+      #           text: ${mdi_info}
+      #           on_press:
+      #             then:
+      #               - lvgl.widget.show: boot_about_label
+      #               - lvgl.widget.show: boot_screen
+      # - buttonmatrix:
+      #     align: bottom_mid
+      #     bg_opa: COVER
+      #     styles: header_footer
+      #     pad_all: 0
+      #     outline_width: 0
+      #     height: ${ui_footer_height}
+      #     width: 100%
+      #     id: top_layer
+      #     items:
+      #       styles: header_footer
+      #     rows:
+      #       - buttons:
+      #         - id: page_prev
+      #           text: "\uF053"
+      #           on_press:
+      #             then:
+      #               - lvgl.page.previous:
+      #         - id: page_home
+      #           text: "\uF015"
+      #           on_press:
+      #             then:
+      #               - lvgl.page.show: voice_page
+      #         - id: page_sleep
+      #           text: "Z"
+      #           on_press:
+      #             then:
+      #               - logger.log: "Sleep not supported on ESP32-P4"
+      #         - id: page_next
+      #           text: "\uF054"
+      #           on_press:
+      #             then:
+      #               - lvgl.page.next:
       - obj:
           id: boot_screen
           x: 0
@@ -926,6 +988,9 @@ lvgl:
             
           on_press:
             - lvgl.widget.hide: boot_screen
+  pages:
+
+
 
 # p4_camera:
 #   id: ov5647_camera

@@ -1,5 +1,4 @@
 
-#ifdef USE_ESP32
 
 #include "screenshot.h"
 #include "esphome/core/log.h"
@@ -35,6 +34,7 @@ void *my_lvgl_realloc(void *ptr, size_t size);
 #include <string>
 #include <stdio.h>
 #include <cstring>
+#include <sys/stat.h>
 #include <esp_http_server.h>
 #include <esp_task_wdt.h>
 #include <esp_timer.h>
@@ -697,8 +697,56 @@ void ScreenshotComponent::VideoHandler::handleRequest(AsyncWebServerRequest *req
 }
 #endif  // HAVE_CAMERA
 
+bool ScreenshotComponent::write_preferred_file_(const char *filename, const uint8_t *data,
+                                                size_t size, const char *kind) {
+  if (filename == nullptr || data == nullptr || size == 0) return false;
+  char path_buf[128];
+  bool wrote = false;
+  std::string path;
+
+#if HAVE_SD_MMC_CARD
+  if (this->sd_mmc_card_ != nullptr && this->sd_mmc_card_->is_mounted()) {
+    snprintf(path_buf, sizeof(path_buf), "/sdcard/%s", filename);
+    path = path_buf;
+    this->sd_mmc_card_->delete_file(path);
+    this->sd_mmc_card_->append_file(path.c_str(), data, size);
+    wrote = true;
+  }
+#endif
+
+#if HAVE_SD_SPI_CARD
+  if (!wrote && this->sd_spi_card_ != nullptr && this->sd_spi_card_->is_mounted()) {
+    snprintf(path_buf, sizeof(path_buf), "/sdcard/%s", filename);
+    path = path_buf;
+    this->sd_spi_card_->delete_file(path);
+    wrote = this->sd_spi_card_->append_file_chunk(path, data, size, true);
+  }
+#endif
+
+  struct stat spiffs_root {};
+  if (!wrote && stat("/spiffs", &spiffs_root) == 0 && S_ISDIR(spiffs_root.st_mode)) {
+    snprintf(path_buf, sizeof(path_buf), "/spiffs/%s", filename);
+    path = path_buf;
+    FILE *file = fopen(path.c_str(), "wb");
+    if (file != nullptr) {
+      wrote = fwrite(data, 1, size, file) == size;
+      fclose(file);
+    }
+  }
+
+  if (wrote) {
+    ESP_LOGD(TAG, "Wrote %s to %s", kind != nullptr ? kind : "file", path.c_str());
+  } else {
+    ESP_LOGW(TAG, "Unable to write %s: /sdcard and /spiffs are unavailable",
+             kind != nullptr ? kind : "file");
+  }
+  this->last_save_ok_ = wrote;
+  this->last_save_path_ = wrote ? path : "";
+  this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
+  return wrote;
+}
+
 bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_size) {
-#if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
   if (png_buf == nullptr || png_size == 0) return false;
   char ts_buf[32] = {0};
   bool have_wall_time = false;
@@ -728,73 +776,9 @@ bool ScreenshotComponent::write_png_to_sd_(const uint8_t *png_buf, size_t png_si
   }
   safe_ts[safe_len] = '\0';
 
-  char path_buf[96];
-  snprintf(path_buf, sizeof(path_buf), "/sdcard/screenshot_%s.png", safe_ts);
-  const std::string path = path_buf;
-  bool wrote = false;
-  bool attempted = false;
-#if HAVE_SD_SPI_CARD
-  if (this->sd_spi_card_ != nullptr) {
-    attempted = true;
-    bool mounted = this->sd_spi_card_->is_mounted();
-    if (!mounted) {
-      mounted = this->sd_spi_card_->mount();
-    }
-    if (!mounted) {
-      ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
-      wrote = false;
-    } else {
-      this->sd_spi_card_->delete_file(path);
-      wrote = this->sd_spi_card_->append_file_chunk(path, png_buf, png_size, true);
-      if (!wrote) {
-        ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
-      } else {
-        ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
-      }
-    }
-  }
-#endif
-  if (!attempted && this->sd_mmc_card_ != nullptr) {
-    attempted = true;
-    this->sd_mmc_card_->delete_file(path);
-    this->sd_mmc_card_->append_file(path.c_str(), png_buf, png_size);
-    wrote = true;
-    ESP_LOGD(TAG, "Wrote PNG to %s", path.c_str());
-  }
-  if (!attempted) {
-    ESP_LOGD(TAG, "sd card not configured, skipping SD write");
-    wrote = false;
-  }
-
-  if (this->png_mutex_ != nullptr) {
-    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
-      this->last_save_ok_ = wrote;
-      this->last_save_path_ = wrote ? path : "";
-      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-      xSemaphoreGive(this->png_mutex_);
-    }
-  } else {
-    this->last_save_ok_ = wrote;
-    this->last_save_path_ = wrote ? path : "";
-    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-  }
-  return wrote;
-#else
-  ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
-  if (this->png_mutex_ != nullptr) {
-    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
-      this->last_save_ok_ = false;
-      this->last_save_path_.clear();
-      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-      xSemaphoreGive(this->png_mutex_);
-    }
-  } else {
-    this->last_save_ok_ = false;
-    this->last_save_path_.clear();
-    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-  }
-  return false;
-#endif
+  char filename[64];
+  snprintf(filename, sizeof(filename), "screenshot_%s.png", safe_ts);
+  return this->write_preferred_file_(filename, png_buf, png_size, "PNG");
 }
 #if HAVE_CAMERA  
 bool ScreenshotComponent::write_camera_png_to_sd_(const uint8_t *rgb565_buf, uint16_t width, uint16_t height) {
@@ -872,7 +856,6 @@ bool ScreenshotComponent::write_camera_png_to_sd_(const uint8_t *rgb565_buf, uin
 
 bool ScreenshotComponent::write_camera_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size) {
   if (!jpeg_buf || jpeg_size == 0) return false;
-#if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
   char ts_buf[32] = {0};
   bool have_wall_time = false;
   ::time_t now = ::time(nullptr);
@@ -901,73 +884,13 @@ bool ScreenshotComponent::write_camera_jpeg_to_sd_(const uint8_t *jpeg_buf, size
   }
   safe_ts[safe_len] = '\0';
 
-  char path_buf[96];
-  snprintf(path_buf, sizeof(path_buf), "/sdcard/capture_%s.jpg", safe_ts);
-  const std::string path = path_buf;
-  bool wrote = false;
-  bool attempted = false;
-#if HAVE_SD_SPI_CARD
-  if (this->sd_spi_card_ != nullptr) {
-    attempted = true;
-    bool mounted = this->sd_spi_card_->is_mounted();
-    if (!mounted) mounted = this->sd_spi_card_->mount();
-    if (!mounted) {
-      ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
-      wrote = false;
-    } else {
-      this->sd_spi_card_->delete_file(path);
-      wrote = this->sd_spi_card_->append_file_chunk(path, jpeg_buf, jpeg_size, true);
-      if (!wrote) ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
-      else ESP_LOGD(TAG, "Wrote JPEG to %s", path.c_str());
-    }
-  }
-#endif
-  if (!attempted && this->sd_mmc_card_ != nullptr) {
-    attempted = true;
-    this->sd_mmc_card_->delete_file(path);
-    this->sd_mmc_card_->append_file(path.c_str(), jpeg_buf, jpeg_size);
-    wrote = true;
-    ESP_LOGD(TAG, "Wrote JPEG to %s", path.c_str());
-  }
-  if (!attempted) {
-    ESP_LOGD(TAG, "sd card not configured, skipping SD write");
-    wrote = false;
-  }
-
-  if (this->png_mutex_ != nullptr) {
-    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
-      this->last_save_ok_ = wrote;
-      this->last_save_path_ = wrote ? path : "";
-      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-      xSemaphoreGive(this->png_mutex_);
-    }
-  } else {
-    this->last_save_ok_ = wrote;
-    this->last_save_path_ = wrote ? path : "";
-    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-  }
-  return wrote;
-#else
-  ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
-  if (this->png_mutex_ != nullptr) {
-    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
-      this->last_save_ok_ = false;
-      this->last_save_path_.clear();
-      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-      xSemaphoreGive(this->png_mutex_);
-    }
-  } else {
-    this->last_save_ok_ = false;
-    this->last_save_path_.clear();
-    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-  }
-  return false;
-#endif
+  char filename[64];
+  snprintf(filename, sizeof(filename), "capture_%s.jpg", safe_ts);
+  return this->write_preferred_file_(filename, jpeg_buf, jpeg_size, "camera JPEG");
 }
 
 bool ScreenshotComponent::write_snapshot_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size) {
   if (!jpeg_buf || jpeg_size == 0) return false;
-#if HAVE_SD_MMC_CARD || HAVE_SD_SPI_CARD
   char ts_buf[32] = {0};
   bool have_wall_time = false;
   ::time_t now = ::time(nullptr);
@@ -996,68 +919,9 @@ bool ScreenshotComponent::write_snapshot_jpeg_to_sd_(const uint8_t *jpeg_buf, si
   }
   safe_ts[safe_len] = '\0';
 
-  char path_buf[96];
-  snprintf(path_buf, sizeof(path_buf), "/sdcard/screenshot_%s.jpg", safe_ts);
-  const std::string path = path_buf;
-  bool wrote = false;
-  bool attempted = false;
-#if HAVE_SD_SPI_CARD
-  if (this->sd_spi_card_ != nullptr) {
-    attempted = true;
-    bool mounted = this->sd_spi_card_->is_mounted();
-    if (!mounted) mounted = this->sd_spi_card_->mount();
-    if (!mounted) {
-      ESP_LOGW(TAG, "SD SPI mount failed; skipping write");
-      wrote = false;
-    } else {
-      this->sd_spi_card_->delete_file(path);
-      wrote = this->sd_spi_card_->append_file_chunk(path, jpeg_buf, jpeg_size, true);
-      if (!wrote) ESP_LOGW(TAG, "SD SPI write failed: %s", path.c_str());
-      else ESP_LOGD(TAG, "Wrote snapshot JPEG to %s", path.c_str());
-    }
-  }
-#endif
-  if (!attempted && this->sd_mmc_card_ != nullptr) {
-    attempted = true;
-    this->sd_mmc_card_->delete_file(path);
-    this->sd_mmc_card_->append_file(path.c_str(), jpeg_buf, jpeg_size);
-    wrote = true;
-    ESP_LOGD(TAG, "Wrote snapshot JPEG to %s", path.c_str());
-  }
-  if (!attempted) {
-    ESP_LOGD(TAG, "sd card not configured, skipping SD write");
-    wrote = false;
-  }
-
-  if (this->png_mutex_ != nullptr) {
-    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
-      this->last_save_ok_ = wrote;
-      this->last_save_path_ = wrote ? path : "";
-      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-      xSemaphoreGive(this->png_mutex_);
-    }
-  } else {
-    this->last_save_ok_ = wrote;
-    this->last_save_path_ = wrote ? path : "";
-    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-  }
-  return wrote;
-#else
-  ESP_LOGD(TAG, "sd card support not compiled, skipping SD write");
-  if (this->png_mutex_ != nullptr) {
-    if (xSemaphoreTake(this->png_mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
-      this->last_save_ok_ = false;
-      this->last_save_path_.clear();
-      this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-      xSemaphoreGive(this->png_mutex_);
-    }
-  } else {
-    this->last_save_ok_ = false;
-    this->last_save_path_.clear();
-    this->last_save_epoch_ = static_cast<uint32_t>(::time(nullptr));
-  }
-  return false;
-#endif
+  char filename[64];
+  snprintf(filename, sizeof(filename), "screenshot_%s.jpg", safe_ts);
+  return this->write_preferred_file_(filename, jpeg_buf, jpeg_size, "snapshot JPEG");
 }
 #endif
 
@@ -1322,4 +1186,3 @@ void ScreenshotComponent::loop() {
 }  // namespace screenshot
 }  // namespace esphome
 
-#endif  // USE_ESP32

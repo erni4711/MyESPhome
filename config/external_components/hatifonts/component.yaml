@@ -1,0 +1,40 @@
+name: "hatifonts"
+version: "0.1"
+
+files:
+  - ui_fonts.h
+  - web_admin_lvgl_fonts.h
+  - mdi_icons.cpp
+  - mdi_icons.h
+  - ui_font_12.c
+  - ui_font_14.c
+  - ui_font_16.c
+  - ui_font_20.c
+  - ui_font_20_semibold.c
+  - ui_font_24.c
+  - ui_font_28.c
+  - ui_font_32.c
+  - ui_font_40.c
+  - ui_font_48.c
+  - ui_font_56.c
+  - ui_font_64.c
+  - ui_font_72.c
+  - ui_font_80.c
+  - ui_font_96.c
+  - ui_font_cyrillic_14.c
+  - ui_font_cyrillic_16.c
+  - ui_font_cyrillic_20.c
+  - ui_font_cyrillic_24.c
+  - mdi_icons_32.c
+  - mdi_icons_40.c
+  - mdi_icons_48.c
+  - ui_symbols_20.c
+  - ui_symbols_24.c
+
+includes:
+  - ui_fonts.h
+  - web_admin_lvgl_fonts.h
+  - mdi_icons.h
+
+dependencies:
+  - lvgl

@@ -1,0 +1,10 @@
+{
+	"name": "hatiadmin",
+	"version": "1.0.0",
+	"description": "HATiAdmin local web administration component for ESPHome.",
+	"files": [
+		"__init__.py",
+		"web_admin_local.h",
+		"web_admin_local.cpp"
+	]
+}

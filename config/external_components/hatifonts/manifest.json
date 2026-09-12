@@ -1,0 +1,11 @@
+{
+  "name": "hatifonts",
+  "version": "0.1.0",
+  "description": "Shared LVGL fonts and icons for MyESPhome.",
+  "files": [
+    "ui_fonts.h",
+    "web_admin_lvgl_fonts.h",
+    "mdi_icons.cpp",
+    "mdi_icons.h"
+  ]
+}

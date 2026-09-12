@@ -1,0 +1,9 @@
+name: "hatiserve"
+version: "0.1"
+files:
+  - hatiserve.cpp
+  - hatiserve.h
+  - __init__.py
+dependencies:
+  - web_server_base
+  - spiffs

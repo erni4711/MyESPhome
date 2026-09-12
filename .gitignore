@@ -32,3 +32,6 @@ a.log
 *.pyd
 .venv-py311-freeze.txt
 .venv-py311-backup/
+config/components_new/
+config/external_components/hatiadmin/states.json
+config/external_components/hatiadmin/tools/backup/tiles-all.json

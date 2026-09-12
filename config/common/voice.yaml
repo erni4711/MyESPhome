@@ -1,9 +1,10 @@
 lvgl:
   pages:
+    - id: web_admin_local_pages
     - id: voice_page
       on_load:
-        - lambda: |-
-            id(lvgl_page_select).publish_state("Voice Control");
+        # - lambda: |-
+        #     id(lvgl_page_select).publish_state("Voice Control");
         - lvgl.label.update:
             id: voice_transcript_label
             text: !lambda |-
@@ -95,14 +96,14 @@ lvgl:
                   grid_cell_y_align: STRETCH
                   styles: style_circle_button
                   bg_color: 0x51a0e4
-                  on_press:
-                    - if:
-                        condition:
-                          not:
-                            voice_assistant.is_running:
-                        then:
-                          - script.execute: stop_micro_wake_word
-                          - voice_assistant.start
+                  # on_press:
+                  #   - if:
+                  #       condition:
+                  #         not:
+                  #           voice_assistant.is_running:
+                  #       then:
+                  #         - script.execute: stop_micro_wake_word
+                  #         - voice_assistant.start
                   widgets:
                     - label:
                         styles: style_circle_label
@@ -117,11 +118,11 @@ lvgl:
                   styles: style_circle_button
                   bg_color: 0xd9534f
                   on_press:
-                    - if:
-                        condition:
-                          voice_assistant.is_running:
-                        then:
-                          - voice_assistant.stop
+                    # - if:
+                    #     condition:
+                    #       voice_assistant.is_running:
+                    #     then:
+                    #       - voice_assistant.stop
                     - script.execute: start_micro_wake_word
                   widgets:
                     - label:
@@ -159,23 +160,23 @@ lvgl:
                         text: "Wake Off"
                         text_color: ${color_white}
 
-interval:
-  - interval: 2s
-    then:
-      - lvgl.label.update:
-          id: voice_status_label
-          text: !lambda |-
-            if (id(my_wake_word).is_running()) {
-              return std::string("Wake Word Ready");
-            }
-            if (id(esp32_microphone).is_running()) {
-              return std::string("Listening");
-            }
-            return std::string("Idle");
-      - lvgl.label.update:
-          id: wake_word_status_label
-          text: !lambda |-
-            if (id(my_wake_word).is_running()) {
-              return std::string("Wake word: armed");
-            }
-            return std::string("Wake word: off");
+# interval:
+  # - interval: 2s
+  #   then:
+  #     - lvgl.label.update:
+  #         id: voice_status_label
+  #         text: !lambda |-
+  #           if (id(my_wake_word).is_running()) {
+  #             return std::string("Wake Word Ready");
+  #           }
+  #           if (id(esp32_microphone).is_running()) {
+  #             return std::string("Listening");
+  #           }
+  #           return std::string("Idle");
+  #     - lvgl.label.update:
+  #         id: wake_word_status_label
+  #         text: !lambda |-
+  #           if (id(my_wake_word).is_running()) {
+  #             return std::string("Wake word: armed");
+  #           }
+  #           return std::string("Wake word: off");

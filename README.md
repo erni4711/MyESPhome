@@ -1,5 +1,14 @@
 # MyESPhome — Home Assistant Panel Display
 
+> **Breaking changes:** This project is undergoing an architectural transition.
+See [MOTIVATION.md](MOTIVATION.md) for the background and rationale behind this project.
+
+Inspired by [HomeTiles](https://github.com/GalusPeres/HomeTiles), the ESPHome implementation now includes an `/admin` configuration API for managing the panel layout and tile definitions. The long-term goal is to replace MQTT-based communication with direct consumption of the Home Assistant REST API and WebSocket API, allowing the display to retrieve entity data and receive state updates in real time.
+
+See [API.md](API.md) for the API documentation.
+
+This integration is currently experimental. APIs, configuration formats, and supported features may change as development continues.
+
 An [ESPHome](https://esphome.io/)-based touch panel display for Home Assistant, running on Waveshare ESP32 boards. Includes UI pages for climate control, voice control, and weather forecasts.
 
 A custom [screenshot component](config/components/screenshot/README.md) lets you capture the live display via HTTP.
@@ -18,7 +27,12 @@ A custom [screenshot component](config/components/screenshot/README.md) lets you
 |-------|-------------|-------|
 | [ESP32-S3-Touch-LCD-7](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7) | `config/7i-sample.yaml` | 7" 800×480, RGB |
 | [ESP32-S3-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7B) | `config/7ib-sample.yaml` | 7" 1024×600, MIPI-DSI |
-| [ESP32-P4-WIFI6-Touch-LCD-7B](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B) | `config/P4-7B-sample.yaml` | 7" 1024×600, MIPI-DSI, Wi-Fi 6 |
+| [ESP32-P4-WIFI6-Touch-LCD-7B](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-7B) | `config/P4-7B-sample.yaml` | 7" 1024×600, MIPI-DSI, Wi-Fi 6 |
+| | `config/P4-10-sample2.yaml` |  dito with tiles API |
+| [ESP32-P4-WIFI6-Touch-LCD-10.1 *](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-X) | `config/P4-10-sample.yaml` | 10" 1280×800, MIPI-DSI, Wi-Fi 6 |
+| | `config/P4-10-sample2.yaml` |  dito with tiles API |
+
+* ESP32-P4-WIFI6-Touch-LCD-10.1 supports the chip ESP32-P4 rev3.2 and is marked with an asterisk (*) in the hardware table.
 
 ## Software features
 - Multi-page LVGL UI (climate control, voice control, weather forecast)
@@ -41,6 +55,7 @@ A custom [screenshot component](config/components/screenshot/README.md) lets you
 wifi_ssid: "SSID"
 wifi_password: "pwd"
 ota_password: "ota_pwd"
+ha_long_lived_access_token: "long-lived-access-token"
 ```
 
 ### Quick build (local CLI)
@@ -68,6 +83,28 @@ docker run --rm -v "$(pwd)/config":/config -it esphome/esphome run 7i-sample.yam
 
 ### Home Assistant
 Add `7i-sample.yaml` to the ESPHome add-on dashboard and use the web UI to compile and flash.
+
+### Flash encryption
+
+Flash encryption and ESP-IDF NVS encryption are disabled in the project
+configurations. The ESP32-P4 LVGL PPA cannot process rotated buffers allocated
+in external PSRAM when flash encryption is enabled:
+
+* `ESP32-S3-Touch-LCD-7.yaml` — 8 MB
+* `ESP32-S3-Touch-LCD-7B.yaml` — 16 MB
+* `ESP32-P4-WIFI6-Touch-LCD-7B.yaml` — 32 MB
+* `ESP32-P4-WIFI6-TOUCH-LCD-10.1.yaml` — 32 MB
+
+To erase and reprovision a device (this destroys NVS data and the existing
+firmware), replace `COM7` with the device's port:
+
+```bash
+esptool --chip auto --port COM7 erase-flash
+esphome run <board-sample>.yaml --device COM7
+```
+
+NVS preferences, including captive-portal Wi-Fi credentials, are stored
+unencrypted in the normal ESP-IDF NVS partition.
 
 ### S3 sample screenshots
 

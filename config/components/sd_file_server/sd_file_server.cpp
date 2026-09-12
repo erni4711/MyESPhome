@@ -27,31 +27,6 @@ namespace sd_file_server {
 
 static const char *TAG = "sd_file_server";
 
-struct DirEntry {
-  std::string name;
-  size_t size{};
-  bool is_dir{};
-};
-
-static std::string url_encode(const std::string &in) {
-  std::string out;
-  out.reserve(in.size());
-  auto hex = [](uint8_t v) -> char { return v < 10 ? static_cast<char>('0' + v) : static_cast<char>('A' + (v - 10)); };
-  for (unsigned char c : in) {
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||
-        c == '.' || c == '~' || c == '/') {
-      out.push_back(static_cast<char>(c));
-    } else if (c == ' ') {
-      out += "%20";
-    } else {
-      out.push_back('%');
-      out.push_back(hex((c >> 4) & 0x0F));
-      out.push_back(hex(c & 0x0F));
-    }
-  }
-  return out;
-}
-
 static std::string url_decode(const std::string &in) {
   std::string out;
   out.reserve(in.size());
@@ -77,34 +52,6 @@ static std::string url_decode(const std::string &in) {
       continue;
     }
     out.push_back(c);
-  }
-  return out;
-}
-
-static std::string html_escape(const std::string &in) {
-  std::string out;
-  out.reserve(in.size());
-  for (char c : in) {
-    switch (c) {
-      case '&':
-        out += "&amp;";
-        break;
-      case '<':
-        out += "&lt;";
-        break;
-      case '>':
-        out += "&gt;";
-        break;
-      case '"':
-        out += "&quot;";
-        break;
-      case '\'':
-        out += "&#39;";
-        break;
-      default:
-        out.push_back(c);
-        break;
-    }
   }
   return out;
 }
@@ -135,51 +82,6 @@ static std::string get_query_string(AsyncWebServerRequest *request) {
     return query;
   }
   return std::string();
-}
-
-static std::string safe_request_url_string(AsyncWebServerRequest *request, std::span<char, 513> buffer) {
-  if (request == nullptr) {
-    return std::string();
-  }
-  return request->url_to(buffer).str();
-}
-
-static std::vector<DirEntry> parse_list_json(const std::string &json) {
-  std::vector<DirEntry> out;
-  size_t pos = 0;
-  while (true) {
-    size_t name_pos = json.find("\"name\"", pos);
-    if (name_pos == std::string::npos) break;
-    size_t colon = json.find(':', name_pos);
-    size_t first_quote = json.find('"', colon + 1);
-    size_t second_quote = json.find('"', first_quote + 1);
-    if (first_quote == std::string::npos || second_quote == std::string::npos) break;
-    DirEntry entry;
-    entry.name = json.substr(first_quote + 1, second_quote - first_quote - 1);
-
-    size_t size_pos = json.find("\"size\"", second_quote);
-    if (size_pos != std::string::npos) {
-      size_t size_colon = json.find(':', size_pos);
-      size_t size_end = json.find_first_of(",}", size_colon + 1);
-      if (size_colon != std::string::npos && size_end != std::string::npos) {
-        entry.size = static_cast<size_t>(std::strtoull(json.substr(size_colon + 1, size_end - size_colon - 1).c_str(), nullptr, 10));
-      }
-    }
-
-    size_t dir_pos = json.find("\"is_dir\"", second_quote);
-    if (dir_pos != std::string::npos) {
-      size_t dir_colon = json.find(':', dir_pos);
-      size_t dir_end = json.find_first_of(",}", dir_colon + 1);
-      if (dir_colon != std::string::npos && dir_end != std::string::npos) {
-        std::string val = json.substr(dir_colon + 1, dir_end - dir_colon - 1);
-        entry.is_dir = val.find("true") != std::string::npos;
-      }
-    }
-
-    out.push_back(entry);
-    pos = second_quote + 1;
-  }
-  return out;
 }
 
 static const char *status_for_code(int code) {

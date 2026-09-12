@@ -1,0 +1,9 @@
+name: "spiffs"
+version: "0.1"
+
+files:
+  - spiffs.cpp
+  - spiffs.h
+
+includes:
+  - spiffs.h

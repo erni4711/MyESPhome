@@ -3,8 +3,7 @@
 #include "esphome.h"
 #include "lvgl.h"
 #include "esphome/components/web_server_base/web_server_base.h"
-#include "../p4_camera/p4_camera.h"
-// Forward-declare P4Camera for build robustness in case include ordering differs
+// Forward-declare P4Camera so screenshot builds without the optional camera.
 namespace esphome { namespace p4_camera { class P4Camera; } }
 #include "freertos/semphr.h"
 #include <array>
@@ -31,7 +30,13 @@ class ScreenshotComponent : public Component {
 
   void set_sd_mmc_card(::esphome::sd_card::SdMmcCard *card) { this->sd_mmc_card_ = card; }
   void set_sd_spi_card(::esphome::sd_card::SdSpiCard *card) { this->sd_spi_card_ = card; }
-  void set_camera(::esphome::p4_camera::P4Camera *camera) { this->camera_ = camera; }
+  void set_camera(::esphome::p4_camera::P4Camera *camera) {
+#if HAVE_CAMERA
+    this->camera_ = camera;
+#else
+    (void) camera;
+#endif
+  }
 
   // Call to register the component at runtime (safe after App initialized)
   static void register_component_runtime();
@@ -167,6 +172,8 @@ class ScreenshotComponent : public Component {
   bool write_camera_png_to_sd_(const uint8_t *rgb565_buf, uint16_t width, uint16_t height);
   bool write_camera_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size);
   bool write_snapshot_jpeg_to_sd_(const uint8_t *jpeg_buf, size_t jpeg_size);
+  bool write_preferred_file_(const char *filename, const uint8_t *data, size_t size,
+                             const char *kind);
 };
 
 }  // namespace screenshot

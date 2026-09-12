@@ -65,12 +65,14 @@ esp32:
   board: esp32-s3-devkitc-1
   variant: esp32s3
   flash_size: 16MB
+  partitions: partitions-esp32s3-16mb-encrypted.csv
   framework:
     type: esp-idf
     advanced:
       execute_from_psram: true
 
     sdkconfig_options:
+      CONFIG_PARTITION_TABLE_OFFSET: "0x10000"
       CONFIG_FATFS_LFN: y
       CONFIG_FATFS_LFN_HEAP: y
       CONFIG_FATFS_MAX_LFN: "255"
@@ -180,10 +182,12 @@ http_request:
   
 
 image:
-  - file: "image/esphome.png"
+  - platform: file
+    file: "image/esphome.png"
     id: boot_logo
     resize: 200x200
     type: RGB565
+    byte_order: little_endian
     transparency: alpha_channel
 
 
