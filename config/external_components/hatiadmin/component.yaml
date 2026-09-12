@@ -7,9 +7,11 @@ files:
   - web_admin_assets.cpp
   - web_admin_fonts.cpp
   - web_admin_local.cpp
+  - json_admin_handlers.cpp
   - tiles.h
   - web_admin_fonts.h
   - web_admin_local.h
+  - json_admin_handlers.h
 
 includes:
   - tiles.h

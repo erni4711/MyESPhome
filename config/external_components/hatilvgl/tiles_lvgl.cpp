@@ -52,7 +52,7 @@ struct SensorWidgetBinding {
   lv_obj_t *weather_icon = nullptr;
   lv_obj_t *weather_temperature = nullptr;
   lv_obj_t *weather_condition = nullptr;
-  lv_obj_t *weather_forecast[4] = {};
+  lv_obj_t *weather_forecast[7] = {};
   uint8_t weather_forecast_count = 0;
   lv_obj_t *climate_current_temperature = nullptr;
   lv_obj_t *climate_setpoint = nullptr;
@@ -86,6 +86,21 @@ struct MutexGuard {
   ~MutexGuard() { xSemaphoreGive(mutex_); }
   SemaphoreHandle_t mutex_;
 };
+
+void update_weather_forecast(lv_obj_t *column, const char *day,
+                             const char *icon, float max_temp, float min_temp) {
+  if (!column) return;
+  char high[24];
+  char low[24];
+  snprintf(high, sizeof(high), "%.1f C", max_temp);
+  snprintf(low, sizeof(low), "%.1f C", min_temp);
+  if (lv_obj_get_child_count(column) >= 4) {
+    lv_label_set_text(lv_obj_get_child(column, 0), day);
+    lv_label_set_text(lv_obj_get_child(column, 1), icon);
+    lv_label_set_text(lv_obj_get_child(column, 2), high);
+    lv_label_set_text(lv_obj_get_child(column, 3), low);
+  }
+}
 
 }  // namespace
 
@@ -228,7 +243,7 @@ void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_lab
   binding.weather_icon = icon_label;
   binding.weather_temperature = temperature_label;
   binding.weather_condition = condition_label;
-  binding.weather_forecast_count = std::min<uint8_t>(forecast_count, 4);
+  binding.weather_forecast_count = std::min<uint8_t>(forecast_count, 7);
   for (uint8_t i = 0; i < binding.weather_forecast_count; ++i)
     binding.weather_forecast[i] = forecast_labels[i];
   MutexGuard lock(widget_registry_mutex());
@@ -605,10 +620,10 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
         localtime_r(&day_time, &day_tm);
         char day_name[4] = {};
         strftime(day_name, sizeof(day_name), "%a", &day_tm);
-        char row[64];
-        snprintf(row, sizeof(row), "%s  %.1f/%.1f %s", day_name, min_temp, max_temp,
-                 weather_icon);
-        if (binding.weather_forecast[i]) lv_label_set_text(binding.weather_forecast[i], row);
+        const std::string forecast_icon = getMdiChar(weather_icon);
+        update_weather_forecast(binding.weather_forecast[i], day_name,
+                                forecast_icon.empty() ? "?" : forecast_icon.c_str(),
+                                max_temp, min_temp);
       }
     }
   }
@@ -640,11 +655,10 @@ void apply_ha_weather_forecast_state(const std::string &entity_id,
       localtime_r(&day_time, &day_tm);
       char day_name[4] = {};
       strftime(day_name, sizeof(day_name), "%a", &day_tm);
-      char row[64];
-      snprintf(row, sizeof(row), "%s  %.1f/%.1f %s", day_name, min_temp,
-               max_temp, weather_icon);
-      if (binding.weather_forecast[i])
-        lv_label_set_text(binding.weather_forecast[i], row);
+      const std::string forecast_icon = getMdiChar(weather_icon);
+      update_weather_forecast(binding.weather_forecast[i], day_name,
+                              forecast_icon.empty() ? "?" : forecast_icon.c_str(),
+                              max_temp, min_temp);
     }
   }
 }
@@ -1444,7 +1458,9 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
       !isMdiIconDisabled(tile.icon_name) &&
       !normalizeMdiIconName(tile.icon_name).empty();
   const std::string configured_icon = tile_icon_name(tile);
-  if (!configured_icon.empty()) {
+  // Weather owns its icon placement so the generic tile icon does not
+  // overlap the provider title rendered by tile_widget_build_weather().
+  if (!configured_icon.empty() && tile.type != TILE_WEATHER) {
     const std::string icon_char = getMdiChar(configured_icon);
     if (!icon_char.empty()) {
       lv_obj_t *icon = lv_label_create(tile_obj);
