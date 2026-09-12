@@ -2,9 +2,11 @@
 #include "../hatifonts/mdi_icons.h"
 #include "ha_ws_client.h"
 #include <esp_log.h>
+#include <esp_heap_caps.h>
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
+#include <driver/jpeg_decode.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <cstdio>
@@ -15,6 +17,19 @@
 #include <algorithm>
 #include <unordered_map>
 #include "esphome/components/spiffs/spiffs.h"
+static void *media_stbi_malloc(size_t size) {
+  return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+}
+static void *media_stbi_realloc(void *pointer, size_t size) {
+  return heap_caps_realloc(pointer, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+}
+static void media_stbi_free(void *pointer) { heap_caps_free(pointer); }
+#define STBI_MALLOC(size) media_stbi_malloc(size)
+#define STBI_REALLOC(pointer, size) media_stbi_realloc(pointer, size)
+#define STBI_FREE(pointer) media_stbi_free(pointer)
+#define STBI_ONLY_JPEG
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 static const char *TAG = "tiles_lvgl";
 
@@ -29,6 +44,111 @@ namespace web_admin_local {
 TilesLvglRenderer *g_tiles_renderer = nullptr;
 static std::string home_assistant_url;
 static std::string home_assistant_token;
+static std::vector<std::string> pending_rest_entities;
+static size_t next_rest_entity = 0;
+float hourly_weather_temperature[48] = {};
+long hourly_weather_timestamp[48] = {};
+bool hourly_weather_valid[48] = {};
+
+constexpr size_t kMaxRestResponseBytes = 65536;
+constexpr size_t kMaxMediaArtworkBytes = 512 * 1024;
+
+struct MediaArtwork {
+  lv_image_dsc_t descriptor{};
+  uint8_t *pixels = nullptr;
+};
+
+static std::unordered_map<lv_obj_t *, MediaArtwork> media_artwork_cache;
+void release_media_artwork(lv_obj_t *object);
+
+struct RestResponse {
+  char *data = nullptr;
+  size_t size = 0;
+
+  RestResponse() {
+    data = static_cast<char *>(heap_caps_malloc(
+        kMaxRestResponseBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  }
+
+  ~RestResponse() { heap_caps_free(data); }
+
+  bool append(const char *chunk, size_t length) {
+    if (chunk == nullptr || length > kMaxRestResponseBytes ||
+        size > kMaxRestResponseBytes - length)
+      return false;
+    std::memcpy(data + size, chunk, length);
+    size += length;
+    return true;
+  }
+};
+
+esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
+  if (event == nullptr || event->user_data == nullptr) return ESP_FAIL;
+  if (event->event_id != HTTP_EVENT_ON_DATA || event->data_len <= 0) return ESP_OK;
+  auto *response = static_cast<RestResponse *>(event->user_data);
+  if (!response->append(static_cast<const char *>(event->data),
+                        static_cast<size_t>(event->data_len))) {
+    ESP_LOGW(TAG, "Home Assistant REST state response is too large");
+    return ESP_FAIL;
+  }
+  return ESP_OK;
+}
+
+void schedule_ha_entity_states_rest(const std::vector<std::string> &entity_ids) {
+  pending_rest_entities = entity_ids;
+  next_rest_entity = 0;
+}
+
+void process_one_ha_entity_state_rest() {
+  if (home_assistant_url.empty() || home_assistant_token.empty() ||
+      next_rest_entity >= pending_rest_entities.size()) {
+    return;
+  }
+  std::string base_url = home_assistant_url;
+  while (!base_url.empty() && base_url.back() == '/') base_url.pop_back();
+  const std::string auth = "Bearer " + home_assistant_token;
+
+  const std::string entity_id = pending_rest_entities[next_rest_entity++];
+  if (entity_id.empty()) return;
+  const std::string url = base_url + "/api/states/" + entity_id;
+  RestResponse response;
+  if (response.data == nullptr) {
+    ESP_LOGW(TAG, "Unable to allocate REST response buffer in PSRAM for %s",
+             entity_id.c_str());
+    return;
+  }
+  esp_http_client_config_t config = {};
+  config.url = url.c_str();
+  config.method = HTTP_METHOD_GET;
+  config.timeout_ms = 5000;
+  config.event_handler = ha_state_http_event_handler;
+  config.user_data = &response;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize REST state request for %s",
+             entity_id.c_str());
+    return;
+  }
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Accept", "application/json");
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "REST state request failed for %s (status=%d, error=%s)",
+             entity_id.c_str(), status, esp_err_to_name(result));
+    return;
+  }
+  JsonDocument state(ha_psram_json_allocator());
+  const DeserializationError error =
+      deserializeJson(state, response.data, response.size);
+  if (error) {
+    ESP_LOGW(TAG, "Invalid REST state response for %s (%s)",
+             entity_id.c_str(), error.c_str());
+    return;
+  }
+  apply_ha_entity_state(state);
+}
 
 void set_home_assistant_credentials(const std::string &url, const std::string &token) {
   home_assistant_url = url;
@@ -52,8 +172,10 @@ struct SensorWidgetBinding {
   lv_obj_t *weather_icon = nullptr;
   lv_obj_t *weather_temperature = nullptr;
   lv_obj_t *weather_condition = nullptr;
-  lv_obj_t *weather_forecast[7] = {};
+  lv_obj_t *weather_forecast[8] = {};
   uint8_t weather_forecast_count = 0;
+  lv_obj_t *weather_high_labels[8] = {};
+  lv_obj_t *weather_low_labels[8] = {};
   lv_obj_t *climate_current_temperature = nullptr;
   lv_obj_t *climate_setpoint = nullptr;
   lv_obj_t *climate_mode = nullptr;
@@ -63,6 +185,9 @@ struct SensorWidgetBinding {
   lv_obj_t *media_state = nullptr;
   lv_obj_t *media_play_pause = nullptr;
   lv_obj_t *media_icon = nullptr;
+  lv_obj_t *media_artwork = nullptr;
+  lv_image_dsc_t *media_artwork_dsc = nullptr;
+  uint8_t *media_artwork_data = nullptr;
   lv_obj_t *light_popup = nullptr;
   lv_obj_t *light_brightness = nullptr;
   lv_obj_t *light_color_temp = nullptr;
@@ -87,19 +212,82 @@ struct MutexGuard {
   SemaphoreHandle_t mutex_;
 };
 
+lv_color_t weather_temperature_color(float temperature) {
+  if (temperature < 0.0f) return lv_color_make(0x87, 0xCE, 0xEB);
+  if (temperature < 4.0f) {
+    const float ratio = temperature / 4.0f;
+    return lv_color_make(static_cast<uint8_t>(0x87 + ratio * 0x78),
+                         static_cast<uint8_t>(0xCE + ratio * 0x31), 0xEB);
+  }
+  if (temperature <= 25.0f) return lv_color_white();
+  if (temperature < 30.0f) {
+    const float ratio = (temperature - 25.0f) / 5.0f;
+    return lv_color_make(0xFF, static_cast<uint8_t>(0xFF - ratio * 0x67),
+                         static_cast<uint8_t>(0xFF - ratio * 0xFF));
+  }
+  if (temperature < 40.0f) {
+    const float ratio = (temperature - 30.0f) / 10.0f;
+    return lv_color_make(static_cast<uint8_t>(0xF4 - ratio * 0x69),
+                         static_cast<uint8_t>(0x43 - ratio * 0x43), 0x00);
+  }
+  return lv_color_make(0x8B, 0x00, 0x00);
+}
+
 void update_weather_forecast(lv_obj_t *column, const char *day,
-                             const char *icon, float max_temp, float min_temp) {
+                             const char *icon, float max_temp, float min_temp,
+                             float precipitation, float probability,
+                             lv_obj_t *high_label = nullptr,
+                             lv_obj_t *low_label = nullptr) {
   if (!column) return;
   char high[24];
   char low[24];
   snprintf(high, sizeof(high), "%.1f C", max_temp);
   snprintf(low, sizeof(low), "%.1f C", min_temp);
-  if (lv_obj_get_child_count(column) >= 4) {
+  if (lv_obj_get_child_count(column) >= 6) {
     lv_label_set_text(lv_obj_get_child(column, 0), day);
     lv_label_set_text(lv_obj_get_child(column, 1), icon);
     lv_label_set_text(lv_obj_get_child(column, 2), high);
     lv_label_set_text(lv_obj_get_child(column, 3), low);
+    lv_obj_set_style_text_color(lv_obj_get_child(column, 2),
+                                weather_temperature_color(max_temp), 0);
+    lv_obj_set_style_text_color(lv_obj_get_child(column, 3),
+                                weather_temperature_color(min_temp), 0);
+    if (high_label) {
+      lv_label_set_text(high_label, high);
+      lv_obj_set_style_text_color(high_label,
+                                  weather_temperature_color(max_temp), 0);
+    }
+    if (low_label) {
+      lv_label_set_text(low_label, low);
+      lv_obj_set_style_text_color(low_label,
+                                  weather_temperature_color(min_temp), 0);
+    }
+    char amount[24];
+    char chance[24];
+    snprintf(amount, sizeof(amount), "%.1f mm", precipitation);
+    snprintf(chance, sizeof(chance), "%.0f %%", probability);
+    lv_label_set_text(lv_obj_get_child(column, 4), amount);
+    lv_label_set_text(lv_obj_get_child(column, 5), chance);
   }
+}
+
+std::string weather_icon_name(const char *value) {
+  const std::string icon = value ? value : "";
+  if (icon.rfind("weather-", 0) == 0) return icon;
+  if (icon == "01d" || icon == "01n" || icon == "sunny") return "weather-sunny";
+  if (icon == "02d" || icon == "02n" || icon == "partlycloudy")
+    return "weather-partly-cloudy";
+  if (icon == "03d" || icon == "03n" || icon == "04d" || icon == "04n" ||
+      icon == "cloudy")
+    return "weather-cloudy";
+  if (icon == "09d" || icon == "09n" || icon == "10d" || icon == "10n" ||
+      icon == "rainy")
+    return "weather-rainy";
+  if (icon == "11d" || icon == "11n" || icon == "lightning")
+    return "weather-lightning";
+  if (icon == "13d" || icon == "13n" || icon == "snowy") return "weather-snowy";
+  if (icon == "50d" || icon == "50n" || icon == "fog") return "weather-fog";
+  return icon;
 }
 
 }  // namespace
@@ -166,9 +354,10 @@ void register_ha_climate_widget(const std::string &entity_id,
   const auto watch = [](lv_obj_t *object) {
     if (!object) return;
     lv_obj_add_event_cb(object, [](lv_event_t *event) {
-      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+      if (lv_event_get_code(event) == LV_EVENT_DELETE) {
         unregister_ha_widget_object(
             static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+      }
     }, LV_EVENT_DELETE, nullptr);
   };
   watch(current_temperature);
@@ -178,12 +367,57 @@ void register_ha_climate_widget(const std::string &entity_id,
   ESP_LOGD(TAG, "Registered climate widget for %s", entity_id.c_str());
 }
 
+struct MediaArtworkDownload {
+  uint8_t *data = nullptr;
+  size_t size = 0;
+
+  bool append(const uint8_t *chunk, size_t length) {
+    if (chunk == nullptr || length > kMaxMediaArtworkBytes ||
+        size > kMaxMediaArtworkBytes - length)
+      return false;
+    if (data == nullptr) {
+      data = static_cast<uint8_t *>(heap_caps_malloc(
+          kMaxMediaArtworkBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+      if (data == nullptr) return false;
+    }
+    std::memcpy(data + size, chunk, length);
+    size += length;
+    return true;
+  }
+
+  ~MediaArtworkDownload() { heap_caps_free(data); }
+};
+
+esp_err_t media_artwork_http_event(esp_http_client_event_t *event) {
+  if (event == nullptr || event->user_data == nullptr ||
+      event->event_id != HTTP_EVENT_ON_DATA || event->data_len <= 0)
+    return ESP_OK;
+  auto *download = static_cast<MediaArtworkDownload *>(event->user_data);
+  return download->append(static_cast<const uint8_t *>(event->data),
+                          static_cast<size_t>(event->data_len))
+             ? ESP_OK
+             : ESP_ERR_NO_MEM;
+}
+
+void release_media_artwork(lv_obj_t *object) {
+  const auto it = media_artwork_cache.find(object);
+  if (it == media_artwork_cache.end()) return;
+  ESP_LOGD(TAG, "Releasing cached media artwork for image=%p (%ux%u, %u bytes)",
+           static_cast<void *>(object),
+           static_cast<unsigned>(it->second.descriptor.header.w),
+           static_cast<unsigned>(it->second.descriptor.header.h),
+           static_cast<unsigned>(it->second.descriptor.data_size));
+  heap_caps_free(it->second.pixels);
+  media_artwork_cache.erase(it);
+}
+
 void register_ha_media_widget(const std::string &entity_id,
                               lv_obj_t *title,
                               lv_obj_t *subtitle,
                               lv_obj_t *state,
                               lv_obj_t *play_pause,
-                              lv_obj_t *icon) {
+                              lv_obj_t *icon,
+                              lv_obj_t *artwork) {
   if (entity_id.empty()) return;
   SensorWidgetBinding binding;
   binding.media_title = title;
@@ -191,14 +425,18 @@ void register_ha_media_widget(const std::string &entity_id,
   binding.media_state = state;
   binding.media_play_pause = play_pause;
   binding.media_icon = icon;
+  binding.media_artwork = artwork;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
   const auto watch = [](lv_obj_t *object) {
     if (!object) return;
     lv_obj_add_event_cb(object, [](lv_event_t *event) {
-      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+      if (lv_event_get_code(event) == LV_EVENT_DELETE) {
+        release_media_artwork(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
         unregister_ha_widget_object(
             static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+      }
     }, LV_EVENT_DELETE, nullptr);
   };
   watch(title);
@@ -206,7 +444,196 @@ void register_ha_media_widget(const std::string &entity_id,
   watch(state);
   watch(play_pause);
   watch(icon);
+  watch(artwork);
   ESP_LOGD(TAG, "Registered media widget for %s", entity_id.c_str());
+}
+
+bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
+  if (image == nullptr) return false;
+  ESP_LOGD(TAG, "Media artwork update requested: image=%p url_length=%u",
+           static_cast<void *>(image),
+           static_cast<unsigned>(picture_url.size()));
+  release_media_artwork(image);
+  lv_image_set_src(image, nullptr);
+  lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+  if (picture_url.empty()) {
+    ESP_LOGD(TAG, "No entity_picture supplied; using media icon fallback");
+    return false;
+  }
+  if (home_assistant_url.empty()) {
+    ESP_LOGW(TAG, "Cannot load entity_picture: Home Assistant URL is empty");
+    return false;
+  }
+
+  std::string url = picture_url;
+  if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0) {
+    std::string base = home_assistant_url;
+    while (!base.empty() && base.back() == '/') base.pop_back();
+    if (!url.empty() && url.front() != '/') url.insert(url.begin(), '/');
+    url = base + url;
+  }
+  MediaArtworkDownload download;
+  esp_http_client_config_t http_config = {};
+  http_config.url = url.c_str();
+  http_config.method = HTTP_METHOD_GET;
+  http_config.timeout_ms = 5000;
+  http_config.event_handler = media_artwork_http_event;
+  http_config.user_data = &download;
+  esp_http_client_handle_t client = esp_http_client_init(&http_config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize media artwork request");
+    return false;
+  }
+  ESP_LOGD(TAG, "Downloading media artwork (%s URL, %u byte limit)",
+           picture_url.rfind("http", 0) == 0 ? "absolute" : "relative",
+           static_cast<unsigned>(kMaxMediaArtworkBytes));
+  const std::string auth = "Bearer " + home_assistant_token;
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Accept", "image/jpeg");
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300 || download.size == 0) {
+    ESP_LOGW(TAG, "Media artwork request failed (status=%d, error=%s)",
+             status, esp_err_to_name(result));
+    return false;
+  }
+  ESP_LOGD(TAG, "Media artwork download completed: status=%d bytes=%u",
+           status, static_cast<unsigned>(download.size));
+  if (download.size >= 4) {
+    ESP_LOGD(TAG, "Media artwork response signature=%02X %02X %02X %02X",
+             download.data[0], download.data[1], download.data[2], download.data[3]);
+  } else {
+    ESP_LOGW(TAG, "Media artwork response is too short: %u bytes",
+             static_cast<unsigned>(download.size));
+  }
+
+  jpeg_decode_picture_info_t info = {};
+  const esp_err_t info_result =
+      jpeg_decoder_get_info(download.data, download.size, &info);
+  const bool hardware_header_valid = info_result == ESP_OK;
+  if (info_result != ESP_OK) {
+    int software_width = 0;
+    int software_height = 0;
+    if (!stbi_info_from_memory(download.data, static_cast<int>(download.size),
+                               &software_width, &software_height,
+                               nullptr) ||
+        software_width <= 0 || software_height <= 0) {
+      ESP_LOGW(TAG, "Media artwork is not a supported JPEG (%s); software header parsing failed: %s",
+               esp_err_to_name(info_result),
+               stbi_failure_reason() ? stbi_failure_reason() : "unknown error");
+      return false;
+    }
+    info.width = static_cast<uint32_t>(software_width);
+    info.height = static_cast<uint32_t>(software_height);
+    ESP_LOGD(TAG, "Hardware JPEG header parsing failed (%s); using software metadata: %ux%u",
+             esp_err_to_name(info_result),
+             static_cast<unsigned>(info.width),
+             static_cast<unsigned>(info.height));
+  }
+  ESP_LOGD(TAG, "Media artwork JPEG metadata: %ux%u sampling=%d",
+           static_cast<unsigned>(info.width), static_cast<unsigned>(info.height),
+           static_cast<int>(info.sample_method));
+  if (info.width == 0 || info.height == 0 || info.width > 512 ||
+      info.height > 512) {
+    ESP_LOGW(TAG, "Media artwork dimensions exceed 512x512");
+    return false;
+  }
+  uint32_t decoded_width = (info.width + 15U) & ~15U;
+  uint32_t decoded_height = (info.height + 15U) & ~15U;
+  size_t pixel_bytes =
+      static_cast<size_t>(decoded_width) * decoded_height * 2U;
+  uint8_t *pixels = static_cast<uint8_t *>(heap_caps_malloc(
+      pixel_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (pixels == nullptr) {
+    ESP_LOGW(TAG, "Unable to allocate %u media artwork bytes in PSRAM",
+             static_cast<unsigned>(pixel_bytes));
+    return false;
+  }
+  ESP_LOGD(TAG, "Allocated media artwork decode buffer: %u bytes in PSRAM",
+           static_cast<unsigned>(pixel_bytes));
+  uint32_t output_size = 0;
+  esp_err_t decode_result = ESP_ERR_NOT_SUPPORTED;
+  if (hardware_header_valid) {
+    jpeg_decode_engine_cfg_t engine_config = {};
+    engine_config.timeout_ms = 5000;
+    jpeg_decoder_handle_t decoder = nullptr;
+    const esp_err_t engine_result =
+        jpeg_new_decoder_engine(&engine_config, &decoder);
+    if (engine_result == ESP_OK) {
+      jpeg_decode_cfg_t decode_config = {};
+      decode_config.output_format = JPEG_DECODE_OUT_FORMAT_RGB565;
+      decode_config.rgb_order = JPEG_DEC_RGB_ELEMENT_ORDER_RGB;
+      decode_config.conv_std = JPEG_YUV_RGB_CONV_STD_BT601;
+      decode_result = jpeg_decoder_process(
+          decoder, &decode_config, download.data, download.size, pixels,
+          pixel_bytes, &output_size);
+      jpeg_del_decoder_engine(decoder);
+    } else {
+      decode_result = engine_result;
+    }
+  }
+  if (decode_result != ESP_OK || output_size == 0) {
+    heap_caps_free(pixels);
+    ESP_LOGW(TAG, "Hardware JPEG decode failed (%s, output=%u); trying software decoder",
+             esp_err_to_name(decode_result), static_cast<unsigned>(output_size));
+    int software_width = 0;
+    int software_height = 0;
+    int software_channels = 0;
+    stbi_uc *software_pixels = stbi_load_from_memory(
+        download.data, static_cast<int>(download.size), &software_width,
+        &software_height, &software_channels, 3);
+    if (software_pixels == nullptr || software_width <= 0 ||
+        software_height <= 0 || software_width > 512 || software_height > 512) {
+      if (software_pixels != nullptr) stbi_image_free(software_pixels);
+      ESP_LOGW(TAG, "Software JPEG decode failed: %s",
+               stbi_failure_reason() ? stbi_failure_reason() : "unknown error");
+      return false;
+    }
+    decoded_width = static_cast<uint32_t>(software_width);
+    decoded_height = static_cast<uint32_t>(software_height);
+    pixel_bytes = static_cast<size_t>(decoded_width) * decoded_height * 2U;
+    pixels = static_cast<uint8_t *>(heap_caps_malloc(
+        pixel_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (pixels == nullptr) {
+      stbi_image_free(software_pixels);
+      ESP_LOGW(TAG, "Unable to allocate software JPEG output in PSRAM");
+      return false;
+    }
+    for (size_t i = 0; i < static_cast<size_t>(software_width) *
+                               static_cast<size_t>(software_height);
+         ++i) {
+      const uint8_t red = software_pixels[i * 3];
+      const uint8_t green = software_pixels[i * 3 + 1];
+      const uint8_t blue = software_pixels[i * 3 + 2];
+      const uint16_t rgb565 = static_cast<uint16_t>(
+          ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3));
+      std::memcpy(pixels + i * 2, &rgb565, sizeof(rgb565));
+    }
+    stbi_image_free(software_pixels);
+    output_size = static_cast<uint32_t>(pixel_bytes);
+    ESP_LOGD(TAG, "Software JPEG decode completed: %ux%u output=%u bytes",
+             static_cast<unsigned>(decoded_width),
+             static_cast<unsigned>(decoded_height),
+             static_cast<unsigned>(output_size));
+  }
+  ESP_LOGD(TAG, "JPEG decode completed: output=%u bytes", 
+           static_cast<unsigned>(output_size));
+
+  MediaArtwork artwork;
+  artwork.pixels = pixels;
+  artwork.descriptor.header.cf = LV_COLOR_FORMAT_RGB565;
+  artwork.descriptor.header.w = decoded_width;
+  artwork.descriptor.header.h = decoded_height;
+  artwork.descriptor.data_size = output_size;
+  artwork.descriptor.data = pixels;
+  media_artwork_cache.emplace(image, artwork);
+  lv_image_set_src(image, &media_artwork_cache.at(image).descriptor);
+  lv_obj_clear_flag(image, LV_OBJ_FLAG_HIDDEN);
+  ESP_LOGD(TAG, "Displayed media artwork: %ux%u (%u bytes)",
+           static_cast<unsigned>(info.width), static_cast<unsigned>(info.height),
+           static_cast<unsigned>(output_size));
+  return true;
 }
 
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
@@ -237,15 +664,20 @@ void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_ob
 
 void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_label,
                                  lv_obj_t *temperature_label, lv_obj_t *condition_label,
-                                 lv_obj_t **forecast_labels, uint8_t forecast_count) {
+                                 lv_obj_t **forecast_labels, uint8_t forecast_count,
+                                 lv_obj_t **high_labels, lv_obj_t **low_labels) {
   if (entity_id.empty()) return;
   SensorWidgetBinding binding;
   binding.weather_icon = icon_label;
   binding.weather_temperature = temperature_label;
   binding.weather_condition = condition_label;
-  binding.weather_forecast_count = std::min<uint8_t>(forecast_count, 7);
+  binding.weather_forecast_count = std::min<uint8_t>(forecast_count, 8);
   for (uint8_t i = 0; i < binding.weather_forecast_count; ++i)
     binding.weather_forecast[i] = forecast_labels[i];
+  for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
+    binding.weather_high_labels[i] = high_labels ? high_labels[i] : nullptr;
+    binding.weather_low_labels[i] = low_labels ? low_labels[i] : nullptr;
+  }
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
   if (entity_id != "sensor.owm_onecall_daily")
@@ -265,6 +697,10 @@ void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_lab
   watch(condition_label);
   for (uint8_t i = 0; i < binding.weather_forecast_count; ++i)
     watch(binding.weather_forecast[i]);
+  for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
+    watch(binding.weather_high_labels[i]);
+    watch(binding.weather_low_labels[i]);
+  }
   ESP_LOGD(TAG, "Registered weather widget for %s", entity_id.c_str());
 }
 
@@ -338,6 +774,7 @@ void unregister_ha_widget_object(lv_obj_t *object) {
              binding.media_state == object ||
              binding.media_play_pause == object ||
              binding.media_icon == object ||
+             binding.media_artwork == object ||
              binding.light_popup == object ||
              binding.light_brightness == object ||
              binding.light_color_temp == object ||
@@ -476,13 +913,17 @@ void apply_ha_entity_state(const JsonDocument &state) {
     size_t written = 0;
     int day = 0;
     for (JsonObjectConst item : daily) {
-      if (day++ >= 4) break;
+      if (day++ >= 8) break;
+      const float precipitation_probability =
+          item["precipitation_probability"] | (item["pop"].as<float>() * 100.0f);
+      const float precipitation = item["precipitation"] |
+          item["rain"] | item["snow"] | 0.0f;
       const int count = snprintf(
           forecast + written, sizeof(forecast) - written,
-          "%ld,%.1f,%.1f,%s;", item["dt"] | 0L,
+          "%ld,%.1f,%.1f,%s,%.1f,%.1f;", item["dt"] | 0L,
           item["temp"]["min"] | item["temp"]["day"] | 0.0f,
           item["temp"]["max"] | item["temp"]["day"] | 0.0f,
-          item["weather"][0]["icon"] | "");
+          item["weather"][0]["icon"] | "", precipitation, precipitation_probability);
       if (count <= 0 || static_cast<size_t>(count) >= sizeof(forecast) - written) break;
       written += static_cast<size_t>(count);
     }
@@ -493,12 +934,36 @@ void apply_ha_entity_state(const JsonDocument &state) {
   if (id == "sensor.owm_onecall_daily" || id == "sensor.owm_onecall_hourly") {
     const char *array_name =
         id == "sensor.owm_onecall_daily" ? "daily" : "hourly";
-    const JsonArrayConst forecast = attributes[array_name].as<JsonArrayConst>();
+    const JsonVariantConst array_value = attributes[array_name];
+    if (!array_value.is<JsonArrayConst>()) {
+      ESP_LOGW(TAG, "%s response has no '%s' array (attributes=%u)",
+               id.c_str(), array_name, static_cast<unsigned>(attributes.size()));
+      return;
+    }
+    const JsonArrayConst forecast = array_value.as<JsonArrayConst>();
+    ESP_LOGD(TAG, "%s forecast array contains %u items",
+             id.c_str(), static_cast<unsigned>(forecast.size()));
     std::string encoded;
     int count = 0;
+    if (id == "sensor.owm_onecall_hourly") {
+      for (bool &valid : hourly_weather_valid) valid = false;
+    }
     for (JsonObjectConst item : forecast) {
-      if (count++ >= 4) break;
+      if (count >= (id == "sensor.owm_onecall_daily" ? 8 : 48)) break;
       const long timestamp = item["dt"] | 0L;
+      if (id == "sensor.owm_onecall_hourly") {
+        const float temperature = item["temp"] | 0.0f;
+        hourly_weather_timestamp[count] = timestamp;
+        hourly_weather_temperature[count] = temperature;
+        hourly_weather_valid[count] = true;
+        if (count < 3 || count == 47) {
+          ESP_LOGD(TAG, "%s[%d]: dt=%ld temp=%.1f",
+                   id.c_str(), count, timestamp, temperature);
+        }
+        ++count;
+        continue;
+      }
+      ++count;
       const float min_temp = id == "sensor.owm_onecall_daily"
                                  ? (item["temp"]["min"] | item["temp"]["day"] | 0.0f)
                                  : (item["temp"] | 0.0f);
@@ -506,14 +971,30 @@ void apply_ha_entity_state(const JsonDocument &state) {
                                  ? (item["temp"]["max"] | item["temp"]["day"] | 0.0f)
                                  : min_temp;
       const char *weather_icon = item["weather"][0]["icon"] | "";
+      const float precipitation_probability =
+          item["precipitation_probability"] | (item["pop"].as<float>() * 100.0f);
+      const float precipitation = item["precipitation"] |
+          item["rain"] | item["snow"] | 0.0f;
+      if (count <= 3) {
+        ESP_LOGD(TAG, "%s[%d]: dt=%ld min=%.1f max=%.1f icon=%s pop=%.1f precip=%.1f",
+                 id.c_str(), count - 1, timestamp, min_temp, max_temp,
+                 weather_icon, precipitation_probability, precipitation);
+      }
       char row[96];
-      const int written = snprintf(row, sizeof(row), "%ld,%.1f,%.1f,%s;",
-                                   timestamp, min_temp, max_temp, weather_icon);
+      const int written = snprintf(row, sizeof(row), "%ld,%.1f,%.1f,%s,%.1f,%.1f;",
+                                   timestamp, min_temp, max_temp, weather_icon,
+                                   precipitation, precipitation_probability);
       if (written > 0 && static_cast<size_t>(written) < sizeof(row)) {
         encoded += row;
       }
     }
-    apply_ha_weather_forecast_state(id, encoded);
+    if (id == "sensor.owm_onecall_daily") {
+      ESP_LOGD(TAG, "%s accepted %d items, encoded forecast length=%u",
+               id.c_str(), count, static_cast<unsigned>(encoded.size()));
+      apply_ha_weather_forecast_state(id, encoded);
+    } else {
+      ESP_LOGD(TAG, "%s accepted %d hourly temperatures", id.c_str(), count);
+    }
     return;
   }
 
@@ -558,12 +1039,14 @@ void apply_ha_entity_state(const JsonDocument &state) {
 
   if (id.rfind("media_player.", 0) == 0) {
     const std::string media_title = attributes["media_title"] | "";
+    const std::string entity_picture = attributes["entity_picture"] | "";
     const std::string artist = attributes["media_artist"] | "";
     const std::string album = attributes["media_album_name"] | "";
     std::string subtitle = artist;
     if (!artist.empty() && !album.empty()) subtitle += " - ";
     subtitle += album;
-    apply_ha_media_state(id, value, media_title, subtitle, icon);
+    apply_ha_media_state(id, value, media_title, subtitle, icon,
+                         entity_picture);
     return;
   }
 
@@ -604,15 +1087,31 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
         std::string text = temperature.empty() ? "--" : temperature;
         if (!unit.empty()) text += " " + unit;
         lv_label_set_text(binding.weather_temperature, text.c_str());
+        const float value = temperature.empty()
+                                ? 0.0f
+                                : std::strtof(temperature.c_str(), nullptr);
+        lv_obj_set_style_text_color(
+            binding.weather_temperature,
+            temperature.empty() ? lv_color_white()
+                                : weather_temperature_color(value),
+            0);
       }
       int offset = 0;
       for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
         long timestamp = 0;
         float min_temp = 0, max_temp = 0;
         char weather_icon[16] = {};
-        const int parsed = sscanf(forecast.c_str() + offset, "%ld,%f,%f,%15[^;];",
-                                  &timestamp, &min_temp, &max_temp, weather_icon);
-        if (parsed != 4) break;
+        float precipitation = 0.0f;
+        float probability = 0.0f;
+        const int parsed = sscanf(forecast.c_str() + offset,
+                                  "%ld,%f,%f,%15[^,],%f,%f;",
+                                  &timestamp, &min_temp, &max_temp, weather_icon,
+                                  &precipitation, &probability);
+        if (parsed != 6) {
+          ESP_LOGW(TAG, "%s weather forecast entry %u could not be parsed (parsed=%d)",
+                   entity_id.c_str(), static_cast<unsigned>(i), parsed);
+          break;
+        }
         while (forecast[offset] && forecast[offset] != ';') ++offset;
         if (forecast[offset] == ';') ++offset;
         time_t day_time = timestamp;
@@ -620,10 +1119,17 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
         localtime_r(&day_time, &day_tm);
         char day_name[4] = {};
         strftime(day_name, sizeof(day_name), "%a", &day_tm);
-        const std::string forecast_icon = getMdiChar(weather_icon);
+        const std::string forecast_icon =
+            getMdiChar(weather_icon_name(weather_icon));
+        ESP_LOGD(TAG,
+                 "%s forecast[%u]: day=%s min=%.1f max=%.1f precip=%.1f mm probability=%.1f%%",
+                 entity_id.c_str(), static_cast<unsigned>(i), day_name,
+                 min_temp, max_temp, precipitation, probability);
         update_weather_forecast(binding.weather_forecast[i], day_name,
                                 forecast_icon.empty() ? "?" : forecast_icon.c_str(),
-                                max_temp, min_temp);
+                                max_temp, min_temp, precipitation, probability,
+                                binding.weather_high_labels[i],
+                                binding.weather_low_labels[i]);
       }
     }
   }
@@ -634,20 +1140,39 @@ void apply_ha_weather_forecast_state(const std::string &entity_id,
   {
     MutexGuard lock(widget_registry_mutex());
     const auto it = g_sensor_widget_bindings.find(entity_id);
-    if (it == g_sensor_widget_bindings.end()) return;
+    if (it == g_sensor_widget_bindings.end()) {
+      ESP_LOGW(TAG, "No weather widget binding found for %s", entity_id.c_str());
+      return;
+    }
     bindings = it->second;
   }
+  ESP_LOGD(TAG, "Applying encoded weather forecast for %s: %u bytes, %u bindings",
+           entity_id.c_str(), static_cast<unsigned>(forecast.size()),
+           static_cast<unsigned>(bindings.size()));
 
   for (const auto &binding : bindings) {
     int offset = 0;
     for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
+      if (offset >= static_cast<int>(forecast.size())) {
+        ESP_LOGW(TAG, "%s forecast ended after %u entries",
+                 entity_id.c_str(), static_cast<unsigned>(i));
+        break;
+      }
       long timestamp = 0;
       float min_temp = 0.0f;
       float max_temp = 0.0f;
       char weather_icon[16] = {};
-      const int parsed = sscanf(forecast.c_str() + offset, "%ld,%f,%f,%15[^;];",
-                                &timestamp, &min_temp, &max_temp, weather_icon);
-      if (parsed != 4) break;
+      float precipitation = 0.0f;
+      float probability = 0.0f;
+      const int parsed = sscanf(forecast.c_str() + offset,
+                                "%ld,%f,%f,%15[^,],%f,%f;",
+                                &timestamp, &min_temp, &max_temp, weather_icon,
+                                &precipitation, &probability);
+      if (parsed != 6) {
+        ESP_LOGW(TAG, "Unable to parse %s forecast entry %u at offset %d (parsed=%d)",
+                 entity_id.c_str(), static_cast<unsigned>(i), offset, parsed);
+        break;
+      }
       while (forecast[offset] && forecast[offset] != ';') ++offset;
       if (forecast[offset] == ';') ++offset;
       time_t day_time = timestamp;
@@ -655,10 +1180,90 @@ void apply_ha_weather_forecast_state(const std::string &entity_id,
       localtime_r(&day_time, &day_tm);
       char day_name[4] = {};
       strftime(day_name, sizeof(day_name), "%a", &day_tm);
-      const std::string forecast_icon = getMdiChar(weather_icon);
+      const std::string forecast_icon =
+          getMdiChar(weather_icon_name(weather_icon));
+      ESP_LOGD(TAG, "%s forecast[%u]: day=%s min=%.1f max=%.1f icon=%s precip=%.1f probability=%.1f",
+               entity_id.c_str(), static_cast<unsigned>(i), day_name,
+               min_temp, max_temp, weather_icon, precipitation, probability);
       update_weather_forecast(binding.weather_forecast[i], day_name,
                               forecast_icon.empty() ? "?" : forecast_icon.c_str(),
-                              max_temp, min_temp);
+                              max_temp, min_temp, precipitation, probability,
+                              binding.weather_high_labels[i],
+                              binding.weather_low_labels[i]);
+    }
+
+
+  }
+}
+
+void apply_ha_weather_forecast_day_state(const JsonDocument &state) {
+  const std::string entity_id = state["entity_id"] | "";
+  const size_t prefix_length = std::strlen("sensor.owm_onecall_daily_");
+  if (entity_id.rfind("sensor.owm_onecall_daily_", 0) != 0 ||
+      entity_id.size() <= prefix_length) return;
+  const int day = std::atoi(entity_id.c_str() + prefix_length);
+  if (day < 0 || day >= 8) return;
+
+  std::vector<SensorWidgetBinding> bindings;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    const auto it = g_sensor_widget_bindings.find(entity_id);
+    if (it == g_sensor_widget_bindings.end()) return;
+    bindings = it->second;
+  }
+  const JsonObjectConst attributes = state["attributes"].as<JsonObjectConst>();
+  auto number = [&attributes](const char *first, const char *second,
+                              float fallback) {
+    JsonVariantConst value = attributes[first];
+    if (value.isNull() && second != nullptr) value = attributes[second];
+    return value.isNull() ? fallback : value.as<float>();
+  };
+  const std::string state_value = state["state"] | "";
+  const float state_temperature = state_value.empty()
+                                      ? 0.0f
+                                      : std::strtof(state_value.c_str(), nullptr);
+  const float high = number(
+      "temperature", "temp_high",
+      number("temperature_high", "maximum",
+             number("max_temp", "temp_max", state_temperature)));
+  const float low = number(
+      "templow", "temp_low",
+      number("temperature_low", "minimum",
+             number("min_temp", "temp_min", high)));
+  const float precipitation = number("precipitation", "rain",
+                                     number("snow", "precipitation_amount", 0.0f));
+  const float probability =
+      number("precipitation_probability", "probability", 0.0f);
+  std::string icon_name = attributes["icon"] |
+                          (attributes["weather"] |
+                           (attributes["condition"] | state_value));
+  icon_name = normalizeMdiIconName(icon_name);
+  const std::string icon = getMdiChar(weather_icon_name(icon_name.c_str()));
+  std::string day_name = attributes["day"] |
+                         (attributes["weekday"] |
+                          (attributes["name"] | ""));
+  if (day_name.empty()) {
+    const long timestamp = attributes["dt"] | (attributes["timestamp"] | 0L);
+    if (timestamp != 0) {
+      time_t day_time = timestamp;
+      struct tm day_tm;
+      localtime_r(&day_time, &day_tm);
+      char formatted[4] = {};
+      strftime(formatted, sizeof(formatted), "%a", &day_tm);
+      day_name = formatted;
+    }
+  }
+  if (day_name.empty()) day_name = std::to_string(day + 1);
+
+  ESP_LOGD(TAG, "%s: day=%d min=%.1f max=%.1f precip=%.1f mm probability=%.1f%%",
+           entity_id.c_str(), day, low, high, precipitation, probability);
+  for (const auto &binding : bindings) {
+    if (day < binding.weather_forecast_count) {
+      update_weather_forecast(binding.weather_forecast[day], day_name.c_str(),
+                              icon.empty() ? "?" : icon.c_str(), high, low,
+                              precipitation, probability,
+                              binding.weather_high_labels[day],
+                              binding.weather_low_labels[day]);
     }
   }
 }
@@ -706,7 +1311,8 @@ void apply_ha_media_state(const std::string &entity_id,
                           const std::string &state,
                           const std::string &title,
                           const std::string &subtitle,
-                          const std::string &icon) {
+                          const std::string &icon,
+                          const std::string &entity_picture) {
   std::vector<SensorWidgetBinding> bindings;
   {
     MutexGuard lock(widget_registry_mutex());
@@ -718,6 +1324,12 @@ void apply_ha_media_state(const std::string &entity_id,
   std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                  [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   const bool playing = normalized == "playing";
+  ESP_LOGD(TAG, "Media state update for %s: state=%s title_length=%u "
+                "subtitle_length=%u entity_picture_length=%u",
+           entity_id.c_str(), state.c_str(),
+           static_cast<unsigned>(title.size()),
+           static_cast<unsigned>(subtitle.size()),
+           static_cast<unsigned>(entity_picture.size()));
   for (const auto &binding : bindings) {
     if (binding.media_title) {
       lv_label_set_text(binding.media_title,
@@ -744,6 +1356,19 @@ void apply_ha_media_state(const std::string &entity_id,
       const std::string icon_char = getMdiChar(normalizeMdiIconName(icon));
       if (!icon_char.empty()) {
         lv_label_set_text(binding.media_icon, icon_char.c_str());
+      }
+    }
+    if (binding.media_artwork) {
+      const bool artwork_loaded =
+          update_media_artwork(binding.media_artwork, entity_picture);
+      if (artwork_loaded) {
+        if (binding.media_icon) lv_obj_add_flag(binding.media_icon, LV_OBJ_FLAG_HIDDEN);
+        ESP_LOGD(TAG, "Media artwork displayed for %s; hiding fallback icon",
+                 entity_id.c_str());
+      } else if (binding.media_icon) {
+        lv_obj_clear_flag(binding.media_icon, LV_OBJ_FLAG_HIDDEN);
+        ESP_LOGD(TAG, "Media artwork absent for %s; showing fallback icon",
+                 entity_id.c_str());
       }
     }
   }
@@ -1595,8 +2220,10 @@ void TilesLvglRenderer::setup() {
   ESP_LOGI(TAG, "TilesLvglRenderer setup: %dx%d grid %dx%d cell %dx%d",
            geo_.screen_w, geo_.screen_h, geo_.cols, geo_.rows,
            geo_.cell_w(), geo_.cell_h());
-  ha_ws_client_set_entity_filter(collect_configured_ha_entities());
+  const auto entities = collect_configured_ha_entities();
+  ha_ws_client_set_entity_filter(entities);
   ha_ws_client_start();
+  schedule_ha_entity_states_rest(entities);
 }
 
 void TilesLvglRenderer::refresh_folder(int folder_id) {
@@ -1614,11 +2241,11 @@ void TilesLvglRenderer::refresh_folder(int folder_id) {
   // rebuilt. The fresh snapshot below repopulates the new widgets.
   ha_ws_client_discard_pending_states();
   // A saved tile configuration may keep the same entities while changing
-  // their presentation; refresh their values after rebuilding the folder.
-  ESP_LOGI(TAG, "Requesting HA state refresh for folder %d", folder_id);
-
-  //ha_ws_client_start();
-  ha_ws_client_request_states();
+  // their presentation; query only those entities through the REST API.
+  const auto entities = collect_configured_ha_entities();
+  ESP_LOGI(TAG, "Requesting %zu HA entity states through REST for folder %d",
+           entities.size(), folder_id);
+  schedule_ha_entity_states_rest(entities);
   ha_ws_client_subscribe_events();
 }
 
@@ -1644,6 +2271,7 @@ void TilesLvglRenderer::process_pending_refreshes() {
     }
   }
   // WebSocket parsing and LVGL state application are owned by HATiLvgl.
+  process_one_ha_entity_state_rest();
   ha_ws_client_loop();
 }
 

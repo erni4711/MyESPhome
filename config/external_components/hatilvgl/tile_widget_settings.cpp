@@ -2,8 +2,10 @@
 #include "tiles_lvgl.h"
 #include "hatilvgl.h"
 #include "../hatifonts/mdi_icons.h"
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <lvgl.h>
+#include <cstdio>
 
 namespace web_admin_local {
 
@@ -60,20 +62,46 @@ void settings_click_cb(lv_event_t *event) {
              hatilvgl_is_api_connected() ? lv_color_make(0x50, 0xD8, 0x88)
                                          : lv_color_make(0xE8, 0x70, 0x70));
 
-  make_label(overlay, "Brightness", 92, ui_font_for_size(14), lv_color_white());
+  const size_t internal_total =
+      heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  const size_t internal_free =
+      heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  const size_t psram_total =
+      heap_caps_get_total_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  const size_t psram_free =
+      heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  char memory_text[96];
+  const auto format_memory = [](char *buffer, size_t length, const char *name,
+                                size_t total, size_t free) {
+    const size_t used = total > free ? total - free : 0;
+    const unsigned percent =
+        total == 0 ? 0 : static_cast<unsigned>((used * 100U) / total);
+    std::snprintf(buffer, length, "%s: %u%% used (%u / %u KiB)",
+                  name, percent, static_cast<unsigned>(used / 1024U),
+                  static_cast<unsigned>(total / 1024U));
+  };
+  format_memory(memory_text, sizeof(memory_text), "Internal RAM",
+                internal_total, internal_free);
+  make_label(overlay, memory_text, 84, ui_font_for_size(13), lv_color_white());
+  format_memory(memory_text, sizeof(memory_text), "PSRAM",
+                psram_total, psram_free);
+  make_label(overlay, memory_text, 108, ui_font_for_size(13),
+             lv_color_make(0x80, 0xD8, 0xFF));
+
+  make_label(overlay, "Brightness", 148, ui_font_for_size(14), lv_color_white());
   lv_obj_t *brightness = lv_slider_create(overlay);
   lv_obj_set_width(brightness, lv_pct(82));
-  lv_obj_align(brightness, LV_ALIGN_TOP_MID, 0, 118);
+  lv_obj_align(brightness, LV_ALIGN_TOP_MID, 0, 174);
   lv_slider_set_range(brightness, 1, 100);
   lv_slider_set_value(brightness, 100, LV_ANIM_OFF);
   lv_obj_add_event_cb(brightness, settings_slider_cb, LV_EVENT_RELEASED,
                       reinterpret_cast<void *>(static_cast<intptr_t>(1)));
 
-  make_label(overlay, "Screen timeout (seconds)", 166, ui_font_for_size(14),
+  make_label(overlay, "Screen timeout (seconds)", 222, ui_font_for_size(14),
              lv_color_white());
   lv_obj_t *timeout = lv_slider_create(overlay);
   lv_obj_set_width(timeout, lv_pct(82));
-  lv_obj_align(timeout, LV_ALIGN_TOP_MID, 0, 192);
+  lv_obj_align(timeout, LV_ALIGN_TOP_MID, 0, 248);
   lv_slider_set_range(timeout, 5, 600);
   lv_slider_set_value(timeout, 60, LV_ANIM_OFF);
   lv_obj_add_event_cb(timeout, settings_slider_cb, LV_EVENT_RELEASED,

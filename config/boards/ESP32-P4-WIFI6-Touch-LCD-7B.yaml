@@ -647,7 +647,7 @@ sensor:
   - platform: adc
     id: battery_voltage
     pin: GPIO20
-    attenuation: auto
+    attenuation: 12db
     name: "Battery Voltage"
     update_interval: 60s
     filters:

@@ -77,6 +77,10 @@ void tile_widget_build_media(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_text_color(icon, accent, 0);
   lv_obj_set_style_text_font(icon, FONT_MDI_ICONS, 0);
   lv_obj_align(icon, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_t *artwork = lv_image_create(parent);
+  lv_obj_set_size(artwork, 76, 76);
+  lv_obj_align(artwork, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_add_flag(artwork, LV_OBJ_FLAG_HIDDEN);
 
   const char *name = tile.title.empty()
                          ? (entity.empty() ? "Media" : entity.c_str())
@@ -141,7 +145,8 @@ void tile_widget_build_media(lv_obj_t *parent, const TileData &tile) {
   (void)next;
 
   if (!entity.empty()) {
-    register_ha_media_widget(entity, title, subtitle, state, play_pause, icon);
+    register_ha_media_widget(entity, title, subtitle, state, play_pause, icon,
+                             artwork);
   }
 }
 

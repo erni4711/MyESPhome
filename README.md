@@ -1,6 +1,7 @@
 # MyESPhome — Home Assistant Panel Display
 
 > **Breaking changes:** This project is undergoing an architectural transition.
+See [MOTIVATION.md](MOTIVATION.md) for the background and rationale behind this project.
 
 Inspired by [HomeTiles](https://github.com/GalusPeres/HomeTiles), the ESPHome implementation now includes an `/admin` configuration API for managing the panel layout and tile definitions. The long-term goal is to replace MQTT-based communication with direct consumption of the Home Assistant REST API and WebSocket API, allowing the display to retrieve entity data and receive state updates in real time.
 

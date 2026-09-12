@@ -1,5 +1,6 @@
 #pragma once
 #include "web_admin_local.h"
+#include "../hatilvgl/psram_string.h"
 
 namespace web_admin_local {
 
@@ -25,7 +26,7 @@ class ApiTilesHandler : public AsyncWebHandler {
   bool isRequestHandlerTrivial() const override { return false; }
  private:
   std::string base_;
-  std::string body_buf_;
+  PsramString body_buf_;
   bool body_too_large_ = false;
 };
 

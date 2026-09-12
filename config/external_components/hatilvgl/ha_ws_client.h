@@ -1,13 +1,14 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <ArduinoJson.h>
 
 // ── Home Assistant websocket client ───────────────────────────────────────
 //
 // Maintains a single ws(s):// connection to Home Assistant's
 // `/api/websocket` API, authenticates with a long-lived access token,
-// subscribes to `state_changed` events and (best effort) requests the
-// current state of every configured entity on connect.
+// subscribes to `state_changed` events. Initial states are loaded through
+// targeted REST requests by the tile renderer.
 //
 // All network I/O and JSON parsing happens on the esp_websocket_client
 // library's own FreeRTOS task (the event handler callback). Matching
@@ -30,7 +31,7 @@ void ha_ws_client_reconfigure();
 void ha_ws_client_start();
 
 // Replaces the set of entity ids the client cares about. `state_changed`
-// events (and get_states results) for any other entity id are dropped
+// events for any other entity id are dropped
 // before they are queued for the loop task. Called whenever the configured
 // tile grids change (see TilesLvglRenderer::refresh_folder()).
 void ha_ws_client_set_entity_filter(const std::vector<std::string> &entity_ids);
@@ -38,8 +39,12 @@ void ha_ws_client_set_entity_filter(const std::vector<std::string> &entity_ids);
 void ha_ws_client_subscribe_events();
 void ha_ws_client_unsubscribe_events();
 
-// Requests a fresh snapshot of current Home Assistant states. Safe to call
-// after authentication; otherwise the next authentication performs the pull.
+// Returns the allocator used for Home Assistant JSON documents. The
+// allocator places dynamic JSON memory in PSRAM instead of internal RAM.
+ArduinoJson::Allocator *ha_psram_json_allocator();
+
+// Legacy bulk WebSocket snapshot request. Tile loading uses targeted REST
+// requests instead; this remains available for compatibility.
 void ha_ws_client_request_states();
 
 // Discards state updates queued for widgets from a previous tile tree.
