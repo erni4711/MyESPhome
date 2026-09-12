@@ -39,10 +39,12 @@ class HATiLvglComponent : public esphome::Component {
     ESP_LOGI("hatilvgl", "Calling ha_ws_client_configure");
     ha_ws_client_configure(home_assistant_url_, home_assistant_token_);
     settings_set_display_controls(backlight_, timeout_);
+    renderer_start_after_ = esphome::millis() + 5000;
   }
 
   void loop() override {
     if (!hatilvgl_is_api_connected()) return;
+    if (esphome::millis() < renderer_start_after_) return;
     if (g_tiles_renderer == nullptr) {
       g_tiles_renderer = new TilesLvglRenderer();
       g_tiles_renderer->setup();
@@ -57,6 +59,7 @@ class HATiLvglComponent : public esphome::Component {
   std::string home_assistant_token_;
   esphome::light::LightState *backlight_ = nullptr;
   esphome::number::Number *timeout_ = nullptr;
+  uint32_t renderer_start_after_ = 0;
 };
 
 }  // namespace web_admin_local

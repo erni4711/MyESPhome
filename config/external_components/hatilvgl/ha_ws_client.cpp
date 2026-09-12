@@ -555,8 +555,12 @@ std::string build_uri(const std::string& home_assistant_url, bool* out_is_tls) {
 
 }  // namespace
 
-void ha_ws_client_configure(const std::string& home_assistant_url,
-                            const std::string& home_assistant_token) {
+ArduinoJson::Allocator *ha_psram_json_allocator() {
+  return &g_psram_json_allocator;
+}
+
+void ha_ws_client_configure(const std::string &home_assistant_url,
+                            const std::string &home_assistant_token) {
   ESP_LOGI(TAG, "ha_ws_client_configure entered (url=%s, token_present=%s)",
            home_assistant_url.empty() ? "empty" : "set",
            home_assistant_token.empty() ? "no" : "yes");
