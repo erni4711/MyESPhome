@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "../hatilvgl/tiles_lvgl.h"
+#include "../hatilvgl/ha_ws_client.h"
 #include "esphome/components/spiffs/spiffs.h"
 
 // Forward-declare asset accessors defined in web_admin_assets.cpp
@@ -740,8 +741,8 @@ bool TilesHandler::canHandle(AsyncWebServerRequest* request) const {
 void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
   ESP_LOGI("web_admin_local.tiles", "handleRequest TilesHandler: %s",
            request_url(request).c_str());
-  std::string adminJs = std::string(adminJsAssetPath());
-  std::string adminCss = std::string(adminCssAssetPath());
+  const char* adminJs = adminJsAssetPath();
+  const char* adminCss = adminCssAssetPath();
 
   // Read folder metadata (name, icon) from SD card; fall back to defaults.
   auto folders = readFolderMetaList();
@@ -836,8 +837,8 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "};"
       "</script>";
 
-  std::string html =
-      "<!doctype html><html lang=\"en\"><head>"
+  PsramString html =
+      PsramString("<!doctype html><html lang=\"en\"><head>"
       "<meta charset=\"utf-8\"><meta name=\"viewport\" "
       "content=\"width=device-width,initial-scale=1\">"
       // ── CSS custom properties needed by admin.css ─────────────────────────
@@ -862,14 +863,14 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "<link rel=\"stylesheet\" "
       "href=\"https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/"
       "materialdesignicons.min.css\">"
-      "<link rel=\"stylesheet\" href=\"" +
+      "<link rel=\"stylesheet\" href=\"") +
       adminCss +
       "\">"
       "</head><body>"
       "<div class=\"wrapper\"><div class=\"card\">"
       "<nav class=\"tab-nav\">" +
-      nav_buttons + "</nav>" +
-      tab_divs
+      nav_buttons.c_str() + "</nav>" +
+      tab_divs.c_str()
       // Required anchor: insertBefore(tabEl, networkTab) in
       // installFolderTabFragment
       + "<div id=\"tab-network\" class=\"tab-content\"></div>"
@@ -1324,16 +1325,16 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
       long sz = ftell(rf);
       rewind(rf);
       if (sz < 0) sz = 0;
-      std::string raw;
+      PsramString raw;
       raw.resize(static_cast<size_t>(sz));
       if (sz > 0) fread(&raw[0], 1, static_cast<size_t>(sz), rf);
       fclose(rf);
 
       // The SPA expects a bare JSON array [].
       // Old files may be stored as {"tiles":[...]}; unwrap transparently.
-      JsonDocument doc;
+      JsonDocument doc(ha_psram_json_allocator());
       JsonArray arr;
-      if (!deserializeJson(doc, raw)) {
+      if (!deserializeJson(doc, raw.data(), raw.size())) {
         if (doc.is<JsonArray>()) {
           arr = doc.as<JsonArray>();
         } else if (doc["tiles"].is<JsonArray>()) {
@@ -1355,7 +1356,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
         char* ep = nullptr;
         long idx = strtol(idxStr.c_str(), &ep, 10);
         if (ep != idxStr.c_str() && idx >= 0) {
-          std::string tileJson = "{}";
+          PsramString tileJson = "{}";
           if (arr && static_cast<size_t>(idx) < arr.size()) {
             serializeJson(arr[static_cast<size_t>(idx)], tileJson);
           }
@@ -1367,7 +1368,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
 
       // No index: return the full array.
       if (arr) {
-        std::string arrStr;
+        PsramString arrStr;
         serializeJson(arr, arrStr);
         request->send(200, "application/json; charset=utf-8", arrStr.c_str());
       } else {
@@ -1416,10 +1417,10 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
           long sz = ftell(rf);
           rewind(rf);
           if (sz > 0 && sz <= 65536) {
-            std::string raw(static_cast<size_t>(sz), '\0');
+            PsramString raw(static_cast<size_t>(sz), '\0');
             fread(&raw[0], 1, static_cast<size_t>(sz), rf);
-            JsonDocument rdoc;
-            if (!deserializeJson(rdoc, raw)) {
+            JsonDocument rdoc(ha_psram_json_allocator());
+            if (!deserializeJson(rdoc, raw.data(), raw.size())) {
               JsonArray rarr;
               if (rdoc.is<JsonArray>())
                 rarr = rdoc.as<JsonArray>();
@@ -1440,8 +1441,10 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
       }
 
       // Parse and update the specific tile.
-      JsonDocument tdoc;
-      if (deserializeJson(tdoc, tileStrings[tile_idx])) tdoc.clear();
+      JsonDocument tdoc(ha_psram_json_allocator());
+      if (deserializeJson(tdoc, tileStrings[tile_idx].data(),
+                          tileStrings[tile_idx].size()))
+        tdoc.clear();
       JsonObject tile =
           tdoc.is<JsonObject>() ? tdoc.as<JsonObject>() : tdoc.to<JsonObject>();
 
@@ -1530,7 +1533,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
       serializeJson(tile, tileStrings[tile_idx]);
 
       // Rebuild the full JSON array from all tile strings.
-      std::string out = "[";
+      PsramString out = "[";
       for (int i = 0; i < 35; i++) {
         if (i) out += ",";
         out += tileStrings[i];
@@ -1571,7 +1574,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
     // ── JSON body import / test-tool POST
     // ───────────────────────────────────── body_buf_ is populated by
     // handleBody() before handleRequest().
-    std::string body = std::move(body_buf_);
+    PsramString body = std::move(body_buf_);
     body_buf_.clear();
 
     if (body_too_large_) {
@@ -1587,8 +1590,8 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
       return;
     }
     // Basic JSON validation
-    JsonDocument doc;
-    auto err = deserializeJson(doc, body);
+    JsonDocument doc(ha_psram_json_allocator());
+    auto err = deserializeJson(doc, body.data(), body.size());
     if (err) {
       ESP_LOGW("web_admin_local.api.tiles", "JSON parse error: %s",
                err.c_str());
@@ -1599,7 +1602,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
     // Support two payload formats and always store a bare JSON array [].
     // 1) { "tiles": [ ... ] }  <-- test-tool / existing format
     // 2) Waveshare export: { "grids": { "0": [...], "1": [...] } }
-    std::string body_to_save;
+    PsramString body_to_save;
     if (doc["tiles"].is<JsonArray>()) {
       serializeJson(doc["tiles"], body_to_save);
     } else if (doc["grids"].is<JsonObject>()) {
@@ -1638,8 +1641,9 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
     }
 
     // Canonicalize imported grids before persisting them.
-    JsonDocument normalized_doc;
-    if (deserializeJson(normalized_doc, body_to_save)) {
+    JsonDocument normalized_doc(ha_psram_json_allocator());
+    if (deserializeJson(normalized_doc, body_to_save.data(),
+                        body_to_save.size())) {
       request->send(400, "text/plain", "Invalid normalized tile JSON");
       return;
     }
