@@ -1,4 +1,5 @@
 #include "web_admin_local.h"
+#include "json_admin_handlers.h"
 #include "../hatilvgl/tiles_lvgl.h"
 #include "../hatilvgl/hatilvgl.h"
 
@@ -158,6 +159,25 @@ void WebAdminLocal::start_internal() {
   const std::string base = std::string("/") + url_prefix_;
   auto* handler = new LocalHandler(base, this);
   this->server_->add_handler(handler);
+
+  static constexpr char kScreensaverDefaults[] =
+      "{\"success\":true,\"version\":2,\"use_wallpapers\":false,"
+      "\"shuffle\":false,\"tile_shadow\":true,\"tile_border\":true,"
+      "\"show_time\":true,\"show_date\":true,\"show_weekday\":false,"
+      "\"clock_shadow\":true,\"time_format\":0,\"date_format\":0,"
+      "\"time_alignment\":1,\"date_alignment\":1,\"time_font_size\":48,"
+      "\"date_font_size\":28,\"clock_x\":500,\"clock_y\":350,"
+      "\"duration_seconds\":15,\"preview_wallpaper\":\"\",\"wallpapers\":[],"
+      "\"available_wallpapers\":[]}";
+  static constexpr char kHardwareIoDefaults[] =
+      "{\"success\":true,\"board_variant\":\"standard\",\"max_channels\":8,"
+      "\"channels\":[],\"pin_options\":[]}";
+  this->server_->add_handler(new JsonAdminHandler(
+      "/admin/screensaver", esphome::fnv1_hash("hatiadmin_screensaver"),
+      kScreensaverDefaults));
+  this->server_->add_handler(new JsonAdminHandler(
+      "/admin/hardware-io", esphome::fnv1_hash("hatiadmin_hardware_io"),
+      kHardwareIoDefaults));
 
   // Folders API
   auto* folders_api = new web_admin_local::ApiFolderHandler(base);
