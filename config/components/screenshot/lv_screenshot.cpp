@@ -206,3 +206,38 @@ extern "C" lv_result_t lv_snapshot_take_to_buf_ex(lv_obj_t *obj, lv_color_format
 
   return res;
 }
+
+extern "C" lv_draw_buf_t *lv_snapshot_take_to_draw_buf_ex(lv_obj_t *obj,
+                                                            lv_color_format_t cf) {
+  if (obj == nullptr) return nullptr;
+
+  lv_draw_buf_t *draw_buf = lv_snapshot_create_draw_buf(obj, cf);
+  if (draw_buf == nullptr ||
+      lv_snapshot_take_to_draw_buf(obj, cf, draw_buf) != LV_RESULT_OK) {
+    if (draw_buf != nullptr) lv_draw_buf_destroy(draw_buf);
+    return nullptr;
+  }
+
+  if (cf != LV_COLOR_FORMAT_RGB565) return draw_buf;
+
+  lv_image_dsc_t base_dsc;
+  lv_memzero(&base_dsc, sizeof(base_dsc));
+  base_dsc.header = draw_buf->header;
+  base_dsc.data = static_cast<const uint8_t *>(draw_buf->data);
+  base_dsc.data_size = draw_buf->data_size;
+
+  lv_area_t base_area;
+  if (!get_snapshot_area_from_dsc(obj, &base_dsc, &base_area)) return draw_buf;
+
+  lv_display_t *disp = lv_obj_get_display(obj);
+  if (disp == nullptr) return draw_buf;
+
+  lv_obj_t *top = lv_display_get_layer_top(disp);
+  lv_obj_t *sys = lv_display_get_layer_sys(disp);
+  if (top != nullptr && top != obj)
+    blend_layer_argb8888_on_rgb565(top, draw_buf->data, &base_dsc, &base_area);
+  if (sys != nullptr && sys != obj && sys != top)
+    blend_layer_argb8888_on_rgb565(sys, draw_buf->data, &base_dsc, &base_area);
+
+  return draw_buf;
+}

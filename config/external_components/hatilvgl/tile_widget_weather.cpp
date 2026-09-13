@@ -4,6 +4,7 @@
 #include <lvgl.h>
 #include <cstdlib>
 #include <algorithm>
+#include <cmath>
 #include <ctime>
 
 namespace web_admin_local {
@@ -34,17 +35,14 @@ lv_obj_t *weather_popup_label(lv_obj_t *parent, const char *text,
 lv_color_t weather_temperature_color(float temperature) {
   if (temperature < 0.0f)
     return lv_color_make(0x87, 0xCE, 0xEB);
-  if (temperature < 4.0f) {
-    const float ratio = temperature / 4.0f;
-    return lv_color_make(static_cast<uint8_t>(0x87 + ratio * (0xFF - 0x87)),
-                         static_cast<uint8_t>(0xCE + ratio * (0xFF - 0xCE)),
-                         static_cast<uint8_t>(0xEB + ratio * (0xFF - 0xFF)));
+  if (temperature < 18.0f) {
+    return lv_color_make(0x4D, 0xB3, 0xFF);
   }
-  if (temperature <= 21.0f) return lv_color_white();
+  if (temperature < 25.0f) return lv_color_white();
   if (temperature < 30.0f) {
-    const float ratio = (temperature - 21.0f) / 5.0f;
-    return lv_color_make(0xFF, static_cast<uint8_t>(0xFF - ratio * 0x67),
-                         static_cast<uint8_t>(0xFF - ratio * 0xFF));
+    const float ratio = (temperature - 25.0f) / 5.0f;
+    return lv_color_make(0xFF, static_cast<uint8_t>(0xE0 - ratio * 0x70),
+                         static_cast<uint8_t>(0x30 - ratio * 0x30));
   }
   if (temperature < 40.0f) {
     const float ratio = (temperature - 30.0f) / 10.0f;
@@ -61,10 +59,15 @@ float weather_temperature_value(const char *text) {
   return end != (text ? text : "") ? value : 0.0f;
 }
 
+int weather_rain_bar_height(float precipitation) {
+  if (precipitation <= 0.0f) return 0;
+  return std::min(42, std::max(4, static_cast<int>(std::lround(precipitation * 4.0f))));
+}
+
 lv_obj_t *weather_forecast_column(lv_obj_t *parent, lv_obj_t *source = nullptr,
                                   bool hide_temperatures = false) {
   lv_obj_t *column = lv_obj_create(parent);
-  lv_obj_set_width(column, LV_PCT(12));
+  lv_obj_set_width(column, LV_PCT(100));
   lv_obj_set_height(column, source ? 180 : 120);
   lv_obj_set_style_bg_opa(column, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(column, 0, 0);
@@ -75,15 +78,17 @@ lv_obj_t *weather_forecast_column(lv_obj_t *parent, lv_obj_t *source = nullptr,
   const char *icon = source ? lv_label_get_text(lv_obj_get_child(source, 1)) : "?";
   const char *high = source ? lv_label_get_text(lv_obj_get_child(source, 2)) : "--";
   const char *low = source ? lv_label_get_text(lv_obj_get_child(source, 3)) : "--";
-  lv_obj_t *day_label = weather_popup_label(column, day, ui_font_for_size(12));
+  lv_obj_t *day_label = weather_popup_label(column, day, ui_font_for_size(16));
   lv_obj_t *icon_label = weather_popup_label(column, icon, FONT_MDI_ICONS);
   lv_obj_set_style_text_color(icon_label, lv_color_white(), 0);
   lv_obj_t *high_label = weather_popup_label(column, high, ui_font_for_size(12));
   lv_obj_t *low_label = weather_popup_label(column, low, ui_font_for_size(12));
   lv_obj_set_style_text_color(
-      high_label, weather_temperature_color(weather_temperature_value(high)), 0);
+      high_label, weather_temperature_color(weather_temperature_value(high)),
+      LV_PART_MAIN | LV_STATE_DEFAULT);
   lv_obj_set_style_text_color(
-      low_label, weather_temperature_color(weather_temperature_value(low)), 0);
+      low_label, weather_temperature_color(weather_temperature_value(low)),
+      LV_PART_MAIN | LV_STATE_DEFAULT);
   lv_obj_t *amount = weather_popup_label(
       column, source ? lv_label_get_text(lv_obj_get_child(source, 4)) : "0.0 mm",
       ui_font_for_size(10));
@@ -100,10 +105,14 @@ lv_obj_t *weather_forecast_column(lv_obj_t *parent, lv_obj_t *source = nullptr,
   lv_obj_set_width(icon_label, LV_PCT(100));
   lv_obj_set_width(high_label, LV_PCT(100));
   lv_obj_set_width(low_label, LV_PCT(100));
+  lv_label_set_long_mode(day_label, LV_LABEL_LONG_CLIP);
+  lv_label_set_long_mode(icon_label, LV_LABEL_LONG_CLIP);
   lv_obj_align(day_label, LV_ALIGN_TOP_MID, 0, 0);
-  lv_obj_align(icon_label, LV_ALIGN_TOP_MID, 0, 22);
-  lv_obj_align(high_label, LV_ALIGN_TOP_MID, 0, 54);
-  lv_obj_align(low_label, LV_ALIGN_TOP_MID, 0, 73);
+  // Normal weather tiles use these columns directly. Keep the icon in its
+  // own band so its glyph cannot overlap the high-temperature label.
+  lv_obj_align(icon_label, LV_ALIGN_TOP_MID, 0, source ? 26 : 14);
+  lv_obj_align(high_label, LV_ALIGN_TOP_MID, 0, source ? 54 : 66);
+  lv_obj_align(low_label, LV_ALIGN_TOP_MID, 0, source ? 73 : 88);
   return column;
 }
 
@@ -125,7 +134,8 @@ lv_obj_t *add_temperature_labels(lv_obj_t *parent, lv_obj_t **forecast,
     lv_obj_t *label = weather_popup_label(row, text, ui_font_for_size(11));
     if (output) output[i] = label;
     lv_obj_set_style_text_color(
-        label, weather_temperature_color(weather_temperature_value(text)), 0);
+        label, weather_temperature_color(weather_temperature_value(text)),
+        LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_width(label, LV_PCT(100 / forecast_count));
   }
   return row;
@@ -256,98 +266,122 @@ void weather_click_cb(lv_event_t *event) {
   lv_obj_t *summary = weather_popup_label(panel, headline.c_str(),
                                           ui_font_for_size(24));
   lv_obj_set_width(summary, LV_PCT(100));
-  lv_obj_align(summary, LV_ALIGN_TOP_MID, 0, 66);
+  lv_obj_align(summary, LV_ALIGN_TOP_MID, 0, 38);
 
   lv_obj_t *forecast_row = lv_obj_create(panel);
-  lv_obj_set_size(forecast_row, LV_PCT(99), LV_PCT(16));
+  lv_obj_set_size(forecast_row, LV_PCT(99), 58);
   lv_obj_set_style_bg_opa(forecast_row, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(forecast_row, 0, 0);
   lv_obj_set_style_pad_all(forecast_row, 0, 0);
   lv_obj_set_flex_flow(forecast_row, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(forecast_row, LV_FLEX_ALIGN_SPACE_EVENLY,
                         LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-  lv_obj_align(forecast_row, LV_ALIGN_TOP_MID, 0, 116);
+  lv_obj_align(forecast_row, LV_ALIGN_TOP_MID, 0, 78);
   lv_obj_clear_flag(forecast_row, LV_OBJ_FLAG_SCROLLABLE);
 
   for (uint8_t i = 0; i < context->forecast_count; ++i) {
-    lv_obj_set_width(
-        weather_forecast_column(forecast_row, context->forecast[i]),
-        100 / context->forecast_count);
+    lv_obj_t *column = weather_forecast_column(
+        forecast_row, context->forecast[i]);
+    lv_obj_set_width(column, LV_PCT(100 / context->forecast_count));
+    lv_obj_set_height(column, 58);
+    lv_obj_add_flag(lv_obj_get_child(column, 2), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(lv_obj_get_child(column, 3), LV_OBJ_FLAG_HIDDEN);
   }
 
+  lv_obj_t *high_row = add_temperature_labels(
+      panel, context->forecast, context->forecast_count, true, nullptr);
+  lv_obj_align(high_row, LV_ALIGN_TOP_MID, 0, 155);
+
   lv_obj_t *temperature_row = lv_obj_create(panel);
-  lv_obj_set_size(temperature_row, LV_PCT(94), LV_PCT(16));
+  lv_obj_set_size(temperature_row, LV_PCT(94), 90);
   lv_obj_set_style_bg_opa(temperature_row, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(temperature_row, 0, 0);
   lv_obj_set_style_pad_all(temperature_row, 0, 0);
   lv_obj_set_flex_flow(temperature_row, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(temperature_row, LV_FLEX_ALIGN_SPACE_EVENLY,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-  lv_obj_align(temperature_row, LV_ALIGN_TOP_MID, 0, 300);
+  lv_obj_align(temperature_row, LV_ALIGN_TOP_MID, 0, 180);
   lv_obj_clear_flag(temperature_row, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_event_cb(temperature_row, draw_hourly_temperature_chart,
                       LV_EVENT_DRAW_MAIN, nullptr);
 
+  lv_obj_t *low_row = add_temperature_labels(
+      panel, context->forecast, context->forecast_count, false, nullptr);
+  lv_obj_align(low_row, LV_ALIGN_TOP_MID, 0, 265);
+
   lv_obj_t *rain_row = lv_obj_create(panel);
-  lv_obj_set_size(rain_row, LV_PCT(94), LV_PCT(16));
+  lv_obj_set_size(rain_row, LV_PCT(94), 100);
   lv_obj_set_style_bg_opa(rain_row, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(rain_row, 0, 0);
   lv_obj_set_style_pad_all(rain_row, 0, 0);
   lv_obj_set_flex_flow(rain_row, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(rain_row, LV_FLEX_ALIGN_SPACE_EVENLY,
                         LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-  lv_obj_align(rain_row, LV_ALIGN_TOP_MID, 0, 345);
+  lv_obj_align(rain_row, LV_ALIGN_TOP_MID, 0, 300);
   lv_obj_clear_flag(rain_row, LV_OBJ_FLAG_SCROLLABLE);
   for (uint8_t i = 0; i < context->forecast_count; ++i) {
     lv_obj_t *rain_column = lv_obj_create(rain_row);
     lv_obj_set_width(rain_column, LV_PCT(100 / context->forecast_count));
-    lv_obj_set_height(rain_column, LV_PCT(16));
+    lv_obj_set_height(rain_column, 100);
     lv_obj_set_style_bg_opa(rain_column, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(rain_column, 0, 0);
     lv_obj_set_style_pad_all(rain_column, 0, 0);
-    lv_obj_set_flex_flow(rain_column, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(rain_column, LV_FLEX_ALIGN_START,
-                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_t *bar = lv_bar_create(rain_column);
-    lv_obj_set_width(bar, 50);
-    lv_obj_set_height(bar, 32);
-    lv_obj_set_style_radius(bar, 3, 0);
-    lv_obj_set_style_radius(bar, 3, LV_PART_INDICATOR);
-    lv_bar_set_range(bar, 0, 100);
+    lv_obj_set_layout(rain_column, LV_LAYOUT_NONE);
     const float amount = static_cast<float>(atof(
         lv_label_get_text(lv_obj_get_child(context->forecast[i], 4))));
     const float probability = static_cast<float>(atof(
         lv_label_get_text(lv_obj_get_child(context->forecast[i], 5))));
-    lv_bar_set_value(bar, static_cast<int>(std::min(100.0f, amount * 10.0f)),
-                     LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(bar, lv_color_make(0x18, 0x3B, 0x52), 0);
-    lv_obj_set_style_bg_color(bar, lv_color_make(0x29, 0x96, 0xF3),
-                              LV_PART_INDICATOR);
+    lv_obj_t *track = lv_obj_create(rain_column);
+    lv_obj_set_width(track, 14);
+    lv_obj_set_height(track, 34);
+    lv_obj_align(track, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_radius(track, 4, 0);
+    lv_obj_set_style_bg_color(track, lv_color_make(0x18, 0x3B, 0x52), 0);
+    lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(track, 0, 0);
+    lv_obj_set_style_pad_all(track, 0, 0);
+    lv_obj_clear_flag(track, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *bar = lv_obj_create(track);
+    lv_obj_set_width(bar, LV_PCT(100));
+    lv_obj_set_height(bar, weather_rain_bar_height(amount));
+    lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_radius(bar, 3, 0);
+    lv_obj_set_style_bg_color(bar, lv_color_make(0x29, 0x96, 0xF3), 0);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(bar, 0, 0);
+    lv_obj_set_style_pad_all(bar, 0, 0);
+    lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
     char probability_text[12];
     snprintf(probability_text, sizeof(probability_text), "%.0f %%",
              probability);
-    weather_popup_label(rain_column, lv_label_get_text(
-                            lv_obj_get_child(context->forecast[i], 4)),
-                        ui_font_for_size(10));
-    weather_popup_label(rain_column, probability_text, ui_font_for_size(10));
+    lv_obj_t *amount_label = weather_popup_label(
+        rain_column, lv_label_get_text(lv_obj_get_child(context->forecast[i], 4)),
+        ui_font_for_size(10));
+    lv_obj_set_width(amount_label, LV_PCT(100));
+    lv_obj_align(amount_label, LV_ALIGN_TOP_MID, 0, 34);
+    lv_obj_t *probability_label =
+        weather_popup_label(rain_column, probability_text, ui_font_for_size(10));
+    lv_obj_set_width(probability_label, LV_PCT(100));
+    lv_obj_align(probability_label, LV_ALIGN_TOP_MID, 0, 55);
   }
 
-  lv_obj_t *footer = weather_popup_label(
-      panel, "Today       7D       <                 >", ui_font_for_size(14));
-  lv_obj_set_width(footer, LV_PCT(99));
-  lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, -8);
 }
 
 }  // namespace
 
 void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t white = lv_color_white();
-  const bool inline_weather = tile.span_w >= 7;
+  // The inline chart/forecast layout needs more than two grid rows. Wide
+  // short tiles use the regular compact forecast columns instead.
+  const bool inline_weather = tile.span_w >= 7 && tile.span_h > 2;
   const int inline_height = lv_obj_get_height(parent);
+  const bool compact_inline = inline_weather &&
+                              ((inline_height > 0 && inline_height < 380) ||
+                               tile.span_h <= 2);
   const int inline_chart_y = std::max(270, (inline_height * 58) / 100);
   // The tile height can still be zero while the widget is constructed. Keep
   // the precipitation row relative to the chart instead of clamping it to 0.
-  const int inline_rain_y = inline_chart_y + 105;
+  const int inline_rain_y = inline_chart_y + 82;
 
   const std::string &entity = tile.entity_id;
   const char *location = tile.title.empty()
@@ -392,15 +426,19 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *forecast[kMaxForecastDays] = {};
   lv_obj_t *high_labels[kMaxForecastDays] = {};
   lv_obj_t *low_labels[kMaxForecastDays] = {};
-  const uint8_t forecast_count = inline_weather || tile.span_h >= 2
-      ? static_cast<uint8_t>(tile.span_w >= 7
-                                 ? kMaxForecastDays
-                                 : (tile.span_w >= 5 ? 7 : 4))
+  const uint8_t display_forecast_count = inline_weather || tile.span_h >= 2
+      ? static_cast<uint8_t>(compact_inline
+                                 ? 4
+                                 : (tile.span_w >= 7
+                                      ? kMaxForecastDays
+                                      : (tile.span_w >= 5 ? 7 : 4)))
       : 0;
+  constexpr uint8_t popup_forecast_count = kMaxForecastDays;
   lv_obj_t *forecast_row = nullptr;
-  if (forecast_count > 0) {
+  if (display_forecast_count > 0 || !inline_weather) {
     forecast_row = lv_obj_create(parent);
-    lv_obj_set_size(forecast_row, LV_PCT(100), inline_weather ? 185 : 120);
+    lv_obj_set_size(forecast_row, LV_PCT(100),
+                    inline_weather ? (compact_inline ? 120 : 145) : 120);
     lv_obj_set_style_bg_opa(forecast_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(forecast_row, 0, 0);
     lv_obj_set_style_pad_all(forecast_row, 0, 0);
@@ -408,22 +446,37 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     lv_obj_set_flex_align(forecast_row, LV_FLEX_ALIGN_SPACE_EVENLY,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     if (inline_weather) {
-      lv_obj_align(forecast_row, LV_ALIGN_TOP_MID, 0, 105);
+      lv_obj_align(forecast_row, LV_ALIGN_TOP_MID, 0,
+                   compact_inline ? 82 : 105);
     } else {
       lv_obj_align(forecast_row, LV_ALIGN_BOTTOM_MID, 0, -8);
     }
     lv_obj_clear_flag(forecast_row, LV_OBJ_FLAG_SCROLLABLE);
+    if (display_forecast_count == 0)
+      lv_obj_add_flag(forecast_row, LV_OBJ_FLAG_HIDDEN);
   }
-  for (uint8_t i = 0; i < forecast_count; ++i) {
+  for (uint8_t i = 0; i < popup_forecast_count; ++i) {
+    if (forecast_row == nullptr) break;
     forecast[i] = weather_forecast_column(forecast_row, nullptr,
                                           inline_weather);
-    lv_obj_set_width(forecast[i], 100 / forecast_count);
+    const uint8_t column_count = inline_weather
+        ? display_forecast_count : popup_forecast_count;
+    lv_obj_set_width(forecast[i], LV_PCT(100 / column_count));
+    if (compact_inline) {
+      lv_obj_set_style_text_font(lv_obj_get_child(forecast[i], 0),
+                                 ui_font_for_size(14), 0);
+      lv_obj_set_style_text_font(lv_obj_get_child(forecast[i], 1),
+                                 ui_font_for_size(24), 0);
+      lv_obj_align(lv_obj_get_child(forecast[i], 1), LV_ALIGN_TOP_MID, 0, -2);
+    }
+    if (i >= display_forecast_count)
+      lv_obj_add_flag(forecast[i], LV_OBJ_FLAG_HIDDEN);
   }
 
   if (inline_weather) {
-    lv_obj_align(add_temperature_labels(parent, forecast, forecast_count, true,
+    lv_obj_align(add_temperature_labels(parent, forecast, display_forecast_count, true,
                                         high_labels),
-                 LV_ALIGN_TOP_MID, 0, inline_chart_y);
+                 LV_ALIGN_TOP_MID, 0,                  compact_inline ? 246 : inline_chart_y);
     lv_obj_t *temperature_row = lv_obj_create(parent);
     lv_obj_set_size(temperature_row, LV_PCT(94), 60);
     lv_obj_set_style_bg_opa(temperature_row, LV_OPA_TRANSP, 0);
@@ -433,61 +486,87 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     lv_obj_clear_flag(temperature_row, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(temperature_row, draw_hourly_temperature_chart,
                         LV_EVENT_DRAW_MAIN, nullptr);
+    if (compact_inline) lv_obj_add_flag(temperature_row, LV_OBJ_FLAG_HIDDEN);
 
+    lv_obj_t *precipitation_labels[kMaxForecastDays] = {};
+    lv_obj_t *probability_labels[kMaxForecastDays] = {};
+    lv_obj_t *precipitation_bars[kMaxForecastDays] = {};
     lv_obj_t *rain_row = lv_obj_create(parent);
-    lv_obj_set_size(rain_row, LV_PCT(94), 94);
+    lv_obj_set_size(rain_row, LV_PCT(94), 78);
     lv_obj_set_style_bg_opa(rain_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(rain_row, 0, 0);
     lv_obj_set_style_pad_all(rain_row, 0, 0);
     lv_obj_set_flex_flow(rain_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(rain_row, LV_FLEX_ALIGN_SPACE_EVENLY,
                           LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_align(rain_row, LV_ALIGN_TOP_MID, 0, inline_rain_y);
+    lv_obj_align(rain_row, LV_ALIGN_TOP_MID, 0, inline_rain_y + 12);
     lv_obj_clear_flag(rain_row, LV_OBJ_FLAG_SCROLLABLE);
 
-    for (uint8_t i = 0; i < forecast_count; ++i) {
+    for (uint8_t i = 0; i < display_forecast_count; ++i) {
       lv_obj_t *rain_column = lv_obj_create(rain_row);
-      lv_obj_set_width(rain_column, LV_PCT(100 / forecast_count));
-      lv_obj_set_height(rain_column, 94);
+      lv_obj_set_width(rain_column, LV_PCT(100 / display_forecast_count));
+      lv_obj_set_height(rain_column, 78);
       lv_obj_set_style_bg_opa(rain_column, LV_OPA_TRANSP, 0);
       lv_obj_set_style_border_width(rain_column, 0, 0);
       lv_obj_set_style_pad_all(rain_column, 0, 0);
-      lv_obj_set_flex_flow(rain_column, LV_FLEX_FLOW_COLUMN);
-      lv_obj_set_flex_align(rain_column, LV_FLEX_ALIGN_START,
-                            LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-      lv_obj_t *bar = lv_bar_create(rain_column);
-      lv_obj_set_width(bar, 50);
-      lv_obj_set_height(bar, 32);
-      lv_obj_set_style_radius(bar, 3, 0);
-      lv_obj_set_style_radius(bar, 3, LV_PART_INDICATOR);
-      lv_bar_set_range(bar, 0, 100);
+      lv_obj_t *track = lv_obj_create(rain_column);
+      lv_obj_set_width(track, 14);
+      lv_obj_set_height(track, 42);
+      lv_obj_align(track, LV_ALIGN_TOP_MID, 0, 0);
+      lv_obj_set_style_radius(track, 4, 0);
+      lv_obj_set_style_bg_color(track, lv_color_make(0x62, 0x89, 0x9A), 0);
+      lv_obj_set_style_bg_opa(track, LV_OPA_70, 0);
+      lv_obj_set_style_border_width(track, 1, 0);
+      lv_obj_set_style_border_color(track, lv_color_make(0xA7, 0xD8, 0xF2), 0);
+      lv_obj_set_style_pad_all(track, 0, 0);
+      lv_obj_clear_flag(track, LV_OBJ_FLAG_SCROLLABLE);
       const float amount = static_cast<float>(
           atof(lv_label_get_text(lv_obj_get_child(forecast[i], 4))));
+      lv_obj_t *bar = lv_obj_create(track);
+      lv_obj_set_width(bar, LV_PCT(100));
+      lv_obj_set_height(bar, weather_rain_bar_height(amount));
+      lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, 0);
+      lv_obj_set_style_radius(bar, 3, 0);
+      lv_obj_set_style_bg_color(bar, lv_color_make(0x29, 0x96, 0xF3), 0);
+      lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+      lv_obj_set_style_border_width(bar, 0, 0);
+      lv_obj_set_style_pad_all(bar, 0, 0);
+      lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+      precipitation_bars[i] = bar;
       const float probability = static_cast<float>(
           atof(lv_label_get_text(lv_obj_get_child(forecast[i], 5))));
-      lv_bar_set_value(bar, static_cast<int>(std::min(100.0f, amount * 10.0f)),
-                       LV_ANIM_OFF);
-      lv_obj_set_style_bg_color(bar, lv_color_make(0x18, 0x3B, 0x52), 0);
-      lv_obj_set_style_bg_color(bar, lv_color_make(0x29, 0x96, 0xF3),
-                                LV_PART_INDICATOR);
       char probability_text[12];
       snprintf(probability_text, sizeof(probability_text), "%.0f %%",
                probability);
-      weather_popup_label(rain_column,
-                          lv_label_get_text(lv_obj_get_child(forecast[i], 4)),
-                          ui_font_for_size(10));
-      weather_popup_label(rain_column, probability_text, ui_font_for_size(10));
+      precipitation_labels[i] = weather_popup_label(
+          rain_column, lv_label_get_text(lv_obj_get_child(forecast[i], 4)),
+          ui_font_for_size(10));
+      lv_obj_align(precipitation_labels[i], LV_ALIGN_TOP_MID, 0, 27);
+      probability_labels[i] = weather_popup_label(
+          rain_column, probability_text, ui_font_for_size(10));
+      lv_obj_align(probability_labels[i], LV_ALIGN_TOP_MID, 0, 48);
     }
-    lv_obj_align(add_temperature_labels(parent, forecast, forecast_count, false,
+    lv_obj_align(add_temperature_labels(parent, forecast, display_forecast_count, false,
                                         low_labels),
-                 LV_ALIGN_TOP_MID, 0, inline_chart_y + 80);
+                 LV_ALIGN_TOP_MID, 0,
+                 compact_inline ? 272 : inline_chart_y + 68);
+    // The chart and its labels occupy a fixed vertical band. Keep rainfall
+    // below the low-temperature row so the probability text is not clipped.
+    lv_obj_align(rain_row, LV_ALIGN_TOP_MID, 0, inline_chart_y + 112);
+    if (compact_inline) lv_obj_add_flag(rain_row, LV_OBJ_FLAG_HIDDEN);
+    for (uint8_t i = 0; i < display_forecast_count; ++i) {
+      lv_obj_set_style_text_align(precipitation_labels[i], LV_TEXT_ALIGN_CENTER, 0);
+      lv_obj_set_style_text_align(probability_labels[i], LV_TEXT_ALIGN_CENTER, 0);
+    }
+    if (!entity.empty()) {
+      register_ha_weather_widget(entity, icon, temp, condition, forecast,
+                                 popup_forecast_count, high_labels, low_labels,
+                                 precipitation_labels, probability_labels,
+                                 precipitation_bars);
+    }
   }
 
   if (inline_weather) {
-    if (!entity.empty()) {
-      register_ha_weather_widget(entity, icon, temp, condition, forecast,
-                                 forecast_count, high_labels, low_labels);
-    }
     return;
   }
 
@@ -495,9 +574,9 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   popup_context->icon = icon;
   popup_context->temperature = temp;
   popup_context->condition = condition;
-  popup_context->forecast_count = forecast_count;
-  popup_context->forecast = new lv_obj_t *[forecast_count];
-  for (uint8_t i = 0; i < forecast_count; ++i) {
+  popup_context->forecast_count = popup_forecast_count;
+  popup_context->forecast = new lv_obj_t *[popup_forecast_count];
+  for (uint8_t i = 0; i < popup_forecast_count; ++i) {
     popup_context->forecast[i] = forecast[i];
   }
   popup_context->title = location;
@@ -509,7 +588,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
 
   if (!entity.empty()) {
     register_ha_weather_widget(entity, icon, temp, condition, forecast,
-                               forecast_count);
+                               popup_forecast_count);
   }
 }
 
