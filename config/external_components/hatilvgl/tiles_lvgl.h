@@ -19,6 +19,9 @@ void set_home_assistant_credentials(const std::string &url, const std::string &t
 bool toggle_home_assistant_entity(const char *entity_id, bool turn_on);
 bool set_home_assistant_climate_temperature(const char *entity_id, float temperature);
 bool call_home_assistant_media_command(const char *entity_id, const char *command);
+bool set_home_assistant_media_volume(const char *entity_id, float volume);
+bool set_home_assistant_media_mute(const char *entity_id, bool muted);
+bool set_home_assistant_media_position(const char *entity_id, float position);
 bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct);
 bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin);
 bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int blue);
@@ -56,14 +59,23 @@ void register_ha_media_widget(const std::string &entity_id,
                               lv_obj_t *state,
                               lv_obj_t *play_pause,
                               lv_obj_t *icon,
-                              lv_obj_t *artwork = nullptr);
+                              lv_obj_t *artwork = nullptr,
+                              lv_obj_t *volume_slider = nullptr,
+                              lv_obj_t *volume_label = nullptr,
+                              lv_obj_t *mute_button = nullptr,
+                              lv_obj_t *position_slider = nullptr,
+                              lv_obj_t *position_label = nullptr,
+                              lv_obj_t *duration_label = nullptr);
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
                                lv_obj_t *state_label);
 void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_label,
                                  lv_obj_t *temperature_label, lv_obj_t *condition_label,
                                  lv_obj_t **forecast_labels = nullptr, uint8_t forecast_count = 0,
                                  lv_obj_t **high_labels = nullptr,
-                                 lv_obj_t **low_labels = nullptr);
+                                 lv_obj_t **low_labels = nullptr,
+                                 lv_obj_t **precipitation_labels = nullptr,
+                                 lv_obj_t **probability_labels = nullptr,
+                                 lv_obj_t **precipitation_bars = nullptr);
 void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
                              lv_obj_t *brightness, lv_obj_t *color_temp,
                              lv_obj_t *red, lv_obj_t *green, lv_obj_t *blue);
@@ -100,7 +112,11 @@ void apply_ha_media_state(const std::string &entity_id,
                           const std::string &title,
                           const std::string &subtitle,
                           const std::string &icon,
-                          const std::string &entity_picture = "");
+                          const std::string &entity_picture = "",
+                          float volume_level = -1.0f,
+                          bool volume_muted = false,
+                          float media_position = -1.0f,
+                          float media_duration = -1.0f);
 void apply_ha_light_state(const std::string &entity_id, const std::string &state,
                           const std::string &brightness, const std::string &color_temp,
                           const std::string &red, const std::string &green,

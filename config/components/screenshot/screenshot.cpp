@@ -126,6 +126,9 @@ static bool encode_raw_rgb565_to_jpeg(const uint8_t *src, size_t src_size, uint1
 // try to declare encoder API if available
 // Always use the bundled stb_image_write for JPEG encoding.
 
+extern "C" lv_draw_buf_t *lv_snapshot_take_to_draw_buf_ex(lv_obj_t *obj,
+                                                            lv_color_format_t cf);
+
 // registration wrapper (C++ linkage)
 void screenshot_register_runtime() {
   esphome::screenshot::ScreenshotComponent::register_component_runtime();
@@ -204,7 +207,8 @@ static lv_draw_buf_t *grab_lvgl_rgb565() {
   ESP_LOGD(TAG, "grab_lvgl_rgb565: lv_scr_act -> %p", (void *)scr);
   /* Use LVGL's native snapshot allocator and capture path. */
   lv_refr_now(NULL);
-  lv_draw_buf_t *draw_buf = lv_snapshot_take(scr, LV_COLOR_FORMAT_RGB565);
+  lv_draw_buf_t *draw_buf =
+      lv_snapshot_take_to_draw_buf_ex(scr, LV_COLOR_FORMAT_RGB565);
   if (draw_buf == nullptr) {
     ESP_LOGW(TAG, "grab_lvgl_rgb565: lv_snapshot_take failed");
   }
@@ -1185,4 +1189,3 @@ void ScreenshotComponent::loop() {
 
 }  // namespace screenshot
 }  // namespace esphome
-
