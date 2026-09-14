@@ -66,10 +66,6 @@ void register_ha_media_widget(const std::string &entity_id,
                               lv_obj_t *position_slider = nullptr,
                               lv_obj_t *position_label = nullptr,
                               lv_obj_t *duration_label = nullptr);
-void register_ha_camera_widget(const std::string &entity_id,
-                               lv_obj_t *image,
-                               lv_obj_t *status);
-void process_one_ha_camera_frame();
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
                                lv_obj_t *state_label);
 void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_label,
