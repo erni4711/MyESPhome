@@ -40,6 +40,12 @@ void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t accent = lv_color_make(0x26, 0xA6, 0x9A);
   const std::string &entity = tile.entity_id;
 
+  lv_obj_t *image = lv_image_create(parent);
+  lv_obj_set_size(image, LV_PCT(100), LV_PCT(72));
+  lv_obj_set_style_pad_all(image, 0, 0);
+  lv_obj_align(image, LV_ALIGN_TOP_MID, 0, 0);
+  lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+
   lv_obj_t *icon = lv_label_create(parent);
   const bool icon_disabled = isMdiIconDisabled(tile.icon_name);
   const std::string icon_name = tile.icon_name.empty()
@@ -65,7 +71,7 @@ void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile) {
   lv_obj_align(title, LV_ALIGN_CENTER, 0, 18);
 
   lv_obj_t *state = lv_label_create(parent);
-  lv_label_set_text(state, entity.empty() ? "Unavailable" : "Idle");
+  lv_label_set_text(state, entity.empty() ? "Unavailable" : "Connecting...");
   lv_label_set_long_mode(state, LV_LABEL_LONG_DOT);
   lv_obj_set_width(state, LV_PCT(90));
   lv_obj_set_style_text_color(state, muted, 0);
@@ -80,8 +86,7 @@ void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile) {
     lv_obj_add_event_cb(parent, camera_click_cb, LV_EVENT_CLICKED, context);
     lv_obj_add_event_cb(parent, camera_context_delete_cb, LV_EVENT_DELETE,
                         context);
-    register_ha_entity_widget(entity, state, nullptr, -1, 0.f, 100.f);
-    register_ha_entity_icon(entity, icon);
+    register_ha_camera_widget(entity, image, state);
   }
 }
 
