@@ -17,6 +17,8 @@
 #include <cmath>
 #include <algorithm>
 #include <unordered_map>
+#include <utility>
+#include <esp_timer.h>
 #include "esphome/components/spiffs/spiffs.h"
 static void *media_stbi_malloc(size_t size) {
   return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -199,6 +201,8 @@ struct SensorWidgetBinding {
   lv_obj_t *media_duration_label = nullptr;
   lv_image_dsc_t *media_artwork_dsc = nullptr;
   uint8_t *media_artwork_data = nullptr;
+  lv_obj_t *camera_image = nullptr;
+  lv_obj_t *camera_status = nullptr;
   lv_obj_t *light_popup = nullptr;
   lv_obj_t *light_brightness = nullptr;
   lv_obj_t *light_color_temp = nullptr;
@@ -243,6 +247,9 @@ int weather_rain_bar_height(float precipitation) {
 }
 
 std::unordered_map<std::string, std::vector<SensorWidgetBinding>> g_sensor_widget_bindings;
+std::unordered_map<std::string, std::string> g_camera_picture_urls;
+int64_t g_next_camera_frame_us = 0;
+size_t g_camera_entity_index = 0;
 
 SemaphoreHandle_t widget_registry_mutex() {
   static SemaphoreHandle_t mutex = xSemaphoreCreateMutex();
@@ -285,8 +292,8 @@ void update_weather_forecast(lv_obj_t *column, const char *day,
   if (!column) return;
   char high[24];
   char low[24];
-  snprintf(high, sizeof(high), "%.1f C", max_temp);
-  snprintf(low, sizeof(low), "%.1f C", min_temp);
+  snprintf(high, sizeof(high), "%.1f \xC2\xB0" "C", max_temp);
+  snprintf(low, sizeof(low), "%.1f \xC2\xB0" "C", min_temp);
   if (lv_obj_get_child_count(column) >= 6) {
     lv_label_set_text(lv_obj_get_child(column, 0), day);
     lv_label_set_text(lv_obj_get_child(column, 1), icon);
@@ -520,6 +527,31 @@ void register_ha_media_widget(const std::string &entity_id,
   ESP_LOGD(TAG, "Registered media widget for %s", entity_id.c_str());
 }
 
+void register_ha_camera_widget(const std::string &entity_id,
+                               lv_obj_t *image,
+                               lv_obj_t *status) {
+  if (entity_id.empty() || image == nullptr) return;
+  SensorWidgetBinding binding;
+  binding.camera_image = image;
+  binding.camera_status = status;
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  const auto watch = [](lv_obj_t *object) {
+    if (!object) return;
+    lv_obj_add_event_cb(object, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE) {
+        release_media_artwork(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+      }
+    }, LV_EVENT_DELETE, nullptr);
+  };
+  watch(image);
+  watch(status);
+  ESP_LOGD(TAG, "Registered camera widget for %s", entity_id.c_str());
+}
+
 bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
   if (image == nullptr) return false;
   ESP_LOGD(TAG, "Media artwork update requested: image=%p url_length=%u",
@@ -568,6 +600,13 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
   if (result != ESP_OK || status < 200 || status >= 300 || download.size == 0) {
     ESP_LOGW(TAG, "Media artwork request failed (status=%d, error=%s)",
              status, esp_err_to_name(result));
+    if (url.find("/api/camera_proxy/") != std::string::npos &&
+        download.data != nullptr && download.size > 0) {
+      const size_t preview_size = std::min<size_t>(download.size, 160);
+      ESP_LOGW(TAG, "Home Assistant camera proxy response: %.*s",
+               static_cast<int>(preview_size),
+               reinterpret_cast<const char *>(download.data));
+    }
     return false;
   }
   ESP_LOGD(TAG, "Media artwork download completed: status=%d bytes=%u",
@@ -715,6 +754,58 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
            static_cast<unsigned>(info.width), static_cast<unsigned>(info.height),
            static_cast<unsigned>(output_size));
   return true;
+}
+
+void process_one_ha_camera_frame() {
+  const int64_t now = esp_timer_get_time();
+  if (now < g_next_camera_frame_us) return;
+  g_next_camera_frame_us = now + 2000000;
+
+  std::vector<std::pair<std::string, std::vector<SensorWidgetBinding>>> cameras;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    for (const auto &entry : g_sensor_widget_bindings) {
+      bool has_camera = false;
+      for (const auto &binding : entry.second) {
+        if (binding.camera_image != nullptr) {
+          has_camera = true;
+          break;
+        }
+      }
+      if (has_camera) cameras.emplace_back(entry.first, entry.second);
+    }
+  }
+  if (cameras.empty()) return;
+  if (g_camera_entity_index >= cameras.size()) g_camera_entity_index = 0;
+  const auto &camera = cameras[g_camera_entity_index++];
+  const std::string &entity_id = camera.first;
+  const auto &bindings = camera.second;
+  if (entity_id.empty() || home_assistant_url.empty() ||
+      home_assistant_token.empty()) {
+    return;
+  }
+
+  std::string base = home_assistant_url;
+  while (!base.empty() && base.back() == '/') base.pop_back();
+  std::string url = base + "/api/camera_proxy/" + entity_id;
+  const auto picture_url = g_camera_picture_urls.find(entity_id);
+  if (picture_url != g_camera_picture_urls.end() &&
+      !picture_url->second.empty()) {
+    url = picture_url->second;
+  }
+  bool loaded = false;
+  for (const auto &binding : bindings) {
+    if (binding.camera_image == nullptr) continue;
+    loaded = update_media_artwork(binding.camera_image, url) || loaded;
+    if (binding.camera_status != nullptr) {
+      lv_label_set_text(binding.camera_status, loaded ? "Live" : "Unavailable");
+      lv_obj_set_style_text_color(binding.camera_status,
+                                  loaded ? lv_color_make(0x66, 0xDD, 0x88)
+                                         : lv_color_make(0xFF, 0x88, 0x88),
+                                  0);
+    }
+  }
+  if (!loaded) g_next_camera_frame_us = now + 10000000;
 }
 
 void register_ha_switch_widget(const std::string &entity_id, lv_obj_t *switch_obj,
@@ -868,6 +959,8 @@ void unregister_ha_widget_object(lv_obj_t *object) {
              binding.media_play_pause == object ||
              binding.media_icon == object ||
              binding.media_artwork == object ||
+             binding.camera_image == object ||
+             binding.camera_status == object ||
              binding.media_volume_slider == object ||
              binding.media_volume_label == object ||
              binding.media_mute_button == object ||
@@ -882,7 +975,22 @@ void unregister_ha_widget_object(lv_obj_t *object) {
              binding.light_blue == object ||
              std::any_of(std::begin(binding.weather_forecast),
                          std::end(binding.weather_forecast),
-                         [object](lv_obj_t *forecast) { return forecast == object; });
+                         [object](lv_obj_t *forecast) { return forecast == object; }) ||
+             std::any_of(std::begin(binding.weather_high_labels),
+                         std::end(binding.weather_high_labels),
+                         [object](lv_obj_t *label) { return label == object; }) ||
+             std::any_of(std::begin(binding.weather_low_labels),
+                         std::end(binding.weather_low_labels),
+                         [object](lv_obj_t *label) { return label == object; }) ||
+             std::any_of(std::begin(binding.weather_precipitation_labels),
+                         std::end(binding.weather_precipitation_labels),
+                         [object](lv_obj_t *label) { return label == object; }) ||
+             std::any_of(std::begin(binding.weather_probability_labels),
+                         std::end(binding.weather_probability_labels),
+                         [object](lv_obj_t *label) { return label == object; }) ||
+             std::any_of(std::begin(binding.weather_precipitation_bars),
+                         std::end(binding.weather_precipitation_bars),
+                         [object](lv_obj_t *bar) { return bar == object; });
     }), bindings.end());
     if (bindings.empty()) it = g_sensor_widget_bindings.erase(it);
     else ++it;
@@ -987,6 +1095,13 @@ void apply_ha_entity_state(const JsonDocument &state) {
                            (attributes["unit_of_measurement"] | "");
   const std::string icon = attributes["icon"] | "";
   apply_entity_icon(id, icon);
+
+  if (id.rfind("camera.", 0) == 0) {
+    const std::string entity_picture = attributes["entity_picture"] | "";
+    if (!entity_picture.empty()) {
+      g_camera_picture_urls[id] = entity_picture;
+    }
+  }
 
   if (id.rfind("weather.", 0) == 0) {
     char temperature[16] = {};
@@ -1191,8 +1306,14 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
       if (binding.weather_icon && !icon.empty()) lv_label_set_text(binding.weather_icon, icon.c_str());
       if (binding.weather_condition) lv_label_set_text(binding.weather_condition, weather_condition.c_str());
       if (binding.weather_temperature) {
-        std::string text = temperature.empty() ? "--" : temperature;
-        if (!unit.empty()) text += " " + unit;
+        std::string text = "--";
+        if (!temperature.empty()) {
+          char formatted_temperature[24];
+          snprintf(formatted_temperature, sizeof(formatted_temperature),
+                   "%.1f \xC2\xB0" "C",
+                   std::strtof(temperature.c_str(), nullptr));
+          text = formatted_temperature;
+        }
         lv_label_set_text(binding.weather_temperature, text.c_str());
         const float value = temperature.empty()
                                 ? 0.0f
@@ -2576,6 +2697,7 @@ void TilesLvglRenderer::process_pending_refreshes() {
   // WebSocket parsing and LVGL state application are owned by HATiLvgl.
   process_one_ha_entity_state_rest();
   ha_ws_client_loop();
+  process_one_ha_camera_frame();
 }
 
 void TilesLvglRenderer::refresh_all() {

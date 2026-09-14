@@ -119,6 +119,9 @@ function t(key) {
     tabs.forEach(tab => tab.classList.remove('active'));
     const btns = document.querySelectorAll('.tab-btn');
     btns.forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.folder-settings-panel').forEach(panel => {
+      panel.classList.add('hidden');
+    });
     target.classList.add('active');
     // Find and activate the button that switches to this tab
     const activeBtn = Array.from(btns).find(btn => btn.getAttribute('onclick')?.includes("'" + tabName + "'"));
@@ -2857,6 +2860,10 @@ function t(key) {
   }
 
   function selectTile(index, tab) {
+    document.querySelectorAll('.folder-settings-panel').forEach(panel => {
+      panel.classList.add('hidden');
+    });
+    document.getElementById(tab + 'Settings')?.classList.remove('hidden');
     if (currentTileTab &&
         typeof parkClimateMiniEditor === 'function') {
       parkClimateMiniEditor(currentTileTab);
@@ -7336,6 +7343,9 @@ async function openFolderSettings(tabId) {
       }
 
       const panel = await ensureFolderSettingsPanel();
+      const editor = activeTab?.querySelector('.tile-editor');
+      if (!editor) throw new Error('Tile editor unavailable');
+      editor.appendChild(panel);
       panel.dataset.tabId = tid;
       currentTileIndex = -1;
       currentTileTab = '';
@@ -7343,9 +7353,8 @@ async function openFolderSettings(tabId) {
         el.classList.remove('active');
         delete el.dataset.selected;
       });
-      activeTab?.querySelectorAll('.tile-specific-settings').forEach(el => {
-        el.classList.add('hidden');
-      });
+      activeTab?.querySelectorAll('.tile-settings:not(.folder-settings-panel)')
+        .forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.folder-settings-panel').forEach(el => el.classList.add('hidden'));
       panel.classList.remove('hidden');
 
@@ -7393,7 +7402,12 @@ async function openFolderSettings(tabId) {
 
   function closeFolderSettings() {
     const panel = document.getElementById('FolderSettingsPanel');
-    if (panel) panel.classList.add('hidden');
+    if (!panel) return;
+    panel.classList.add('hidden');
+    const tabId = String(panel.dataset.tabId || '');
+    const tilePanel = document.getElementById(tabId + 'Settings');
+    tilePanel?.classList.remove('hidden');
+    tilePanel?.querySelector('.tile-specific-settings')?.classList.remove('hidden');
   }
 
   async function saveFolderSettings() {
