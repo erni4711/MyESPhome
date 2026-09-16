@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">HATi</title>
+  <desc id="desc">HATi wordmark inside an ESPHome-inspired cyan house shape</desc>
+  <path fill="#18B5E5" d="M256 12c13 0 25 5 35 15l203 203c12 12 18 28 18 45v153c0 40-32 72-72 72H72c-40 0-72-32-72-72V275c0-17 6-33 18-45L221 27c10-10 22-15 35-15Z"/>
+  <path fill="#fff" opacity=".18" d="M256 47 56 247v181c0 9 7 16 16 16h368c9 0 16-7 16-16V247L256 47Zm0 42 157 157H99L256 89Z"/>
+  <rect x="58" y="178" width="396" height="128" rx="28" fill="#123B5D"/>
+  <text x="256" y="267" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="700" letter-spacing="2" text-anchor="middle">HATi</text>
+  <rect x="58" y="334" width="184" height="104" rx="20" fill="#163E63"/>
+  <rect x="270" y="334" width="184" height="104" rx="20" fill="#1C4D76"/>
+</svg>

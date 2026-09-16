@@ -495,8 +495,8 @@ sd_file_server:
 
 hatilvgl:
   id: hatilvgl_component
-  home_assistant_url: "http://192.168.10.187:8123"
-  home_assistant_token: !secret ha_long_lived_token
+  # home_assistant_url: "http://192.168.10.187:8123"
+  # home_assistant_token: !secret ha_long_lived_token
   backlight: display_backlight
   screen_timeout: display_timeout
 
@@ -507,8 +507,8 @@ hatiadmin:
   url_prefix: admin
   # Optional: populate /admin/entity_options from Home Assistant REST API.
   # home_assistant_url: "http://homeassistant.local:8123"
-  home_assistant_url: "http://192.168.10.187:8123"
-  home_assistant_token: !secret ha_long_lived_token
+  # home_assistant_url: "http://192.168.10.187:8123"
+  # home_assistant_token: !secret ha_long_lived_token
 
 http_request:
   verify_ssl: False
@@ -516,7 +516,7 @@ http_request:
 
 image:
   - platform: file
-    file: "image/esphome.png"
+    file: "image/hati.png"
     id: boot_logo
     resize: 200x200
     type: RGB565

@@ -1,7 +1,7 @@
 substitutions:
-  node_name: "esp32p4-10-sample2"
-  friendly_name: p47b
-  ha_token: !secret ha_long_lived_token
+  node_name: "esp32p4-10i1-sample2"
+  friendly_name: P4-10.1
+  # ha_token: !secret ha_long_lived_token
 
 packages:
   - !include common/subst.yaml

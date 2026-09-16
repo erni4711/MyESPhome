@@ -161,11 +161,12 @@ std::string LocalHandler::getConfigPage() {
 <body>
   <div class="container">
     <div class="brand">
-      <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;" aria-hidden="true">
-        <rect x="4" y="4" width="17" height="17" rx="4" fill="#ffffff"/>
-        <rect x="27" y="4" width="17" height="17" rx="4" fill="#ffffff"/>
-        <rect x="4" y="27" width="17" height="17" rx="4" fill="#ffffff"/>
-        <path d="M33 26h5v6.5h6.5v5H38V44h-5v-6.5h-6.5v-5H33z" fill="#26a69a"/>
+      <svg width="48" height="48" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;" aria-hidden="true">
+        <path fill="#18B5E5" d="M256 12c13 0 25 5 35 15l203 203c12 12 18 28 18 45v153c0 40-32 72-72 72H72c-40 0-72-32-72-72V275c0-17 6-33 18-45L221 27c10-10 22-15 35-15Z"/>
+        <rect x="58" y="178" width="396" height="128" rx="28" fill="#123B5D"/>
+        <text x="256" y="267" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="700" text-anchor="middle">HATi</text>
+        <rect x="58" y="334" width="184" height="104" rx="20" fill="#163E63"/>
+        <rect x="270" y="334" width="184" height="104" rx="20" fill="#1C4D76"/>
       </svg>
       <div>
         <h1>HATi</h1>
@@ -173,7 +174,9 @@ std::string LocalHandler::getConfigPage() {
       </div>
     </div>
 
-    <form action="save" method="POST">
+    <form action=")html";
+  html += escape_html_attribute(base_);
+  html += R"html(/save" method="POST">
       <div class="form-group">
         <label for="ha_url">Home Assistant URL</label>
         <input type="url" id="ha_url" name="ha_url" placeholder="http://homeassistant.local:8123" value=")html";
@@ -216,10 +219,11 @@ std::string LocalHandler::getSuccessPage() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connecting...</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%2316181c'/%3E%3Crect x='4' y='4' width='17' height='17' rx='4' fill='%23ffffff'/%3E%3Crect x='27' y='4' width='17' height='17' rx='4' fill='%23ffffff'/%3E%3Crect x='4' y='27' width='17' height='17' rx='4' fill='%23ffffff'/%3E%3Cpath d='M33 26h5v6.5h6.5v5H38V44h-5v-6.5h-6.5v-5H33z' fill='%2326a69a'/%3E%3C/svg%3E">
 )html";
-  appendWebFontFaceStylesStd(html);
   html += R"html(
+  <meta http-equiv="refresh" content="3;url=)html";
+  html += escape_html_attribute(base_ + "/tiles");
+  html += R"html(">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -256,18 +260,40 @@ std::string LocalHandler::getSuccessPage() {
       font-size: 14px;
       line-height: 1.6;
     }
+    .tiles-link {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: #2e7d32;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .tiles-link:active {
+      background: #1b5e20;
+    }
   </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%2316181c'/%3E%3Crect x='4' y='4' width='17' height='17' rx='4' fill='%23ffffff'/%3E%3Crect x='27' y='4' width='17' height='17' rx='4' fill='%23ffffff'/%3E%3Crect x='4' y='27' width='17' height='17' rx='4' fill='%23ffffff'/%3E%3Cpath d='M33 26h5v6.5h6.5v5H38V44h-5v-6.5h-6.5v-5H33z' fill='%2326a69a'/%3E%3C/svg%3E">
+)html";
+  appendWebFontFaceStylesStd(html);
+  html += R"html(
 </head>
 <body>
   <div class="container">
-    <svg class="logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="4" y="4" width="17" height="17" rx="4" fill="#ffffff"/>
-      <rect x="27" y="4" width="17" height="17" rx="4" fill="#ffffff"/>
-      <rect x="4" y="27" width="17" height="17" rx="4" fill="#ffffff"/>
-      <path d="M33 26h5v6.5h6.5v5H38V44h-5v-6.5h-6.5v-5H33z" fill="#26a69a"/>
+    <svg class="logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path fill="#18B5E5" d="M256 12c13 0 25 5 35 15l203 203c12 12 18 28 18 45v153c0 40-32 72-72 72H72c-40 0-72-32-72-72V275c0-17 6-33 18-45L221 27c10-10 22-15 35-15Z"/>
+      <rect x="58" y="178" width="396" height="128" rx="28" fill="#123B5D"/>
+      <text x="256" y="267" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="700" text-anchor="middle">HATi</text>
+      <rect x="58" y="334" width="184" height="104" rx="20" fill="#163E63"/>
+      <rect x="270" y="334" width="184" height="104" rx="20" fill="#1C4D76"/>
     </svg>
     <h1>Connecting...</h1>
     <p>HomeTiles is joining your network now.<br>This page will lose its connection - you can close it.</p>
+    <a class="tiles-link" href=")html";
+  html += escape_html_attribute(base_ + "/tiles");
+  html += R"html(">Open tiles configuration</a>
   </div>
 </body>
 </html>
