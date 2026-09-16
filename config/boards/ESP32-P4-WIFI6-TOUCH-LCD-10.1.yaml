@@ -10,13 +10,13 @@ esphome:
     - -DBOARD_HAS_PSRAM=1
     - -DCONFIG_SDMMC_ENABLE_POWER_CONTROL=1
     - -DINIT_SD_AFTER_WIFI_INIT=1
-  environment_variables:
-    IDF_PATH: C:\esp\v6.1\esp-idf
-    IDF_TOOLS_PATH: C:\Espressif\tools
-    IDF_PYTHON_ENV_PATH: C:\Espressif\tools\python\v6.1\venv
-    ESP_IDF_VERSION: "6.1"
-    PYTHONUTF8: "1"
-    PATH: C:\Espressif\tools\python\v6.1\venv\Scripts;C:\Espressif\tools\riscv32-esp-elf\esp-15.2.0_20251204\riscv32-esp-elf\bin;C:\Espressif\tools\cmake\4.0.3\bin;C:\Espressif\tools\ninja\1.12.1;C:\Espressif\tools\ccache\4.12.1\ccache-4.12.1-windows-x86_64;C:\esp\v6.1\esp-idf\tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows
+  # environment_variables:
+  #   IDF_PATH: C:\esp\v6.1\esp-idf
+  #   IDF_TOOLS_PATH: C:\Espressif\tools
+  #   IDF_PYTHON_ENV_PATH: C:\Espressif\tools\python\v6.1\venv
+  #   ESP_IDF_VERSION: "6.1"
+  #   PYTHONUTF8: "1"
+  #   PATH: C:\Espressif\tools\python\v6.1\venv\Scripts;C:\Espressif\tools\riscv32-esp-elf\esp-15.2.0_20251204\riscv32-esp-elf\bin;C:\Espressif\tools\cmake\4.0.3\bin;C:\Espressif\tools\ninja\1.12.1;C:\Espressif\tools\ccache\4.12.1\ccache-4.12.1-windows-x86_64;C:\esp\v6.1\esp-idf\tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows
 
   platformio_options:
     build_flags:
@@ -107,7 +107,14 @@ esp32:
   cpu_frequency: 400MHz
   framework:
     type: esp-idf
-    version: "6.1"
+    # version: "6.1"
+    # environment_variables:
+    #   IDF_PATH: C:\esp\v6.1\esp-idf
+    #   IDF_TOOLS_PATH: C:\Espressif\tools
+    #   IDF_PYTHON_ENV_PATH: C:\Espressif\tools\python\v6.1\venv
+    #   ESP_IDF_VERSION: "6.1"
+    #   PYTHONUTF8: "1"
+    #   PATH: C:\Espressif\tools\python\v6.1\venv\Scripts;C:\Espressif\tools\riscv32-esp-elf\esp-15.2.0_20251204\riscv32-esp-elf\bin;C:\Espressif\tools\cmake\4.0.3\bin;C:\Espressif\tools\ninja\1.12.1;C:\Espressif\tools\ccache\4.12.1\ccache-4.12.1-windows-x86_64;C:\esp\v6.1\esp-idf\tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows
     advanced:
       enable_idf_experimental_features: true
       # Required by sd_file_server directory listing (/file UI)
