@@ -192,7 +192,7 @@ To switch pages before capturing, use the **LVGL Page** select entity in Home As
 ![P4 HATi](images/p4-10.1-hati.png)
 
 #### P4-10.1 (HATi) weather forecast
-![P4 HATi Weather](images/p4-10.1-weather-forecast.png)
+![P4 HATi Weather](images/p4-10.1-weather forecast.png)
 
 #### P4-10.1 (HATi) Darts
 ![P4 HATi Darts](images/p4-10.1-darts.png)  
