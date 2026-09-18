@@ -490,7 +490,7 @@ bool HATiServe::remove_tree(const std::string &path) {
       if (!remove_tree(child)) ok = false;
     }
     closedir(dir);
-    return ok && rmdir(path.c_str()) == 0;
+    return ok && remove(path.c_str()) == 0;
   }
   return unlink(path.c_str()) == 0;
 }

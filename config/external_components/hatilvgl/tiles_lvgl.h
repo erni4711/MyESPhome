@@ -192,6 +192,7 @@ static const int TILE_PIXELANIM = TILE_ANIMATE;
 static const int TILE_CLIMATE  = 17;
 static const int TILE_CAMERA   = 18;
 static const int TILE_COVER    = 19;
+static const int TILE_DART     = 20;
 
 // ── Grid geometry (7 × 5, using the configured ESPHome LVGL screen) ──────────
 

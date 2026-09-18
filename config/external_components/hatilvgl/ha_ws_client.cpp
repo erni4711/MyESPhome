@@ -126,16 +126,11 @@ bool allocate_queue_items() {
 
 void log_websocket_message(const char* direction, const char* message,
                            size_t size) {
-  // Keep protocol logging useful without flooding the ESPHome log with large
-  // get_states responses. Authentication tokens must never be logged.
-
-  // Keep the complete formatted log record below ESPHome's default printf
-  // buffer size; payloads themselves may be much larger.
-  constexpr size_t kLogPreviewBytes = 128;
-  const size_t preview_size = size < kLogPreviewBytes ? size : kLogPreviewBytes;
-  ESP_LOGD(TAG, "WebSocket %s: %u bytes%s: %.*s", direction,
-           static_cast<unsigned>(size), size > preview_size ? " (preview)" : "",
-           static_cast<int>(preview_size), message);
+  // Keep payloads out of logs because they may contain credentials or private
+  // Home Assistant state data.
+  (void) message;
+  ESP_LOGD(TAG, "WebSocket %s: %u bytes", direction,
+           static_cast<unsigned>(size));
 }
 
 QueueHandle_t update_queue() {
