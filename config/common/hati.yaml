@@ -1,0 +1,45 @@
+
+spiffs:
+
+hatilvgl:
+  # home_assistant_url: "http://homeassistant.local:8123"
+  # home_assistant_token: !secret ha_long_lived_token
+  backlight: display_backlight
+  screen_timeout: display_timeout
+
+
+hatiadmin:
+  id: hatiadmin_component
+  web_server_base_id: my_web_server_base
+  url_prefix: admin
+  # Optional: populate /admin/entity_options from Home Assistant REST API.
+  # home_assistant_url: "http://homeassistant.local:8123"
+  # home_assistant_token: !secret ha_long_lived_token
+
+web_server_base:
+  id: my_web_server_base
+
+web_server:
+  port: 80
+  web_server_base_id: my_web_server_base
+
+hatiserve:
+  web_server_base_id: my_web_server_base
+ 
+screenshot:
+  id: screenshot_component
+
+
+wifi:
+  on_connect:
+    then:
+      - logger.log: "Wi-Fi connected"
+      - lvgl.widget.hide: boot_screen
+      - lambda: |-
+          id(hatiadmin_component).start();
+
+# api:
+#   on_client_connected:
+#     - lambda: |-
+#         id(hatiadmin_component).start();
+#     - lvgl.widget.hide: boot_screen

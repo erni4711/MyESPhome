@@ -2,6 +2,7 @@
 
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <sys/stat.h>
 
@@ -271,6 +272,7 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
   h += "<option value=\"17\">Climate (AC)</option>";
   h += "<option value=\"18\">Camera</option>";
   h += "<option value=\"19\">Cover / Blind</option>";
+  h += "<option value=\"20\">Darts</option>";
   h += "</select>";
   h += "<p class=\"hint hidden\" id=\"" + tid +
        "_tile_type_hint\">Type locked</p>";
@@ -2036,6 +2038,8 @@ bool EntityOptionsHandler::canHandle(AsyncWebServerRequest* request) const {
 }
 
 void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
+  static constexpr size_t kMaxEntityOptionsResponseBytes = 32 * 1024;
+
   if (home_assistant_url_.empty() || home_assistant_token_.empty()) {
     request->send(503, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Home Assistant REST API is "
@@ -2300,6 +2304,42 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     remove(sd_tmp_path.c_str());
   }
 
+  size_t response_size = 0;
+  for (size_t i = 0; i < entity_paths.size(); ++i) {
+    struct stat file_info {};
+    if (stat(entity_paths[i].c_str(), &file_info) != 0) continue;
+    if (file_info.st_size < 0 ||
+        static_cast<uint64_t>(file_info.st_size) >
+            kMaxEntityOptionsResponseBytes - response_size) {
+      ESP_LOGW("web_admin_local.entity_options",
+               "Entity options response exceeds %u bytes",
+               static_cast<unsigned>(kMaxEntityOptionsResponseBytes));
+      request->send(507, "application/json; charset=utf-8",
+                    "{\"success\":false,\"error\":\"Entity options response "
+                    "is too large\"}");
+      return;
+    }
+    response_size += static_cast<size_t>(file_info.st_size);
+  }
+  constexpr size_t kResponseHeapHeadroomBytes = 16 * 1024;
+  const size_t largest_free_block =
+      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+  const bool response_fits_heap =
+      largest_free_block > kResponseHeapHeadroomBytes &&
+      response_size <=
+          (largest_free_block - kResponseHeapHeadroomBytes) / 2;
+  if (!response_fits_heap) {
+    ESP_LOGW("web_admin_local.entity_options",
+             "Entity options response needs %u bytes, largest free heap block "
+             "is %u bytes",
+             static_cast<unsigned>(response_size),
+             static_cast<unsigned>(largest_free_block));
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"Insufficient memory for "
+                  "entity options response\"}");
+    return;
+  }
+
   AsyncResponseStream* stream =
       request->beginResponseStream("application/json; charset=utf-8");
   stream->print("{\"success\":true");
@@ -2312,11 +2352,12 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
       stream->print("[]");
       continue;
     }
-    char buffer[512];
+    char buffer[513];
     size_t read_count;
-    while ((read_count = fread(buffer, 1, sizeof(buffer), file)) > 0)
-      for (size_t j = 0; j < read_count; ++j)
-        stream->write(static_cast<uint8_t>(buffer[j]));
+    while ((read_count = fread(buffer, 1, sizeof(buffer) - 1, file)) > 0) {
+      buffer[read_count] = '\0';
+      stream->print(buffer);
+    }
     fclose(file);
   }
   stream->print("}");

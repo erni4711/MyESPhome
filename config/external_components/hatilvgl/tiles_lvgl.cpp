@@ -6,7 +6,10 @@
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
+#include <soc/soc_caps.h>
+#if SOC_JPEG_DECODE_SUPPORTED
 #include <driver/jpeg_decode.h>
+#endif
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <cstdio>
@@ -619,6 +622,13 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
              static_cast<unsigned>(download.size));
   }
 
+  uint32_t decoded_width = 0;
+  uint32_t decoded_height = 0;
+  size_t pixel_bytes = 0;
+  uint8_t *pixels = nullptr;
+  uint32_t output_size = 0;
+  esp_err_t decode_result = ESP_ERR_NOT_SUPPORTED;
+#if SOC_JPEG_DECODE_SUPPORTED
   jpeg_decode_picture_info_t info = {};
   const esp_err_t info_result =
       jpeg_decoder_get_info(download.data, download.size, &info);
@@ -650,11 +660,11 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
     ESP_LOGW(TAG, "Media artwork dimensions exceed 512x512");
     return false;
   }
-  uint32_t decoded_width = (info.width + 15U) & ~15U;
-  uint32_t decoded_height = (info.height + 15U) & ~15U;
-  size_t pixel_bytes =
+  decoded_width = (info.width + 15U) & ~15U;
+  decoded_height = (info.height + 15U) & ~15U;
+  pixel_bytes =
       static_cast<size_t>(decoded_width) * decoded_height * 2U;
-  uint8_t *pixels = static_cast<uint8_t *>(heap_caps_malloc(
+  pixels = static_cast<uint8_t *>(heap_caps_malloc(
       pixel_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   if (pixels == nullptr) {
     ESP_LOGW(TAG, "Unable to allocate %u media artwork bytes in PSRAM",
@@ -663,8 +673,6 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
   }
   ESP_LOGD(TAG, "Allocated media artwork decode buffer: %u bytes in PSRAM",
            static_cast<unsigned>(pixel_bytes));
-  uint32_t output_size = 0;
-  esp_err_t decode_result = ESP_ERR_NOT_SUPPORTED;
   if (hardware_header_valid) {
     jpeg_decode_engine_cfg_t engine_config = {};
     engine_config.timeout_ms = 5000;
@@ -684,6 +692,7 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
       decode_result = engine_result;
     }
   }
+#endif
   if (decode_result != ESP_OK || output_size == 0) {
     heap_caps_free(pixels);
     ESP_LOGW(TAG, "Hardware JPEG decode failed (%s, output=%u); trying software decoder",
@@ -751,7 +760,7 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
   }
   lv_obj_clear_flag(image, LV_OBJ_FLAG_HIDDEN);
   ESP_LOGD(TAG, "Displayed media artwork: %ux%u (%u bytes)",
-           static_cast<unsigned>(info.width), static_cast<unsigned>(info.height),
+           static_cast<unsigned>(decoded_width), static_cast<unsigned>(decoded_height),
            static_cast<unsigned>(output_size));
   return true;
 }
@@ -2384,6 +2393,7 @@ void tile_widget_build_text(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile);
+void tile_widget_build_dart(lv_obj_t *parent, const TileData &tile);
 
 // ── Shared helper: create a label with given text, colour, font size ──────────
 
@@ -2416,6 +2426,7 @@ static lv_color_t tile_bg_color(const TileData &tile) {
       case TILE_MEDIA:    rgb = 0x2A1A3A; break;
       case TILE_NAVIGATE: rgb = 0x1A2A3A; break;
       case TILE_CLIMATE:  rgb = 0x2A1A1A; break;
+      case TILE_DART:     rgb = 0x3A1E24; break;
       default:            rgb = 0x353535; break;
     }
 
@@ -2536,6 +2547,7 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
     case TILE_CLIMATE:  tile_widget_build_climate(tile_obj, tile); break;
     case TILE_CAMERA:   tile_widget_build_camera(tile_obj, tile);  break;
     case TILE_SETTINGS: tile_widget_build_settings(tile_obj, tile); break;
+    case TILE_DART:     tile_widget_build_dart(tile_obj, tile); break;
     case TILE_COVER:
     case TILE_ANIMATE:
       {

@@ -8,13 +8,17 @@ esphome:
   name_add_mac_suffix: false
   platformio_options:
     # platform_packages:
+    build_flags:
+      - -DLV_FONT_FMT_TXT_LARGE=1
+      - -DLV_USE_FONT_COMPRESSED=1
+      - -DMDI_ICONS_48=0
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
     board_build.flash_mode: qio
     board_build.psram_mode: opi
     board_upload.maximum_ram_size: 524288
     # lib_deps:
     #   - https://github.com/bitbank2/PNGenc.git
-
+  
   
   on_boot:
     - logger.log: "ESPHome booted"
@@ -73,7 +77,10 @@ substitutions:
 
 external_components:
   - source: components
-
+  - source:
+      type: local
+      path: external_components
+ 
 
 
 deep_sleep:
@@ -86,11 +93,16 @@ esp32:
   # board : ESP32-S3-Touch-LCD-7
   variant: esp32s3
   flash_size: 8MB
-  partitions: partitions-esp32s3-8mb-encrypted.csv
+  partitions: partitions-esp32s3-8mb-single.csv
   framework:
     type: esp-idf
     sdkconfig_options:
-      CONFIG_PARTITION_TABLE_OFFSET: "0x10000"
+      CONFIG_HTTPD_TASK_STACK_SIZE: "32768"
+      CONFIG_FATFS_LFN_NONE: "n"
+      CONFIG_FATFS_LFN_HEAP: "y"
+      CONFIG_FATFS_LFN_STACK: "n"
+      CONFIG_FATFS_MAX_LFN: "255"
+      CONFIG_VFS_SUPPORT_DIR: "y"
       CONFIG_ESP32S3_SPIRAM_SUPPORT: y
       CONFIG_SPIRAM: y
       CONFIG_SPIRAM_MODE_OCT: y
@@ -98,6 +110,9 @@ esp32:
       CONFIG_ESPTOOLPY_FLASHMODE_QIO: y
       CONFIG_ESPTOOLPY_FLASHFREQ_80M: y
       CONFIG_LV_USE_SNAPSHOT: y
+      CONFIG_LV_USE_SLIDER: "y"
+      CONFIG_LV_FONT_FMT_TXT_LARGE: "y"
+      CONFIG_LV_USE_FONT_COMPRESSED: "y"
 
 psram:
   mode: octal
@@ -111,6 +126,12 @@ i2c:
   scan: True
   id: bus_a
 
+button:
+  - platform: restart
+    name: "${friendly_name} Restart"
+    id: device_restart
+    icon: "mdi:restart"
+
 ch422g:
   - id: ch422g_hub
 
@@ -120,13 +141,17 @@ http_request:
 
 image:
   - platform: file
-    file: "image/esphome.png"
+    file: "image/hati.png"
     id: boot_logo
     resize: 200x200
     type: RGB565
     byte_order: little_endian
     transparency: alpha_channel
 
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: Europe/Berlin
 
 # Allow Over-The-Air updates
 ota:
@@ -134,16 +159,12 @@ ota:
   password: !secret ota_password
   on_begin:
     then:
-      - switch.turn_off: switch_ble_scan
-      - light.turn_off: display_backlight
       - switch.turn_off: switch_antiburn
       - lvgl.pause:
       - logger.log: "LVGL paused for OTA"
   on_end:
     then:
       - lvgl.resume:
-      - switch.turn_on: switch_ble_scan
-      - light.turn_on: display_backlight
       - logger.log: "LVGL resumed after OTA"
       - logger.log: "OTA end, restart"
       #- switch.turn_on: restart_esp
@@ -220,20 +241,6 @@ switch:
           then:
             - lvgl.resume:
             - lvgl.widget.redraw:
-  - platform: template
-    name: BLE Scan
-    id: switch_ble_scan
-    icon: mdi:bluetooth-searching
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-    entity_category: "config"
-    disabled_by_default: true
-    turn_on_action:
-      - esp32_ble_tracker.start_scan:
-      - logger.log: "BLE scan enabled"
-    turn_off_action:
-      - esp32_ble_tracker.stop_scan:
-      - logger.log: "BLE scan disabled"
 
 ### Display
 display:
@@ -307,18 +314,18 @@ touchscreen:
           - light.turn_on: display_backlight
 
 api:
-  on_client_connected:
-    - if:
-        condition:
-          lambda: 'return (0 == client_info.find("Home Assistant "));'
-        then:
-          - lvgl.widget.show: lbl_hastatus
-  on_client_disconnected:
-    - if:
-        condition:
-          lambda: 'return (0 == client_info.find("Home Assistant "));'
-        then:
-          - lvgl.widget.hide: lbl_hastatus
+  # on_client_connected:
+  #   - if:
+  #       condition:
+  #         lambda: 'return (0 == client_info.find("Home Assistant "));'
+  #       then:
+  #         - lvgl.widget.show: lbl_hastatus
+  # on_client_disconnected:
+  #   - if:
+  #       condition:
+  #         lambda: 'return (0 == client_info.find("Home Assistant "));'
+  #       then:
+  #         - lvgl.widget.hide: lbl_hastatus
   # image_receiver.yaml
   # services:
   #   - service: send_image_chunk
@@ -334,24 +341,24 @@ api:
 #   id: ha_image_id
 #   canvas_id: ha_canvas
 
-time:
-  - platform: homeassistant
-    id: homeassistant_time
-    on_time_sync:
-      - script.execute: time_update
-    on_time:
-      - seconds: /1
-        then:
-          - script.execute: time_update
-script:
-  - id: time_update
-    then:
-      - lvgl.label.update:
-          id: clock_label
-          text:
-            time_format: "%H:%M:%S"
+# time:
+#   - platform: homeassistant
+#     id: homeassistant_time
+#     on_time_sync:
+#       - script.execute: time_update
+#     on_time:
+#       - seconds: /1
+#         then:
+#           - script.execute: time_update
+# script:
+#   - id: time_update
+#     then:
+#       - lvgl.label.update:
+#           id: clock_label
+#           text:
+#             time_format: "%H:%M:%S"
 
-<<: !include ../common/7i-fonts.yaml
+#<<: !include ../common/7i-fonts.yaml
 
 sensor:
   # Example configuration entry I2C
@@ -390,17 +397,6 @@ sensor:
       return (v - 3.0) * 100.0 / (4.2 - 3.0);
 
 
-web_server:
-  port: 80
- 
-screenshot:
-  id: screenshot_component
-
-# zlib:
-#   id: zlib_component
-
-# PNGenc:
-#   id: png_encoder
 text_sensor:
   - platform: version
     id: esphome_version
@@ -415,22 +411,22 @@ text_sensor:
               return ver_str; //.c_str();
 
 
-interval:
-  - interval: 5s
-    then:
-      - lvgl.label.update:
-          id: battery_text
-          text: !lambda |-
-            char buf[16];
-            sprintf(buf, "%.0f%%", id(battery_percent).state);
-            return std::string(buf);
-      - lambda: |-
-          float p = id(battery_percent).state;
-          lv_color_t color;
-          if (p > 50) color = lv_color_hex(0x00FF00);      // green
-          else if (p > 20) color = lv_color_hex(0xFFFF00); // yellow
-          else color = lv_color_hex(0xFF0000);             // red
-          lv_obj_set_style_text_color(id(battery_text), color, LV_PART_MAIN);
+# interval:
+#   - interval: 5s
+#     then:
+#       - lvgl.label.update:
+#           id: battery_text
+#           text: !lambda |-
+#             char buf[16];
+#             sprintf(buf, "%.0f%%", id(battery_percent).state);
+#             return std::string(buf);
+#       - lambda: |-
+#           float p = id(battery_percent).state;
+#           lv_color_t color;
+#           if (p > 50) color = lv_color_hex(0x00FF00);      // green
+#           else if (p > 20) color = lv_color_hex(0xFFFF00); // yellow
+#           else color = lv_color_hex(0xFF0000);             // red
+#           lv_obj_set_style_text_color(id(battery_text), color, LV_PART_MAIN);
 
 
 lvgl:
@@ -443,13 +439,13 @@ lvgl:
         animation: NONE
         #time: 180ms
 
-  theme:
-    label:
-      text_font: font_norm
-    button:
-      text_font: font_norm
-    spinbox:
-      text_font: font_norm
+  # theme:
+  #   label:
+  #     text_font: font_norm
+  #   button:
+  #     text_font: font_norm
+  #   spinbox:
+  #     text_font: font_norm
   on_idle:
     timeout: !lambda "return (id(display_timeout).state * 1000);"
     then:
@@ -457,104 +453,104 @@ lvgl:
       - light.turn_off: display_backlight
       - switch.turn_on: switch_antiburn
       - lvgl.pause:
-  <<: !include ../gui/styles.yaml
+  # <<: !include ../gui/styles.yaml
   top_layer:
     widgets:
-      - obj:
-          styles: header_footer
-          align: top_left
-          width: 40
-          layout:
-            type: flex
-            flex_flow: row
-            pad_column: 4
-            flex_align_main: start
-            flex_align_cross: start
+    #   - obj:
+    #       styles: header_footer
+    #       align: top_left
+    #       width: 40
+    #       layout:
+    #         type: flex
+    #         flex_flow: row
+    #         pad_column: 4
+    #         flex_align_main: start
+    #         flex_align_cross: start
             
-          widgets:
-            - button:
-                id: reboot_button
-                styles: style_circle_button_mini
-                text: ${mdi_power}
-                on_press:
-                  then:
-                    - lambda: |-
-                        esp_restart();
-      - obj:
-          styles: header_footer
-          align: top_right
-          width: 220
-          layout:
-            type: flex
-            flex_flow: row
-            pad_column: 4
-            flex_align_main: end
-            flex_align_cross: start
-            flex_align_track: end
-          widgets:
-            - label:
-                id: clock_label
-                text:
-                  time_format: "%H:%M:%S"
-                text_color: 0xFFFFFF
-                text_font: font_mono
-            - label:
-                id: lbl_battery_status
-                text_font: battery_icons_20
-                text_align: center
-                text: "${mdi_battery_unknown}" # start with mdi-battery-unknown
-            - label:
-                id: battery_text 
-                text: "~50%"
-                text_font: font_mono
-                align: TOP_RIGHT
-                # x: -10 
-                # y: 40
-            - label:
-                text_font: roboto_reg
-                text: "${mdi_wifi}"
-                id: lbl_hastatus
-                hidden: true
-                text_align: center
-            - button:
-                id: about_button
-                styles: style_circle_button_mini
-                text: ${mdi_info}
-                on_press:
-                  then:
-                    - lvgl.widget.show: boot_about_label
-                    - lvgl.widget.show: boot_screen
-      - buttonmatrix:
-          align: bottom_mid
-          styles: header_footer
-          pad_all: 0
-          outline_width: 0
-          id: top_layer
-          items:
-            styles: header_footer
-          rows:
-            - buttons:
-              - id: page_prev
-                text: "\uF053"
-                on_press:
-                  then:
-                    - lvgl.page.previous:
-              - id: page_home
-                text: "\uF015"
-                on_press:
-                  then:
-                    - lvgl.page.show: main_page
-              - id: page_sleep
-                text: "Z"
-                on_press:
-                  then:
-                    - deep_sleep.enter:
-                        sleep_duration: 600s
-              - id: page_next
-                text: "\uF054"
-                on_press:
-                  then:
-                    - lvgl.page.next:
+    #       widgets:
+    #         - button:
+    #             id: reboot_button
+    #             styles: style_circle_button_mini
+    #             text: ${mdi_power}
+    #             on_press:
+    #               then:
+    #                 - lambda: |-
+    #                     esp_restart();
+    #   - obj:
+    #       styles: header_footer
+    #       align: top_right
+    #       width: 220
+    #       layout:
+    #         type: flex
+    #         flex_flow: row
+    #         pad_column: 4
+    #         flex_align_main: end
+    #         flex_align_cross: start
+    #         flex_align_track: end
+    #       widgets:
+    #         - label:
+    #             id: clock_label
+    #             text:
+    #               time_format: "%H:%M:%S"
+    #             text_color: 0xFFFFFF
+    #             text_font: font_mono
+    #         - label:
+    #             id: lbl_battery_status
+    #             text_font: battery_icons_20
+    #             text_align: center
+    #             text: "${mdi_battery_unknown}" # start with mdi-battery-unknown
+    #         - label:
+    #             id: battery_text 
+    #             text: "~50%"
+    #             text_font: font_mono
+    #             align: TOP_RIGHT
+    #             # x: -10 
+    #             # y: 40
+    #         - label:
+    #             text_font: roboto_reg
+    #             text: "${mdi_wifi}"
+    #             id: lbl_hastatus
+    #             hidden: true
+    #             text_align: center
+    #         - button:
+    #             id: about_button
+    #             styles: style_circle_button_mini
+    #             text: ${mdi_info}
+    #             on_press:
+    #               then:
+    #                 - lvgl.widget.show: boot_about_label
+    #                 - lvgl.widget.show: boot_screen
+    #   - buttonmatrix:
+    #       align: bottom_mid
+    #       styles: header_footer
+    #       pad_all: 0
+    #       outline_width: 0
+    #       id: top_layer
+    #       items:
+    #         styles: header_footer
+    #       rows:
+    #         - buttons:
+    #           - id: page_prev
+    #             text: "\uF053"
+    #             on_press:
+    #               then:
+    #                 - lvgl.page.previous:
+    #           - id: page_home
+    #             text: "\uF015"
+    #             on_press:
+    #               then:
+    #                 - lvgl.page.show: main_page
+    #           - id: page_sleep
+    #             text: "Z"
+    #             on_press:
+    #               then:
+    #                 - deep_sleep.enter:
+    #                     sleep_duration: 600s
+    #           - id: page_next
+    #             text: "\uF054"
+    #             on_press:
+    #               then:
+    #                 - lvgl.page.next:
       - obj:
           id: boot_screen
           x: 0
@@ -571,7 +567,7 @@ lvgl:
             - label:
                 id: boot_about_label              
                 align: TOP_LEFT
-                text_font: roboto_med
+#                text_font: roboto_med
                 text: "${mdi_info} About"
                 hidden: true
             - image:

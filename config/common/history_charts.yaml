@@ -13,6 +13,7 @@
 #    - Create Long-Lived Access Token (bottom of page)
 #    - Add to config/secrets.yaml: ha_long_lived_token: "your_token_here"
 #    - Set ha_token below to !secret ha_long_lived_token
+#    - You can enter this token in <device-ip>/admin page
 #
 # 3. Customize Home Assistant URL if not at homeassistant.local:8123
 #

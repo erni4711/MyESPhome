@@ -186,7 +186,16 @@ To switch pages before capturing, use the **LVGL Page** select entity in Home As
 #### Weather Hourly page
 ![P4 Weather Hourly](images/p4-weather-hourly.png)
 
----
+### P4 sample2 (HATi) screenshots
+
+#### HATi page
+![P4 HATi](images/p4-10.1-hati.png)
+
+#### P4-10.1 (HATi) weather forecast
+![P4 HATi Weather](images/p4-10.1-weather-forecast.png)
+
+#### P4-10.1 (HATi) Darts
+![P4 HATi Darts](images/p4-10.1-darts.png)  
 
 ## Typical workflow notes
 - Use `esphome compile` to verify configuration without flashing.

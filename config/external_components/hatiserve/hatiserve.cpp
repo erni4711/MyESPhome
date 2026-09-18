@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <sys/statvfs.h>
+// #include <sys/statvfs.h>
 #include <cerrno>
 #include <cstring>
 #include <vector>
@@ -299,6 +299,7 @@ void HATiServe::serve_root(AsyncWebServerRequest *request, const std::string &ur
       const uint64_t free_bytes = used_bytes;
       used_bytes = total_bytes > free_bytes ? total_bytes - free_bytes : 0;
     } else {
+      #if 0
       struct statvfs volume {};
       if (statvfs(mount_path.c_str(), &volume) == 0) {
         total_bytes = static_cast<uint64_t>(volume.f_blocks) * volume.f_frsize;
@@ -306,6 +307,7 @@ void HATiServe::serve_root(AsyncWebServerRequest *request, const std::string &ur
             static_cast<uint64_t>(volume.f_bavail) * volume.f_frsize;
         used_bytes = total_bytes > free_bytes ? total_bytes - free_bytes : 0;
       }
+      #endif
     }
 
     AsyncResponseStream *response = request->beginResponseStream("text/html; charset=utf-8");
@@ -488,7 +490,7 @@ bool HATiServe::remove_tree(const std::string &path) {
       if (!remove_tree(child)) ok = false;
     }
     closedir(dir);
-    return ok && rmdir(path.c_str()) == 0;
+    return ok && remove(path.c_str()) == 0;
   }
   return unlink(path.c_str()) == 0;
 }

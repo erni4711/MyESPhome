@@ -183,7 +183,7 @@ http_request:
 
 image:
   - platform: file
-    file: "image/esphome.png"
+    file: "image/hati.png"
     id: boot_logo
     resize: 200x200
     type: RGB565

@@ -1,13 +1,14 @@
 substitutions:
-  node_name: "esp32p4-7b-sample2"
-  friendly_name: p47b2
+  node_name: "esp32s3-7i-sample2"
+  friendly_name: s37i
   # ha_token: !secret ha_long_lived_token
 
 packages:
   - !include common/subst.yaml
   - !include common/wifi.yaml
   - !include
-      file: boards/ESP32-P4-WIFI6-Touch-LCD-7B.yaml
+      file: boards/ESP32-S3-Touch-LCD-7.yaml
   # - !include common/voice.yaml
+  - !include common/hati.yaml
 
 # Enable the tile renderer/API sample without the legacy fixed climate pages.
