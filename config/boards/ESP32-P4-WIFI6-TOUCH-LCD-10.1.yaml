@@ -789,19 +789,18 @@ lvgl:
       - switch.turn_on: switch_antiburn
       - lvgl.pause:
   <<: !include ../gui/styles.yaml
-  widgets:
-  - slider:
-      id: lvgl_feature_slider
-      hidden: true
-  - button:
-      id: lvgl_feature_button
-      hidden: true
-      layout:
-        type: flex
-        flex_flow: row
-      widgets: []
   top_layer:
     widgets:
+      - slider:
+          id: lvgl_feature_slider
+          hidden: true
+      - button:
+          id: lvgl_feature_button
+          hidden: true
+          layout:
+            type: flex
+            flex_flow: row
+          widgets: []
       # - obj:
       #     styles: header_footer
       #     bg_opa: COVER

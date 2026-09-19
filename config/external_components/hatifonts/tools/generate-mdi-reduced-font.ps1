@@ -39,6 +39,12 @@ foreach ($sourceFile in $sourceFiles) {
         }
         [void]$selectedNames.Add($name)
     }
+    foreach ($match in [regex]::Matches(
+            $source,
+            'create_media_button\([^;]*,\s*"(?<name3>[A-Za-z0-9-]+)"\)',
+            [Text.RegularExpressions.RegexOptions]::Singleline)) {
+        [void]$selectedNames.Add($match.Groups['name3'].Value)
+    }
 }
 
 foreach ($name in $codepointsByName.Keys) {
