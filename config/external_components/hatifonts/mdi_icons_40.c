@@ -6,7 +6,6 @@
 
 #include "lvgl.h"
 
-//#include "src/devices/device_select.h"
 
 #ifndef MDI_ICONS_40
 #define MDI_ICONS_40 1

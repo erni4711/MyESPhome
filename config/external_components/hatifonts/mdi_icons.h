@@ -10,12 +10,29 @@
 #ifndef MDI_ICONS_48
 #define MDI_ICONS_48 1
 #endif
+#ifndef MDI_ICONS_40
+#define MDI_ICONS_40 1
+#endif
+#ifndef MDI_ICONS_32
+#define MDI_ICONS_32 1
+#endif
+#ifndef MDI_ICONS_40_REDUCED
+#define MDI_ICONS_40_REDUCED 0  
+#endif
 
 #if MDI_ICONS_48
 LV_FONT_DECLARE(mdi_icons_48);
 #endif
+#if MDI_ICONS_40
 LV_FONT_DECLARE(mdi_icons_40);
+#endif
+#if MDI_ICONS_32
 LV_FONT_DECLARE(mdi_icons_32);
+#endif
+
+#if MDI_ICONS_40_REDUCED
+LV_FONT_DECLARE(mdi_icons_40_reduced);
+#endif
 
 inline const lv_font_t *mdi_font_for_display() {
   const lv_display_t *display = lv_display_get_default();
@@ -23,18 +40,32 @@ inline const lv_font_t *mdi_font_for_display() {
 #if MDI_ICONS_48
     return &mdi_icons_48;
 #else
-    return &mdi_icons_40;
+#if MDI_ICONS_40_REDUCED
+  return &mdi_icons_40_reduced;
+#else
+  return &mdi_icons_40;
+#endif
 #endif
   }
   const int width = lv_display_get_horizontal_resolution(display);
   const int height = lv_display_get_vertical_resolution(display);
   const int largest_dimension = width > height ? width : height;
+#if MDI_ICONS_32
   if (largest_dimension <= 480) return &mdi_icons_32;
+#endif
+#if MDI_ICONS_40_REDUCED
+  if (largest_dimension <= 800) return &mdi_icons_40_reduced;
+#else
   if (largest_dimension <= 800) return &mdi_icons_40;
+#endif
 #if MDI_ICONS_48
   return &mdi_icons_48;
 #else
+#if MDI_ICONS_40_REDUCED
+  return &mdi_icons_40_reduced;
+#else
   return &mdi_icons_40;
+#endif
 #endif
 }
 

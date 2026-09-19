@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 80 px
  * Bpp: 4
- * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 80 --font C:\Users\seb_w\AppData\Local\Temp\Inter-4.1\extras\ttf\Inter-Regular.ttf -r 0x20,0x2E-0x3A,0x41,0x4D,0x50 --lv-font-name ui_font_80 -o C:\Users\seb_w\AppData\Local\Temp\hometiles-inter-test\lvgl\ui_font_80.c
+ * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 80 --font Inter-Regular.ttf --range 0x20 --range 0x2E-0x3A --range 0x41 --range 0x4D --range 0x50 --lv-font-name ui_font_80 --output ui_font_80.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE

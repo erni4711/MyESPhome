@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -261,6 +262,7 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
   h += "<option value=\"1\">Sensor</option>";
   h += "<option value=\"2\">Scene / Action</option>";
   h += "<option value=\"4\">Navigate</option>";
+  h += "<option value=\"7\">Settings</option>";
   h += "<option value=\"8\">Back</option>";
   h += "<option value=\"5\">Switch / Light</option>";
   h += "<option value=\"9\">Clock</option>";
@@ -800,8 +802,8 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "'5':{label:'Switch',fields:'switch',"
       "load:'loadSwitchFields',save:'saveSwitchFields',reset:'"
       "resetSwitchFields'},"
-      // 7 = network-settings tile (locked, no user config)
-      "'7':{label:'Network',locked:true},"
+      // 7 = settings tile
+      "'7':{label:'Settings'},"
       // 8 = back-navigation tile (locked)
       "'8':{label:'Back',locked:true},"
       // 9 = clock
@@ -1168,7 +1170,8 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "format',"
       "'text_value'].forEach(function(f){"
       "var el=document.getElementById(tab+'_'+f);"
-      "if(el&&el.value!==undefined)fd.append(f,el.value);"
+      "if(el&&el.value!==undefined)fd.append(f,"
+      "el.type==='checkbox'?(el.checked?'1':'0'):el.value);"
       "});"
       "fetch('/admin/"
       "tiles',{method:'POST',headers:{'Content-Type':'application/"
@@ -2024,11 +2027,8 @@ void ApiFolderHandler::handleRequest(AsyncWebServerRequest* request) {
 // configured even without a live Home-Assistant bridge connection.
 
 EntityOptionsHandler::EntityOptionsHandler(
-    const std::string& base, const std::string& home_assistant_url,
-    const std::string& home_assistant_token)
-    : base_(base),
-      home_assistant_url_(home_assistant_url),
-      home_assistant_token_(home_assistant_token) {}
+    const std::string& base, WebAdminLocal* owner)
+    : base_(base), owner_(owner) {}
 
 bool EntityOptionsHandler::canHandle(AsyncWebServerRequest* request) const {
   if (request->method() != HTTP_GET) return false;
@@ -2038,9 +2038,10 @@ bool EntityOptionsHandler::canHandle(AsyncWebServerRequest* request) const {
 }
 
 void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
-  static constexpr size_t kMaxEntityOptionsResponseBytes = 32 * 1024;
+  static constexpr size_t kMaxEntityOptionsResponseBytes = 100 * 1024;
 
-  if (home_assistant_url_.empty() || home_assistant_token_.empty()) {
+  if (owner_ == nullptr || owner_->home_assistant_url().empty() ||
+      owner_->home_assistant_token().empty()) {
     request->send(503, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Home Assistant REST API is "
                   "not configured\"}");
@@ -2096,6 +2097,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
       JsonDocument doc;
       if (deserializeJson(doc, json_object)) return;
       const std::string id = doc["entity_id"] | "";
+      if (id.starts_with("sensor.owm_")) return; // ignore weather forecast helper sensors
       const size_t dot = id.find('.');
       if (dot == std::string::npos || dot == 0)
         return;
@@ -2167,8 +2169,11 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
         }
       }
     }
-  } response;
+  };
+  auto response_storage = std::make_unique<HttpResponse>();
+  HttpResponse& response = *response_storage;
   response.json_object.reserve(4096);
+
   response.array_empty.fill(true);
   static constexpr const char* const category_names[] = {
       "sensors", "switches", "weathers", "energy", "media",
@@ -2222,11 +2227,31 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
                "Failed to open %s for writing", sd_tmp_path.c_str());
     }
   }
-  std::string url = home_assistant_url_;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/states";
+  const std::string& home_assistant_url = owner_->home_assistant_url();
+  const std::string& home_assistant_token = owner_->home_assistant_token();
+  size_t url_length = home_assistant_url.size();
+  while (url_length > 0 && home_assistant_url[url_length - 1] == '/') --url_length;
+  constexpr char kStatesPath[] = "/api/states";
+  const size_t url_buffer_size = url_length + sizeof(kStatesPath);
+  char* url = static_cast<char*>(
+      heap_caps_malloc(url_buffer_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (!url) {
+    response.close_entity_files();
+    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    if (response.sd_file) {
+      fclose(response.sd_file);
+      response.sd_file = nullptr;
+    }
+    if (save_to_sd) remove(sd_tmp_path.c_str());
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"Insufficient memory for "
+                  "Home Assistant URL\"}");
+    return;
+  }
+  memcpy(url, home_assistant_url.data(), url_length);
+  memcpy(url + url_length, kStatesPath, sizeof(kStatesPath));
   esp_http_client_config_t config = {};
-  config.url = url.c_str();
+  config.url = url;
   config.timeout_ms = 5000;
   config.user_data = &response;
   config.event_handler = [](esp_http_client_event_t* event) {
@@ -2245,6 +2270,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);
   if (!client) {
+    heap_caps_free(url);
     response.close_entity_files();
     for (const auto& path : entity_tmp_paths) remove(path.c_str());
     if (response.sd_file) {
@@ -2257,12 +2283,35 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
                   "Assistant REST client\"}");
     return;
   }
-  std::string auth = "Bearer " + home_assistant_token_;
-  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  constexpr char kBearerPrefix[] = "Bearer ";
+  const size_t auth_size = sizeof(kBearerPrefix) - 1 + home_assistant_token.size() + 1;
+  char* auth = static_cast<char*>(
+      heap_caps_malloc(auth_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (!auth) {
+    heap_caps_free(url);
+    esp_http_client_cleanup(client);
+    response.close_entity_files();
+    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    if (response.sd_file) {
+      fclose(response.sd_file);
+      response.sd_file = nullptr;
+    }
+    if (save_to_sd) remove(sd_tmp_path.c_str());
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"Insufficient memory for "
+                  "Home Assistant authorization\"}");
+    return;
+  }
+  memcpy(auth, kBearerPrefix, sizeof(kBearerPrefix) - 1);
+  memcpy(auth + sizeof(kBearerPrefix) - 1, home_assistant_token.data(),
+         home_assistant_token.size() + 1);
+  esp_http_client_set_header(client, "Authorization", auth);
   esp_http_client_set_header(client, "Accept", "application/json");
   const esp_err_t http_result = esp_http_client_perform(client);
   response.status = esp_http_client_get_status_code(client);
   esp_http_client_cleanup(client);
+  heap_caps_free(auth);
+  heap_caps_free(url);
   response.close_entity_files();
   if (response.sd_file) {
     if (fclose(response.sd_file) != 0) response.sd_write_failed = true;
@@ -2308,6 +2357,8 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   for (size_t i = 0; i < entity_paths.size(); ++i) {
     struct stat file_info {};
     if (stat(entity_paths[i].c_str(), &file_info) != 0) continue;
+    ESP_LOGI("web_admin_local.entity_options", "Entity options file: %s, size: %lld",
+             entity_paths[i].c_str(), static_cast<long long>(file_info.st_size));
     if (file_info.st_size < 0 ||
         static_cast<uint64_t>(file_info.st_size) >
             kMaxEntityOptionsResponseBytes - response_size) {
@@ -2321,6 +2372,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     }
     response_size += static_cast<size_t>(file_info.st_size);
   }
+  #if 0
   constexpr size_t kResponseHeapHeadroomBytes = 16 * 1024;
   const size_t largest_free_block =
       heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
@@ -2339,29 +2391,57 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
                   "entity options response\"}");
     return;
   }
+  #endif
+  httpd_resp_set_status(*request, HTTPD_200);
+  httpd_resp_set_type(*request, "application/json; charset=utf-8");
+  httpd_resp_set_hdr(*request, "Accept-Ranges", "none");
+  constexpr size_t kEntityOptionsBufferSize = 4 * 1024;
+  char* buffer = static_cast<char*>(
+      heap_caps_malloc(kEntityOptionsBufferSize, MALLOC_CAP_SPIRAM));
+  if (!buffer) {
+    ESP_LOGW("web_admin_local.entity_options",
+             "Unable to allocate 4 KiB response buffer in PSRAM");
+    request->send(507, "application/json; charset=utf-8",
+                  "{\"success\":false,\"error\":\"Insufficient PSRAM for "
+                  "entity options response\"}");
+    return;
+  }
 
-  AsyncResponseStream* stream =
-      request->beginResponseStream("application/json; charset=utf-8");
-  stream->print("{\"success\":true");
+  constexpr char kResponsePrefix[] = "{\"success\":true";
+  bool send_failed =
+      httpd_resp_send_chunk(*request, kResponsePrefix,
+                            sizeof(kResponsePrefix) - 1) != ESP_OK;
   for (size_t i = 0; i < 9; ++i) {
-    stream->print(",\"");
-    stream->print(category_names[i]);
-    stream->print("\":");
+    ESP_LOGI("web_admin_local.entity_options", "Processing category: %s", category_names[i]);
+    if (send_failed) break;
+    send_failed = httpd_resp_send_chunk(*request, ",\"", 2) != ESP_OK;
+    if (!send_failed) {
+      const char* category = category_names[i];
+      send_failed = httpd_resp_send_chunk(*request, category,
+                                          strlen(category)) != ESP_OK;
+    }
+    if (!send_failed)
+      send_failed = httpd_resp_send_chunk(*request, "\":", 2) != ESP_OK;
+    if (send_failed) break;
     FILE* file = fopen(entity_paths[i].c_str(), "rb");
     if (!file) {
-      stream->print("[]");
+      send_failed = httpd_resp_send_chunk(*request, "[]", 2) != ESP_OK;
       continue;
     }
-    char buffer[513];
     size_t read_count;
-    while ((read_count = fread(buffer, 1, sizeof(buffer) - 1, file)) > 0) {
-      buffer[read_count] = '\0';
-      stream->print(buffer);
+    while ((read_count = fread(buffer, 1, kEntityOptionsBufferSize - 1,
+                               file)) > 0) {
+      if (httpd_resp_send_chunk(*request, buffer, read_count) != ESP_OK) {
+        send_failed = true;
+        break;
+      }
     }
     fclose(file);
   }
-  stream->print("}");
-  request->send(stream);
+  if (!send_failed)
+    send_failed = httpd_resp_send_chunk(*request, "}", 1) != ESP_OK;
+  heap_caps_free(buffer);
+  httpd_resp_send_chunk(*request, nullptr, 0);
 }
 
 }  // namespace web_admin_local

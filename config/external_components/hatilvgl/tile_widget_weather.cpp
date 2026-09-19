@@ -85,10 +85,11 @@ void format_weather_temperature(char *buffer, size_t length,
 }
 
 lv_obj_t *weather_forecast_column(lv_obj_t *parent, lv_obj_t *source = nullptr,
-                                  bool hide_temperatures = false) {
+                                  bool hide_temperatures = false,
+                                  bool compact = false) {
   lv_obj_t *column = lv_obj_create(parent);
   lv_obj_set_width(column, LV_PCT(100));
-  lv_obj_set_height(column, source ? 180 : 120);
+  lv_obj_set_height(column, compact ? 90 : (source ? 180 : 120));
   lv_obj_set_style_bg_opa(column, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(column, 0, 0);
   lv_obj_set_style_pad_all(column, 0, 0);
@@ -406,15 +407,29 @@ void weather_click_cb(lv_event_t *event) {
 
 void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t white = lv_color_white();
-  // The inline chart/forecast layout needs more than two grid rows. Wide
-  // short tiles use the regular compact forecast columns instead.
-  const bool inline_weather = tile.span_w >= 7 && tile.span_h > 2;
+  // The inline chart/forecast layout needs more than two grid rows and at
+  // least five columns so the forecast columns remain readable.
+  const bool inline_weather = tile.span_w >= 5 && tile.span_h > 2;
   const int inline_height = lv_obj_get_height(parent);
-  const bool compact_inline = inline_weather &&
-                              ((inline_height > 0 && inline_height < 380) ||
-                               tile.span_h <= 2);
-  const int inline_chart_y = compact_inline ? 270 : 275;
-  const int inline_rain_y = compact_inline ? 352 : 410;
+  const bool compact_layout = (inline_height > 0 && inline_height < 380) ||
+                              tile.span_h <= 3;
+  const bool compact_inline = inline_weather && compact_layout;
+  const int forecast_row_y = compact_inline ? 82 : 105;
+  const int icon_line_height = lv_font_get_line_height(
+      compact_layout ? ui_font_for_size(24) : FONT_MDI_ICONS);
+  // The upper panel ends after the weekday and icon band. Temperature values
+  // belong below its bottom edge rather than inside the panel.
+  const int forecast_row_height = std::max(
+      compact_layout ? 90 : 120, 14 + icon_line_height + 16);
+  const int inline_high_temperature_y =
+      forecast_row_y + forecast_row_height + 4;
+  const int inline_chart_y = inline_high_temperature_y + 20;
+  const int inline_low_temperature_y = compact_inline
+                                           ? inline_high_temperature_y + 26
+                                           : inline_chart_y + 85;
+  const int inline_rain_y = compact_inline
+                                ? inline_low_temperature_y + 76
+                                : inline_low_temperature_y + 28;
 
   const std::string &entity = tile.entity_id;
   const char *location = tile.title.empty()
@@ -446,7 +461,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_text_font(temp, ui_font_for_size(22), 0);
   lv_obj_set_style_text_align(temp, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_width(temp, LV_PCT(100));
-  lv_obj_align(temp, LV_ALIGN_TOP_MID, 0, 62);
+  lv_obj_align(temp, LV_ALIGN_TOP_MID, 0, compact_layout ? 8 : 62);
 
   lv_obj_t *condition = lv_label_create(parent);
   lv_label_set_text(condition, "--");
@@ -454,7 +469,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_text_font(condition, ui_font_for_size(14), 0);
   lv_obj_set_style_text_align(condition, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_width(condition, LV_PCT(100));
-  lv_obj_align(condition, LV_ALIGN_TOP_MID, 0, 38);
+  lv_obj_align(condition, LV_ALIGN_TOP_MID, 0, compact_layout ? 34 : 38);
 
   lv_obj_t *forecast[kMaxForecastDays] = {};
   lv_obj_t *high_labels[kMaxForecastDays] = {};
@@ -471,7 +486,8 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   if (display_forecast_count > 0 || !inline_weather) {
     forecast_row = lv_obj_create(parent);
     lv_obj_set_size(forecast_row, LV_PCT(100),
-                    inline_weather ? (compact_inline ? 120 : 145) : 120);
+                    inline_weather ? forecast_row_height
+                                   : (compact_layout ? 90 : 120));
     if (inline_weather) {
       style_weather_popup_section(forecast_row);
       lv_obj_set_style_pad_all(forecast_row, 0, 0);
@@ -488,8 +504,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     lv_obj_set_flex_align(forecast_row, LV_FLEX_ALIGN_SPACE_EVENLY,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     if (inline_weather) {
-      lv_obj_align(forecast_row, LV_ALIGN_TOP_MID, 0,
-                   compact_inline ? 82 : 105);
+      lv_obj_align(forecast_row, LV_ALIGN_TOP_MID, 0, forecast_row_y);
     } else {
       lv_obj_align(forecast_row, LV_ALIGN_BOTTOM_MID, 0, -8);
     }
@@ -500,7 +515,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   for (uint8_t i = 0; i < popup_forecast_count; ++i) {
     if (forecast_row == nullptr) break;
     forecast[i] = weather_forecast_column(forecast_row, nullptr,
-                                          inline_weather);
+                                          inline_weather, compact_layout);
     const uint8_t column_count = inline_weather
         ? display_forecast_count : popup_forecast_count;
     lv_obj_set_width(forecast[i], LV_PCT(100 / column_count));
@@ -518,7 +533,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   if (inline_weather) {
     lv_obj_align(add_temperature_labels(parent, forecast, display_forecast_count, true,
                                         high_labels),
-                 LV_ALIGN_TOP_MID, 0, compact_inline ? 246 : 250);
+                 LV_ALIGN_TOP_MID, 0, inline_high_temperature_y);
     lv_obj_t *temperature_row = lv_obj_create(parent);
     lv_obj_set_size(temperature_row, LV_PCT(94), 60);
     lv_obj_set_style_bg_opa(temperature_row, LV_OPA_TRANSP, 0);
@@ -595,8 +610,7 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     }
     lv_obj_align(add_temperature_labels(parent, forecast, display_forecast_count, false,
                                         low_labels),
-                 LV_ALIGN_TOP_MID, 0,
-                 compact_inline ? 272 : 380);
+                 LV_ALIGN_TOP_MID, 0, inline_low_temperature_y);
     // The chart and its labels occupy a fixed vertical band. Keep rainfall
     // below the low-temperature row so the probability text is not clipped.
     lv_obj_align(rain_row, LV_ALIGN_TOP_MID, 0, inline_rain_y);

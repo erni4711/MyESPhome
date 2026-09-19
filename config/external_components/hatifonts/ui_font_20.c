@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 20 px
  * Bpp: 4
- * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 20 --font C:\Users\seb_w\AppData\Local\Temp\Inter-4.1\extras\ttf\Inter-Regular.ttf --no-compress -r 0x20-0x7E -r 0xA0-0xFF -r 0x0100-0x017F -r 0x2000-0x206F -r 0x20AC --lv-font-name ui_font_20 -o C:\Users\seb_w\AppData\Local\Temp\hometiles-inter-test\lvgl\ui_font_20.c
+ * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 20 --font Inter-Regular.ttf --no-compress --range 0x20-0x7E --range 0xA0-0xFF --range 0x0100-0x017F --range 0x2000-0x206F --range 0x20AC --lv-font-name ui_font_20 --output ui_font_20.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -9,8 +9,6 @@
 #else
 #include "lvgl.h"
 #endif
-
-extern const lv_font_t ui_font_cyrillic_20;
 
 #ifndef UI_FONT_20
 #define UI_FONT_20 1
@@ -5319,7 +5317,7 @@ lv_font_t ui_font_20 = {
 #endif
     .dsc = &font_dsc,          /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
-    .fallback = &ui_font_cyrillic_20,
+    .fallback = NULL,
 #endif
     .user_data = NULL,
 };

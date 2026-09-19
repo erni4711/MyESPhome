@@ -4,6 +4,8 @@
 
 namespace web_admin_local {
 
+class WebAdminLocal;
+
 class TilesHandler : public AsyncWebHandler {
  public:
   explicit TilesHandler(const std::string &base);
@@ -48,14 +50,12 @@ class ApiFolderHandler : public AsyncWebHandler {
 // tile grids so the admin.js entity-select dropdowns can show current values.
 class EntityOptionsHandler : public AsyncWebHandler {
  public:
-  EntityOptionsHandler(const std::string &base, const std::string &home_assistant_url,
-                       const std::string &home_assistant_token);
+  EntityOptionsHandler(const std::string &base, WebAdminLocal *owner);
   bool canHandle(AsyncWebServerRequest *request) const override;
   void handleRequest(AsyncWebServerRequest *request) override;
  private:
   std::string base_;
- std::string home_assistant_url_;
- std::string home_assistant_token_;
+  WebAdminLocal *owner_;
 };
 
 } // namespace web_admin_local

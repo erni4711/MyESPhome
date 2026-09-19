@@ -27,6 +27,7 @@ files:
   - ui_font_cyrillic_24.c
   - mdi_icons_32.c
   - mdi_icons_40.c
+  - mdi_icons_40_reduced.c
   - mdi_icons_48.c
   - ui_symbols_20.c
   - ui_symbols_24.c

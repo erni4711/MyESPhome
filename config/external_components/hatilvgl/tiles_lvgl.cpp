@@ -2354,11 +2354,21 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     } else {
       d.navigate_target = t["navigate_target"] | 0;
     }
-    d.clock_flags       = t["clock_flags"]      | 1;
-    if (t["clock_show_time"].is<const char *>() ||
-        t["clock_show_date"].is<const char *>()) {
-      const bool show_time = (t["clock_show_time"] | "0") == std::string("1");
-      const bool show_date = (t["clock_show_date"] | "0") == std::string("1");
+    d.clock_flags = t["clock_flags"] | -1;
+    if (d.clock_flags < 0) d.clock_flags = t["sensor_decimals"] | 1;
+    auto read_clock_flag = [&t](const char *key, bool fallback) {
+      auto value = t[key];
+      if (value.is<const char *>()) {
+        const char *text = value.as<const char *>();
+        return std::strcmp(text, "1") == 0 || std::strcmp(text, "true") == 0;
+      }
+      if (value.is<bool>()) return value.as<bool>();
+      if (value.is<int>()) return value.as<int>() != 0;
+      return fallback;
+    };
+    if (!t["clock_show_time"].isNull() || !t["clock_show_date"].isNull()) {
+      const bool show_time = read_clock_flag("clock_show_time", (d.clock_flags & 1) != 0);
+      const bool show_date = read_clock_flag("clock_show_date", (d.clock_flags & 2) != 0);
       d.clock_flags = (show_time ? 1 : 0) | (show_date ? 2 : 0);
       if (d.clock_flags == 0) d.clock_flags = 1;
     }

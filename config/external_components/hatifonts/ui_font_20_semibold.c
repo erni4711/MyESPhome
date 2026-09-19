@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 20 px
  * Bpp: 4
- * Opts: --bpp 4 --no-compress --format lvgl --lv-include lvgl.h --size 20 --font C:\Users\seb_w\AppData\Local\Temp\Inter-4.1\extras\ttf\Inter-SemiBold.ttf -r 0x20-0x7E -r 0xA0-0xFF -r 0x0100-0x017F -r 0x2000-0x206F -r 0x20AC --lv-font-name ui_font_20_semibold -o C:\Users\seb_w\AppData\Local\Temp\hometiles-inter-test\lvgl\ui_font_20_semibold.c
+ * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 20 --font Inter-SemiBold.ttf --no-compress --range 0x20-0x7E --range 0xA0-0xFF --range 0x0100-0x017F --range 0x2000-0x206F --range 0x20AC --lv-font-name ui_font_20_semibold --output ui_font_20_semibold.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -5582,4 +5582,3 @@ lv_font_t ui_font_20_semibold = {
 
 
 #endif /*#if UI_FONT_20_SEMIBOLD*/
-

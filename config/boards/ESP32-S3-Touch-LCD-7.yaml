@@ -11,7 +11,15 @@ esphome:
     build_flags:
       - -DLV_FONT_FMT_TXT_LARGE=1
       - -DLV_USE_FONT_COMPRESSED=1
+      - -DMDI_ICONS_32=0
+      - -DMDI_ICONS_40=0
       - -DMDI_ICONS_48=0
+      - -DMDI_ICONS_40_REDUCED=1
+      - -DUI_FONT_96=0
+      - -DUI_FONT_80=0
+      - -DUI_FONT_72=0
+      - -DUI_FONT_64=0
+      - -DUI_FONT_56=0
     board_build.extra_flags: -DBOARD_HAS_PSRAM -DLV_USE_SNAPSHOT=1
     board_build.flash_mode: qio
     board_build.psram_mode: opi
@@ -601,3 +609,4 @@ lvgl:
             
           on_press:
             - lvgl.widget.hide: boot_screen
+  pages:

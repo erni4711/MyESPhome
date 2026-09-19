@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 64 px
  * Bpp: 4
- * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 64 --font C:\Users\seb_w\AppData\Local\Temp\Inter-4.1\extras\ttf\Inter-Regular.ttf -r 0x20-0x7E -r 0xA0-0xFF -r 0x0100-0x017F -r 0x2000-0x206F -r 0x20AC --lv-font-name ui_font_64 -o C:\Users\seb_w\AppData\Local\Temp\hometiles-inter-test\lvgl\ui_font_64.c
+ * Opts: --bpp 4 --format lvgl --lv-include lvgl.h --size 64 --font Inter-Regular.ttf --range 0x20-0x7E --range 0xA0-0xFF --range 0x0100-0x017F --range 0x2000-0x206F --range 0x20AC --lv-font-name ui_font_64 --output ui_font_64.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE

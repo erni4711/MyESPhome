@@ -185,7 +185,7 @@ void WebAdminLocal::start_internal() {
 
   // Entity options
   auto* entity_opts = new web_admin_local::EntityOptionsHandler(
-      base, this->home_assistant_url_, this->home_assistant_token_);
+      base, this);
   this->server_->add_handler(entity_opts);
 
   // Tiles API (POST saves, GET reads)

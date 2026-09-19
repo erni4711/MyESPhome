@@ -708,27 +708,19 @@ bool ScreenshotComponent::write_preferred_file_(const char *filename, const uint
   bool wrote = false;
   std::string path;
 
-#if HAVE_SD_MMC_CARD
-  if (this->sd_mmc_card_ != nullptr && this->sd_mmc_card_->is_mounted()) {
+  struct stat root {};
+  
+  if (!wrote && stat("/sdcard", &root) == 0 && S_ISDIR(root.st_mode)) {
     snprintf(path_buf, sizeof(path_buf), "/sdcard/%s", filename);
     path = path_buf;
-    this->sd_mmc_card_->delete_file(path);
-    this->sd_mmc_card_->append_file(path.c_str(), data, size);
-    wrote = true;
+    FILE *file = fopen(path.c_str(), "wb");
+    if (file != nullptr) {
+      wrote = fwrite(data, 1, size, file) == size;
+      fclose(file);
+    }
   }
-#endif
 
-#if HAVE_SD_SPI_CARD
-  if (!wrote && this->sd_spi_card_ != nullptr && this->sd_spi_card_->is_mounted()) {
-    snprintf(path_buf, sizeof(path_buf), "/sdcard/%s", filename);
-    path = path_buf;
-    this->sd_spi_card_->delete_file(path);
-    wrote = this->sd_spi_card_->append_file_chunk(path, data, size, true);
-  }
-#endif
-
-  struct stat spiffs_root {};
-  if (!wrote && stat("/spiffs", &spiffs_root) == 0 && S_ISDIR(spiffs_root.st_mode)) {
+  if (!wrote && stat("/spiffs", &root) == 0 && S_ISDIR(root.st_mode)) {
     snprintf(path_buf, sizeof(path_buf), "/spiffs/%s", filename);
     path = path_buf;
     FILE *file = fopen(path.c_str(), "wb");

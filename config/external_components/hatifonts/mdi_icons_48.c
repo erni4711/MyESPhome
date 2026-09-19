@@ -1,12 +1,11 @@
 /*******************************************************************************
  * Size: 48 px
  * Bpp: 4
- * Opts: --bpp 4 --size 48 --stride 1 --align 1 --font materialdesignicons-webfont.woff --range 983040-991231 --format lvgl -o mdi_icons_48.c
+ * Opts: --bpp 4 --size 48 --font materialdesignicons-webfont.woff --range 983040-991231 --format lvgl --lv-font-name mdi_icons_48
  ******************************************************************************/
 
 #include "lvgl.h"
 
-//#include "src/devices/device_select.h"
 
 #ifndef MDI_ICONS_48
 #define MDI_ICONS_48 1
@@ -288354,7 +288353,6 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 #if LVGL_VERSION_MAJOR == 8
     .cache = &cache
 #endif
-
 };
 
 
@@ -288380,7 +288378,6 @@ lv_font_t mdi_icons_48 = {
     .underline_position = 0,
     .underline_thickness = 0,
 #endif
-    .static_bitmap = 0,
     .dsc = &font_dsc,          /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
     .fallback = NULL,
