@@ -97,7 +97,7 @@ uint32_t g_last_message_id = 0;
 PsramString g_rx_buffer;
 std::string g_stream_probe;
 
-std::string g_state_object;
+PsramString g_state_object;
 bool g_get_states_stream = false;
 bool g_get_states_stream_complete = false;
 int g_state_depth = 0;
@@ -235,6 +235,8 @@ void handle_json_document(JsonDocument& doc) {
     if (!g_authenticated) {
       g_authenticated = true;
       ESP_LOGI(TAG, "Home Assistant websocket authenticated");
+      ha_ws_client_subscribe_events();
+      ha_ws_client_request_states();
     }
   } else if (std::strcmp(type, "auth_invalid") == 0) {
     g_authenticated = false;
@@ -307,7 +309,7 @@ size_t find_result_array_start(const std::string& probe) {
   return array == std::string::npos ? std::string::npos : array + 1;
 }
 
-void parse_streamed_state(const std::string& state_json) {
+void parse_streamed_state(const PsramString& state_json) {
   JsonDocument state_doc(&g_psram_json_allocator);
   const DeserializationError err = deserializeJson(state_doc, state_json);
   if (err) {

@@ -752,14 +752,16 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
   auto folders = readFolderMetaList();
 
   // Generate tab nav buttons and tab content using the full HTML builder.
-  std::string nav_buttons;
-  std::string tab_divs;
+  PsramString nav_buttons;
+  PsramString tab_divs;
   for (const auto& m : folders) {
-    nav_buttons += buildFolderButtonHtml(m);
+    const std::string button = buildFolderButtonHtml(m);
+    nav_buttons.append(button.data(), button.size());
     // Keep the initial response small; other folders are loaded on demand by
     // ensureFolderTabUi() when their navigation button is selected.
     if (m.id == folders.front().id) {
-      tab_divs += buildFolderTabHtml(m);
+      const std::string tab = buildFolderTabHtml(m);
+      tab_divs.append(tab.data(), tab.size());
     }
   }
 
@@ -1262,7 +1264,9 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
   // Always serve fresh HTML so cached pages don't show stale function
   // references.
   auto* resp =
-      request->beginResponse(200, "text/html; charset=utf-8", html.c_str());
+      request->beginResponse(
+          200, "text/html; charset=utf-8",
+          reinterpret_cast<const uint8_t *>(html.data()), html.size());
   resp->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   request->send(resp);
 }
@@ -1771,7 +1775,7 @@ bool ApiFolderHandler::canHandle(AsyncWebServerRequest* request) const {
 // Build the JSON for /api/folders/tab?folder_id=N.
 // Returns
 // {"success":true,"tab_id":"folderN","button_html":"...","tab_html":"..."}.
-std::string ApiFolderHandler::buildFolderTabJson(
+PsramString ApiFolderHandler::buildFolderTabJson(
     int folder_id, const std::string& /*unused_name*/) {
   const FolderMeta m = getFolderMeta(folder_id);
   const std::string tab_id = "folder" + std::to_string(folder_id);
@@ -1781,7 +1785,7 @@ std::string ApiFolderHandler::buildFolderTabJson(
 
   // Escape double-quotes inside HTML strings for JSON embedding.
   auto jsonEsc = [](const std::string& s) {
-    std::string out;
+    PsramString out;
     out.reserve(s.size() + 32);
     for (char c : s) {
       if (c == '"')
@@ -1798,9 +1802,16 @@ std::string ApiFolderHandler::buildFolderTabJson(
     return out;
   };
 
-  return std::string("{\"success\":true,\"tab_id\":\"") + tab_id +
-         "\",\"button_html\":\"" + jsonEsc(button_html) + "\",\"tab_html\":\"" +
-         jsonEsc(tab_html) + "\"}";
+  const PsramString escaped_button = jsonEsc(button_html);
+  const PsramString escaped_tab = jsonEsc(tab_html);
+  PsramString result = "{\"success\":true,\"tab_id\":\"";
+  result += tab_id.c_str();
+  result += "\",\"button_html\":\"";
+  result += escaped_button;
+  result += "\",\"tab_html\":\"";
+  result += escaped_tab;
+  result += "\"}";
+  return result;
 }
 
 std::string ApiFolderHandler::buildFolderSettingsHtml() {
@@ -2012,8 +2023,11 @@ void ApiFolderHandler::handleRequest(AsyncWebServerRequest* request) {
     }
     const std::string name =
         (folder_id == 0) ? "Home" : ("Folder " + std::to_string(folder_id + 1));
-    const std::string json = buildFolderTabJson(folder_id, name);
-    request->send(200, "application/json; charset=utf-8", json.c_str());
+    const PsramString json = buildFolderTabJson(folder_id, name);
+    auto* response = request->beginResponse(
+        200, "application/json; charset=utf-8",
+        reinterpret_cast<const uint8_t *>(json.data()), json.size());
+    request->send(response);
     return;
   }
 
@@ -2051,7 +2065,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
 
 
   struct HttpResponse {
-    std::string json_object;
+    PsramString json_object;
     int object_depth = 0;
     bool in_string = false;
     bool escaped = false;
@@ -2094,9 +2108,18 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     }
 
     void process_object() {
+      // Home Assistant state objects contain large, deeply nested attribute
+      // payloads. Keep only fields needed for the entity-options index.
+      JsonDocument filter;
+      filter["entity_id"] = true;
+      filter["state"] = true;
+      filter["attributes"]["friendly_name"] = true;
+      filter["attributes"]["device_class"] = true;
       JsonDocument doc;
-      if (deserializeJson(doc, json_object)) return;
-      const std::string id = doc["entity_id"] | "";
+      if (deserializeJson(doc, json_object, DeserializationOption::Filter(filter)))
+        return;
+      const char* id_value = doc["entity_id"].as<const char*>();
+      const std::string id = id_value != nullptr ? id_value : "";
       if (id.starts_with("sensor.owm_")) return; // ignore weather forecast helper sensors
       const size_t dot = id.find('.');
       if (dot == std::string::npos || dot == 0)

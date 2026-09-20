@@ -42,7 +42,7 @@ class ApiFolderHandler : public AsyncWebHandler {
   std::string base_;
   // Build a nav-button + tab-content HTML pair for one folder, suitable for
   // returning in the /api/folders/tab response.
-  static std::string buildFolderTabJson(int folder_id, const std::string &name);
+  static PsramString buildFolderTabJson(int folder_id, const std::string &name);
   static std::string buildFolderSettingsHtml();
 };
 

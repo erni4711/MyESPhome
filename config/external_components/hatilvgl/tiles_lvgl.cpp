@@ -6,6 +6,7 @@
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
+#include <esp_task_wdt.h>
 #include <soc/soc_caps.h>
 #if SOC_JPEG_DECODE_SUPPORTED
 #include <driver/jpeg_decode.h>
@@ -91,6 +92,9 @@ struct RestResponse {
 
 esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
   if (event == nullptr || event->user_data == nullptr) return ESP_FAIL;
+  // REST state requests run synchronously from loopTask. Reset its watchdog
+  // while the HTTP client is delivering a potentially slow response.
+  esp_task_wdt_reset();
   if (event->event_id != HTTP_EVENT_ON_DATA || event->data_len <= 0) return ESP_OK;
   auto *response = static_cast<RestResponse *>(event->user_data);
   if (!response->append(static_cast<const char *>(event->data),
@@ -138,7 +142,9 @@ void process_one_ha_entity_state_rest() {
   }
   esp_http_client_set_header(client, "Authorization", auth.c_str());
   esp_http_client_set_header(client, "Accept", "application/json");
+  esp_task_wdt_reset();
   const esp_err_t result = esp_http_client_perform(client);
+  esp_task_wdt_reset();
   const int status = esp_http_client_get_status_code(client);
   esp_http_client_cleanup(client);
   if (result != ESP_OK || status < 200 || status >= 300) {
@@ -2669,7 +2675,6 @@ void TilesLvglRenderer::setup() {
   const auto entities = collect_configured_ha_entities();
   ha_ws_client_set_entity_filter(entities);
   ha_ws_client_start();
-  schedule_ha_entity_states_rest(entities);
 }
 
 void TilesLvglRenderer::refresh_folder(int folder_id) {
@@ -2686,12 +2691,6 @@ void TilesLvglRenderer::refresh_folder(int folder_id) {
   // Drop updates queued for the old LVGL object tree while the folder was
   // rebuilt. The fresh snapshot below repopulates the new widgets.
   ha_ws_client_discard_pending_states();
-  // A saved tile configuration may keep the same entities while changing
-  // their presentation; query only those entities through the REST API.
-  const auto entities = collect_configured_ha_entities();
-  ESP_LOGI(TAG, "Requesting %zu HA entity states through REST for folder %d",
-           entities.size(), folder_id);
-  schedule_ha_entity_states_rest(entities);
   ha_ws_client_subscribe_events();
 }
 
@@ -2717,7 +2716,6 @@ void TilesLvglRenderer::process_pending_refreshes() {
     }
   }
   // WebSocket parsing and LVGL state application are owned by HATiLvgl.
-  process_one_ha_entity_state_rest();
   ha_ws_client_loop();
   process_one_ha_camera_frame();
 }
