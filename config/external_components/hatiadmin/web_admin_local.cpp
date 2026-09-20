@@ -117,6 +117,7 @@ void WebAdminLocal::setup() {
     this->home_assistant_url_ = stored.url;
     this->home_assistant_token_ = stored.token;
     ESP_LOGI(TAG, "Loaded persisted Home Assistant configuration");
+    ha_ws_client_configure(this->home_assistant_url_, this->home_assistant_token_);
   }
 }
 

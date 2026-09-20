@@ -100,6 +100,15 @@ when Home Assistant cannot be reached or returns invalid JSON.
 
 ## Home Assistant websocket live updates
 
+### WLED tile
+
+The HATi tile editor includes a **WLED** tile type for Home Assistant
+`light.*` entities backed by WLED. The tile displays live power, brightness,
+and RGB values and provides controls for power, brightness, RGB color, and
+cycling through common WLED effects. Actions use Home Assistant's
+`light.turn_on`/`light.turn_off` REST services, while the existing WebSocket
+connection keeps the tile synchronized with Home Assistant state changes.
+
 In addition to the REST calls above (used for switch toggles and the entity
 picker), `web_admin_local` opens a persistent `ws://` or `wss://` connection
 to `<home_assistant_url>/api/websocket` (see `ha_ws_client.h`/`.cpp`) using

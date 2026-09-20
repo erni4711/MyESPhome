@@ -27,6 +27,7 @@ bool set_home_assistant_media_position(const char *entity_id, float position);
 bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct);
 bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin);
 bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int blue);
+bool set_home_assistant_light_effect(const char *entity_id, const char *effect);
 void show_light_popup(const char *entity_id, const char *title);
 
 struct SwitchToggleContext {
@@ -48,7 +49,9 @@ struct SwitchToggleContext {
 // that owns the LVGL screen (tile building runs there already).
 void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_label,
                                 lv_obj_t *gauge_arc, int decimals,
-                                float gauge_min, float gauge_max);
+                                float gauge_min, float gauge_max,
+                                lv_obj_t *unit_label = nullptr,
+                                const std::string &configured_unit = "");
 void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label);
 void register_ha_climate_widget(const std::string &entity_id,
                                 lv_obj_t *current_temperature,
@@ -85,6 +88,10 @@ void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_lab
 void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
                              lv_obj_t *brightness, lv_obj_t *color_temp,
                              lv_obj_t *red, lv_obj_t *green, lv_obj_t *blue);
+void register_ha_wled_widget(const std::string &entity_id, lv_obj_t *power,
+                             lv_obj_t *brightness, lv_obj_t *red,
+                             lv_obj_t *green, lv_obj_t *blue,
+                             lv_obj_t *effect);
 void unregister_ha_light_popup(lv_obj_t *popup);
 void unregister_ha_widget_object(lv_obj_t *object);
 
@@ -127,6 +134,11 @@ void apply_ha_light_state(const std::string &entity_id, const std::string &state
                           const std::string &brightness, const std::string &color_temp,
                           const std::string &red, const std::string &green,
                           const std::string &blue);
+void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
+                         const std::string &brightness, const std::string &red,
+                         const std::string &green, const std::string &blue,
+                         const std::string &effect,
+                         const std::string &effect_list);
 
 
 // ── Tile data ─────────────────────────────────────────────────────────────────
@@ -155,6 +167,7 @@ struct TileData {
   std::string climate_entity;
   std::string cover_entity;
   std::string camera_entity;
+  std::string wled_entity;
   std::string animation_file;
   std::string text_value;
   int     text_value_font     = 0;
@@ -190,6 +203,7 @@ static const int TILE_CLIMATE  = 17;
 static const int TILE_CAMERA   = 18;
 static const int TILE_COVER    = 19;
 static const int TILE_DART     = 20;
+static const int TILE_WLED     = 21;
 
 // ── Grid geometry (7 × 5, using the configured ESPHome LVGL screen) ──────────
 

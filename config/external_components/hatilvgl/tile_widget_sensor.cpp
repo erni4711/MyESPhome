@@ -33,13 +33,11 @@ void tile_widget_build_sensor(lv_obj_t *parent, const TileData &tile) {
   lv_obj_align(val_lbl, LV_ALIGN_CENTER, 0, 0);
 
   // Unit label below value
-  if (!tile.sensor_unit.empty()) {
-    lv_obj_t *unit_lbl = lv_label_create(parent);
-    lv_label_set_text(unit_lbl, tile.sensor_unit.c_str());
-    lv_obj_set_style_text_color(unit_lbl, muted, 0);
-    lv_obj_set_style_text_font(unit_lbl, ui_font_for_size(14), 0);
-    lv_obj_align(unit_lbl, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
-  }
+  lv_obj_t *unit_lbl = lv_label_create(parent);
+  lv_label_set_text(unit_lbl, tile.sensor_unit.c_str());
+  lv_obj_set_style_text_color(unit_lbl, muted, 0);
+  lv_obj_set_style_text_font(unit_lbl, ui_font_for_size(14), 0);
+  lv_obj_align(unit_lbl, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
 
   // Optional gauge arc (display_mode == 1)
   lv_obj_t *arc = nullptr;
@@ -58,7 +56,8 @@ void tile_widget_build_sensor(lv_obj_t *parent, const TileData &tile) {
   // ha_ws_client.cpp) refresh val_lbl/arc from the ESPHome loop() task.
   if (!entity.empty()) {
     register_ha_entity_widget(entity, val_lbl, arc, tile.sensor_decimals,
-                               tile.sensor_gauge_min, tile.sensor_gauge_max);
+                               tile.sensor_gauge_min, tile.sensor_gauge_max,
+                               unit_lbl, tile.sensor_unit);
   }
 }
 

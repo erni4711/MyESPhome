@@ -1736,6 +1736,7 @@ function t(key) {
         rebuildEntitySelect(tab + '_energy_entity', data.energy);
         rebuildEntitySelect(tab + '_weather_entity', data.weathers);
         rebuildEntitySelect(tab + '_switch_entity', data.switches);
+        rebuildEntitySelect(tab + '_wled_entity', data.switches);
         rebuildEntitySelect(tab + '_media_entity', data.media);
         rebuildEntitySelect(tab + '_climate_entity', data.climates);
         rebuildEntitySelect(tab + '_cover_entity', data.covers);
@@ -10707,6 +10708,36 @@ function loadCameraFields(tab, data) {
   }
   function resetCameraFields(tab) {
     const el = document.getElementById(tab + '_camera_entity');
+    if (el) {
+      el.value = '';
+      delete el.dataset.configuredValue;
+    }
+  }
+
+  function loadWledFields(tab, data) {
+    const el = document.getElementById(tab + '_wled_entity');
+    const configured = data.wled_entity || data.entity_id || data.sensor_entity || '';
+    if (!el) return;
+    if (configured && !Array.from(el.options).some(opt => opt.value === configured)) {
+      const option = document.createElement('option');
+      option.value = configured;
+      option.textContent = configured;
+      el.appendChild(option);
+    }
+    el.value = configured;
+    if (configured) el.dataset.configuredValue = configured;
+    else delete el.dataset.configuredValue;
+    maybeFillTitleFromEntity(tab, '_wled_entity');
+  }
+
+  function saveWledFields(tab, formData) {
+    const entity = document.getElementById(tab + '_wled_entity')?.value || '';
+    formData.append('wled_entity', entity);
+    formData.append('sensor_entity', entity);
+  }
+
+  function resetWledFields(tab) {
+    const el = document.getElementById(tab + '_wled_entity');
     if (el) {
       el.value = '';
       delete el.dataset.configuredValue;

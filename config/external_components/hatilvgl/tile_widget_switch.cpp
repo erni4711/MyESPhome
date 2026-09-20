@@ -177,7 +177,7 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   }
 
   lv_obj_t *switch_obj = lv_button_create(parent);
-  lv_obj_set_size(switch_obj, LV_PCT(72), 42);
+  lv_obj_set_size(switch_obj, LV_PCT(72), LV_PCT(50));
   lv_obj_set_style_bg_color(switch_obj, lv_color_make(0x2A, 0x2A, 0x2A), 0);
   lv_obj_set_style_bg_color(switch_obj, accent,
                             LV_PART_MAIN | LV_STATE_CHECKED);
@@ -187,7 +187,7 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_border_width(switch_obj, 0, 0);
   lv_obj_set_style_shadow_width(switch_obj, 0, 0);
   lv_obj_set_style_pad_all(switch_obj, 0, 0);
-  lv_obj_align(switch_obj, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_align(switch_obj, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_add_flag(switch_obj, LV_OBJ_FLAG_CHECKABLE);
 
   lv_obj_t *caption = lv_label_create(switch_obj);

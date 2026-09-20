@@ -185,6 +185,8 @@ struct SensorWidgetBinding {
   lv_obj_t *value_label = nullptr;
   lv_obj_t *entity_icon = nullptr;
   lv_obj_t *gauge_arc = nullptr;
+  lv_obj_t *unit_label = nullptr;
+  std::string configured_unit;
   lv_obj_t *switch_obj = nullptr;
   lv_obj_t *state_label = nullptr;
   lv_obj_t *weather_icon = nullptr;
@@ -223,6 +225,12 @@ struct SensorWidgetBinding {
   lv_obj_t *light_red = nullptr;
   lv_obj_t *light_green = nullptr;
   lv_obj_t *light_blue = nullptr;
+  lv_obj_t *wled_power = nullptr;
+  lv_obj_t *wled_brightness = nullptr;
+  lv_obj_t *wled_red = nullptr;
+  lv_obj_t *wled_green = nullptr;
+  lv_obj_t *wled_blue = nullptr;
+  lv_obj_t *wled_effect = nullptr;
   int decimals = -1;
   float gauge_min = 0.f;
   float gauge_max = 100.f;
@@ -369,7 +377,9 @@ std::string weather_icon_name(const char *value) {
 
 void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_label,
                                 lv_obj_t *gauge_arc, int decimals,
-                                float gauge_min, float gauge_max) {
+                                float gauge_min, float gauge_max,
+                                lv_obj_t *unit_label,
+                                const std::string &configured_unit) {
   if (entity_id.empty()) {
     ESP_LOGW(TAG, "Ignoring entity widget with empty entity ID");
     return;
@@ -381,6 +391,8 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
   binding.decimals = decimals;
   binding.gauge_min = gauge_min;
   binding.gauge_max = gauge_max;
+  binding.unit_label = unit_label;
+  binding.configured_unit = configured_unit;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
   if (value_label) {
@@ -392,6 +404,13 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
   }
   if (gauge_arc) {
     lv_obj_add_event_cb(gauge_arc, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  }
+  if (unit_label) {
+    lv_obj_add_event_cb(unit_label, [](lv_event_t *event) {
       if (lv_event_get_code(event) == LV_EVENT_DELETE)
         unregister_ha_widget_object(
             static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
@@ -941,6 +960,39 @@ void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
   ESP_LOGD(TAG, "Registered light popup for %s", entity_id.c_str());
 }
 
+void register_ha_wled_widget(const std::string &entity_id, lv_obj_t *power,
+                             lv_obj_t *brightness, lv_obj_t *red,
+                             lv_obj_t *green, lv_obj_t *blue,
+                             lv_obj_t *effect) {
+  if (entity_id.empty() || power == nullptr) {
+    ESP_LOGW(TAG, "Ignoring invalid WLED widget for entity '%s'", entity_id.c_str());
+    return;
+  }
+  SensorWidgetBinding binding;
+  binding.wled_power = power;
+  binding.wled_brightness = brightness;
+  binding.wled_red = red;
+  binding.wled_green = green;
+  binding.wled_blue = blue;
+  binding.wled_effect = effect;
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  const auto watch = [](lv_obj_t *object) {
+    if (!object) return;
+    lv_obj_add_event_cb(object, [](lv_event_t *event) {
+      if (lv_event_get_code(event) == LV_EVENT_DELETE)
+        unregister_ha_widget_object(
+            static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
+    }, LV_EVENT_DELETE, nullptr);
+  };
+  watch(power);
+  watch(brightness);
+  watch(red);
+  watch(green);
+  watch(blue);
+  watch(effect);
+}
+
 void unregister_ha_light_popup(lv_obj_t *popup) {
   if (popup == nullptr) return;
   MutexGuard lock(widget_registry_mutex());
@@ -964,6 +1016,7 @@ void unregister_ha_widget_object(lv_obj_t *object) {
     bindings.erase(std::remove_if(bindings.begin(), bindings.end(),
                                   [object](const SensorWidgetBinding &binding) {
       return binding.value_label == object || binding.gauge_arc == object ||
+      binding.unit_label == object ||
        binding.entity_icon == object ||
              binding.switch_obj == object || binding.state_label == object ||
              binding.weather_icon == object ||
@@ -993,6 +1046,12 @@ void unregister_ha_widget_object(lv_obj_t *object) {
              binding.light_red == object ||
              binding.light_green == object ||
              binding.light_blue == object ||
+             binding.wled_power == object ||
+             binding.wled_brightness == object ||
+             binding.wled_red == object ||
+             binding.wled_green == object ||
+             binding.wled_blue == object ||
+             binding.wled_effect == object ||
              std::any_of(std::begin(binding.weather_forecast),
                          std::end(binding.weather_forecast),
                          [object](lv_obj_t *forecast) { return forecast == object; }) ||
@@ -1045,7 +1104,6 @@ void clear_ha_entity_widgets() {
 void apply_ha_entity_state(const std::string &entity_id, const std::string &state,
                             const std::string &unit,
                             const std::string &icon) {
-  (void) unit;  // the unit label is fixed at tile-build time; only the value/gauge live-update.
   apply_entity_icon(entity_id, icon);
   if (entity_id.empty()) {
     ESP_LOGW(TAG, "Ignoring entity state update with empty entity ID");
@@ -1071,6 +1129,12 @@ void apply_ha_entity_state(const std::string &entity_id, const std::string &stat
            entity_id.c_str(), state.c_str(), static_cast<unsigned>(bindings.size()));
   
   for (const auto &binding : bindings) {
+    if (binding.unit_label != nullptr) {
+      const std::string &display_unit = binding.configured_unit.empty()
+                                             ? unit
+                                             : binding.configured_unit;
+      lv_label_set_text(binding.unit_label, display_unit.c_str());
+    }
     if (binding.switch_obj != nullptr) {
       std::string normalized = state;
       std::transform(normalized.begin(), normalized.end(), normalized.begin(),
@@ -1250,8 +1314,18 @@ void apply_ha_entity_state(const JsonDocument &state) {
     const std::string red = rgb.size() >= 3 ? std::to_string(rgb[0].as<int>()) : "";
     const std::string green = rgb.size() >= 3 ? std::to_string(rgb[1].as<int>()) : "";
     const std::string blue = rgb.size() >= 3 ? std::to_string(rgb[2].as<int>()) : "";
-    apply_ha_light_state(id, value, number_attribute("brightness"), color_temp,
-                         red, green, blue);
+    const std::string brightness = number_attribute("brightness");
+    const std::string effect = attributes["effect"] | "";
+    std::string effect_list;
+    for (JsonVariantConst item : attributes["effect_list"].as<JsonArrayConst>()) {
+      const char *name = item | "";
+      if (name == nullptr || name[0] == '\0') continue;
+      if (!effect_list.empty()) effect_list += '|';
+      effect_list += name;
+    }
+    apply_ha_light_state(id, value, brightness, color_temp, red, green, blue);
+    apply_ha_wled_state(id, value, brightness, red, green, blue, effect,
+                        effect_list);
     return;
   }
 
@@ -1713,6 +1787,54 @@ void apply_ha_light_state(const std::string &entity_id, const std::string &state
       }
     }
 
+void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
+                         const std::string &brightness, const std::string &red,
+                         const std::string &green, const std::string &blue,
+                         const std::string &effect,
+                         const std::string &effect_list) {
+  (void) effect_list;
+  if (entity_id.empty()) return;
+
+  std::vector<SensorWidgetBinding> bindings;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    const auto it = g_sensor_widget_bindings.find(entity_id);
+    if (it == g_sensor_widget_bindings.end()) return;
+    bindings = it->second;
+  }
+
+  const bool is_on = state == "on";
+  auto set_rgb_slider = [](lv_obj_t *slider, const std::string &value) {
+    if (slider == nullptr || value.empty()) return;
+    const int channel = std::max(0, std::min(255, std::atoi(value.c_str())));
+    lv_slider_set_value(slider, channel, LV_ANIM_OFF);
+  };
+
+  for (const auto &binding : bindings) {
+    if (binding.wled_power == nullptr) continue;
+
+    if (is_on) {
+      lv_obj_add_state(binding.wled_power, LV_STATE_CHECKED);
+    } else {
+      lv_obj_clear_state(binding.wled_power, LV_STATE_CHECKED);
+    }
+    lv_obj_t *power_label = lv_obj_get_child(binding.wled_power, 0);
+    if (power_label != nullptr)
+      lv_label_set_text(power_label, is_on ? "ON" : "OFF");
+
+    if (binding.wled_brightness != nullptr && !brightness.empty()) {
+      const int raw = std::max(0, std::min(255, std::atoi(brightness.c_str())));
+      lv_slider_set_value(binding.wled_brightness, raw * 100 / 255,
+                          LV_ANIM_OFF);
+    }
+    set_rgb_slider(binding.wled_red, red);
+    set_rgb_slider(binding.wled_green, green);
+    set_rgb_slider(binding.wled_blue, blue);
+    if (binding.wled_effect != nullptr && !effect.empty())
+      lv_label_set_text(binding.wled_effect, effect.c_str());
+  }
+}
+
 void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id) {
   auto add_unique = [&](const std::string &id) {
     if (id.empty()) return;
@@ -1733,7 +1855,7 @@ void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id
         add_unique("sensor.owm_onecall_hourly");
       } else if (tile.type == TILE_MEDIA ||
                  tile.type == TILE_CLIMATE || tile.type == TILE_CAMERA ||
-                 tile.type == TILE_COVER) {
+                 tile.type == TILE_COVER || tile.type == TILE_WLED) {
         add_unique(tile.entity_id);
       }
   }
@@ -2127,6 +2249,17 @@ bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int
   return call_light_turn_on(entity_id, extra);
 }
 
+bool set_home_assistant_light_effect(const char *entity_id, const char *effect) {
+  if (effect == nullptr || effect[0] == '\0' ||
+      std::strchr(effect, '"') != nullptr || std::strchr(effect, '\\') != nullptr) {
+    ESP_LOGW(TAG, "Cannot set invalid WLED effect");
+    return false;
+  }
+  char extra[192];
+  snprintf(extra, sizeof(extra), "\"effect\":\"%s\"", effect);
+  return call_light_turn_on(entity_id, extra);
+}
+
 namespace {
 
 struct LightPopupContext {
@@ -2342,6 +2475,7 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
       case TILE_CLIMATE: legacy_entity = t["climate_entity"] | ""; break;
       case TILE_CAMERA:  legacy_entity = t["camera_entity"] | ""; break;
       case TILE_COVER:   legacy_entity = t["cover_entity"] | ""; break;
+      case TILE_WLED:    legacy_entity = t["wled_entity"] | ""; break;
       default:           legacy_entity = t["sensor_entity"] | ""; break;
     }
     d.entity_id         = t["entity_id"] | legacy_entity;
@@ -2410,6 +2544,7 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_dart(lv_obj_t *parent, const TileData &tile);
+void tile_widget_build_wled(lv_obj_t *parent, const TileData &tile);
 
 // ── Shared helper: create a label with given text, colour, font size ──────────
 
@@ -2443,6 +2578,7 @@ static lv_color_t tile_bg_color(const TileData &tile) {
       case TILE_NAVIGATE: rgb = 0x1A2A3A; break;
       case TILE_CLIMATE:  rgb = 0x2A1A1A; break;
       case TILE_DART:     rgb = 0x3A1E24; break;
+      case TILE_WLED:     rgb = 0x202E3A; break;
       default:            rgb = 0x353535; break;
     }
 
@@ -2469,6 +2605,7 @@ static std::string tile_icon_name(const TileData &tile) {
     case TILE_SETTINGS: return "cog";
     case TILE_BACK:     return "arrow-left";
     case TILE_ANIMATE:  return "animation-outline";
+    case TILE_WLED:     return "led-strip-variant";
     default:            return {};
   }
 }
@@ -2564,6 +2701,7 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
     case TILE_CAMERA:   tile_widget_build_camera(tile_obj, tile);  break;
     case TILE_SETTINGS: tile_widget_build_settings(tile_obj, tile); break;
     case TILE_DART:     tile_widget_build_dart(tile_obj, tile); break;
+    case TILE_WLED:     tile_widget_build_wled(tile_obj, tile); break;
     case TILE_COVER:
     case TILE_ANIMATE:
       {
@@ -2673,6 +2811,7 @@ void TilesLvglRenderer::setup() {
   ESP_LOGI(TAG, "TilesLvglRenderer setup: %dx%d grid %dx%d cell %dx%d",
            geo_.screen_w, geo_.screen_h, geo_.cols, geo_.rows,
            geo_.cell_w(), geo_.cell_h());
+  //ha_ws_setup();
   ha_ws_client_set_entity_filter(std::vector<std::string>());
   ha_ws_client_start();
 }

@@ -42,6 +42,7 @@ static void normalize_tile_entity(JsonObject tile, bool prefer_legacy = false) {
     case 17: field = "climate_entity"; break;
     case 18: field = "camera_entity"; break;
     case 19: field = "cover_entity"; break;
+    case 21: field = "wled_entity"; break;
     default: break;
   }
   if (prefer_legacy && tile[field].is<const char*>()) {
@@ -59,7 +60,7 @@ static void remove_legacy_entity_fields(JsonObject tile) {
   static const char* fields[] = {
       "sensor_entity", "switch_entity", "weather_entity",
       "energy_entity", "media_entity", "climate_entity",
-      "cover_entity", "camera_entity"};
+      "cover_entity", "camera_entity", "wled_entity"};
   for (const char* field : fields) tile.remove(field);
 }
 
@@ -275,6 +276,7 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
   h += "<option value=\"18\">Camera</option>";
   h += "<option value=\"19\">Cover / Blind</option>";
   h += "<option value=\"20\">Darts</option>";
+  h += "<option value=\"21\">WLED</option>";
   h += "</select>";
   h += "<p class=\"hint hidden\" id=\"" + tid +
        "_tile_type_hint\">Type locked</p>";
@@ -551,6 +553,14 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
     inner +=
         "<label>Cover Entity</label>" + entitySelect(tid + "_cover_entity");
     addTypeFields(h, tid, "cover", inner);
+  }
+
+  // ── WLED fields (type 21) ────────────────────────────────────────────────
+  {
+    std::string inner;
+    inner += "<label>WLED Light Entity</label>" +
+             entitySelect(tid + "_wled_entity");
+    addTypeFields(h, tid, "wled", inner);
   }
 
   h += "</div>";  // tile-settings-body
@@ -840,6 +850,9 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       // 19 = cover / blind / garage door
       "'19':{label:'Cover',fields:'cover',"
       "load:'loadCoverFields',save:'saveCoverFields',reset:'resetCoverFields'}"
+      ","
+      "'21':{label:'WLED',fields:'wled',"
+      "load:'loadWledFields',save:'saveWledFields',reset:'resetWledFields'}"
       "};"
       "</script>";
 
@@ -998,6 +1011,7 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "['climate_entity',data.climate_entity||data.entity_id||data.sensor_entity],"
       "['cover_entity',data.cover_entity||data.entity_id||data.sensor_entity],"
       "['camera_entity',data.camera_entity||data.entity_id||data.sensor_entity],"
+      "['wled_entity',data.wled_entity||data.entity_id||data.sensor_entity],"
       "['scene_alias',data.scene_alias]"
       "];"
       "emap.forEach(function(p){"
@@ -1040,6 +1054,7 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "[tab+'_climate_entity',data.climate_entity||data.entity_id||data.sensor_entity],"
       "[tab+'_cover_entity',data.cover_entity||data.entity_id||data.sensor_entity],"
       "[tab+'_camera_entity',data.camera_entity||data.entity_id||data.sensor_entity],"
+      "[tab+'_wled_entity',data.wled_entity||data.entity_id||data.sensor_entity],"
       "[tab+'_scene_alias',data.scene_alias]"
       "].forEach(function(pair){"
       "if(!pair[1])return;"

@@ -3,6 +3,7 @@
 
 #include <esp_log.h>
 #include <esp_heap_caps.h>
+#include <esp_rom_sys.h>
 #include <esp_websocket_client.h>
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
@@ -13,7 +14,31 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 #include <set>
+
+#undef ESP_LOGE
+#undef ESP_LOGD
+#undef ESP_LOGI
+#undef ESP_LOGW
+
+class DirectSerial {
+ public:
+  int printf(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    const int result = esp_rom_vprintf(format, args);
+    va_end(args);
+    return result;
+  }
+};
+
+//#static DirectSerial Serial;
+
+#define ESP_LOGE(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGD(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGI(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGW(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
 
 
 static const char* TAG = "ha_ws_client";  // "hatilvgl";
@@ -129,8 +154,10 @@ void log_websocket_message(const char* direction, const char* message,
   // Keep payloads out of logs because they may contain credentials or private
   // Home Assistant state data.
   (void) message;
-  ESP_LOGD(TAG, "WebSocket %s: %u bytes", direction,
-           static_cast<unsigned>(size));
+  (void) direction;
+  (void) size;
+  // ESP_LOGD(TAG, "WebSocket %s: %u bytes", direction,
+  //          static_cast<unsigned>(size));
 }
 
 QueueHandle_t update_queue() {
@@ -476,10 +503,10 @@ void ha_ws_event_handler(void* handler_args, esp_event_base_t base,
       if (data->op_code != 0x01) break;
       if (data->payload_len <= 0) break;
 
-      ESP_LOGD(TAG, "WebSocket RX frame: %u/%u bytes at offset %u",
-               static_cast<unsigned>(data->data_len),
-               static_cast<unsigned>(data->payload_len),
-               static_cast<unsigned>(data->payload_offset));
+      // ESP_LOGD(TAG, "WebSocket RX frame: %u/%u bytes at offset %u",
+      //          static_cast<unsigned>(data->data_len),
+      //          static_cast<unsigned>(data->payload_len),
+      //          static_cast<unsigned>(data->payload_offset));
       // std::printf("[ha_ws] data opcode=%u bytes=%u payload=%u offset=%u\n",
       //             static_cast<unsigned>(data->op_code),
       //             static_cast<unsigned>(data->data_len),
@@ -678,6 +705,22 @@ void ha_ws_client_discard_pending_states() {
     ESP_LOGD(TAG, "Discarded %d stale Home Assistant state updates", discarded);
   }
 }
+
+// void ha_ws_setuo()
+// {
+//   esphome::ESPPreferenceObject credentials_pref_;
+  
+//   credentials_pref_ =
+//       esphome::global_preferences->make_preference<StoredCredentials>(
+//           esphome::fnv1_hash("hatiadmin_credentials"), true);
+//   StoredCredentials stored{};
+//   if (this->credentials_pref_.load(&stored) && stored.url[0] != '\0') {
+//     g_home_assistant_url_ = stored.url;
+//     g_home_assistant_token_ = stored.token;
+//     ESP_LOGI(TAG, "Loaded persisted Home Assistant configuration");
+//   }
+
+// }
 
 void ha_ws_client_start() {
   ESP_LOGI(TAG, "ha_ws_client_start entered (configured=%s, started=%s)",
