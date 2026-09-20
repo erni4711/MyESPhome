@@ -105,8 +105,12 @@ esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
   return ESP_OK;
 }
 
-void schedule_ha_entity_states_rest(const std::vector<std::string> &entity_ids) {
-  pending_rest_entities = entity_ids;
+void schedule_ha_entity_states_rest_for_folder(int folder_id) {
+  pending_rest_entities.clear();
+  add_ha_entities_on_folder(pending_rest_entities, folder_id);
+  for (auto &entity_id : pending_rest_entities) {
+    ESP_LOGD(TAG, "Scheduling REST update for entity: %s", entity_id.c_str());
+  }
   next_rest_entity = 0;
 }
 
@@ -140,6 +144,7 @@ void process_one_ha_entity_state_rest() {
              entity_id.c_str());
     return;
   }
+  ESP_LOGD(TAG, "Performing REST state request for entity: %s", entity_id.c_str());
   esp_http_client_set_header(client, "Authorization", auth.c_str());
   esp_http_client_set_header(client, "Accept", "application/json");
   esp_task_wdt_reset();
@@ -1707,8 +1712,8 @@ void apply_ha_light_state(const std::string &entity_id, const std::string &state
         set_slider(binding.light_blue, blue);
       }
     }
-std::vector<std::string> collect_configured_ha_entities() {
-  std::vector<std::string> entities;
+
+void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id) {
   auto add_unique = [&](const std::string &id) {
     if (id.empty()) return;
     for (const auto &existing : entities) {
@@ -1716,13 +1721,8 @@ std::vector<std::string> collect_configured_ha_entities() {
     }
     entities.push_back(id);
   };
-  for (int folder_id = 0; folder_id <= 9; folder_id++) {
-    char path[80];
-    snprintf(path, sizeof(path), "/spiffs/t_f%d.json", folder_id);
-    FILE *probe = fopen(path, "rb");
-    if (!probe) continue;
-    fclose(probe);
-    for (const auto &tile : read_tile_grid_for_lvgl(folder_id)) {
+  
+  for (const auto &tile : read_tile_grid_for_lvgl(folder_id)) {
       if (tile.type == TILE_SENSOR || tile.type == TILE_ENERGY) {
         add_unique(tile.entity_id);
       } else if (tile.type == TILE_SWITCH) {
@@ -1736,10 +1736,10 @@ std::vector<std::string> collect_configured_ha_entities() {
                  tile.type == TILE_COVER) {
         add_unique(tile.entity_id);
       }
-    }
   }
-  return entities;
 }
+
+
 
 bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
   if (entity_id == nullptr || entity_id[0] == '\0' ||
@@ -2640,6 +2640,7 @@ void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
   ESP_LOGI(TAG, "Built folder %d with %zu tiles", folder_id,
            std::count_if(tiles.begin(), tiles.end(),
                          [](const TileData &t){ return t.type != TILE_EMPTY; }));
+  schedule_ha_entity_states_rest_for_folder(folder_id);
 }
 
 // ── Page management ───────────────────────────────────────────────────────────
@@ -2672,8 +2673,7 @@ void TilesLvglRenderer::setup() {
   ESP_LOGI(TAG, "TilesLvglRenderer setup: %dx%d grid %dx%d cell %dx%d",
            geo_.screen_w, geo_.screen_h, geo_.cols, geo_.rows,
            geo_.cell_w(), geo_.cell_h());
-  const auto entities = collect_configured_ha_entities();
-  ha_ws_client_set_entity_filter(entities);
+  ha_ws_client_set_entity_filter(std::vector<std::string>());
   ha_ws_client_start();
 }
 
@@ -2687,7 +2687,10 @@ void TilesLvglRenderer::refresh_folder(int folder_id) {
   // Keep the websocket subscription filter in sync with whatever is
   // currently configured across all folders (cheap: a handful of small
   // SD-card JSON files).
-  ha_ws_client_set_entity_filter(collect_configured_ha_entities());
+  std::vector<std::string> entities;
+  add_ha_entities_on_folder(entities, folder_id);
+  
+  ha_ws_client_set_entity_filter(entities);
   // Drop updates queued for the old LVGL object tree while the folder was
   // rebuilt. The fresh snapshot below repopulates the new widgets.
   ha_ws_client_discard_pending_states();
@@ -2716,6 +2719,7 @@ void TilesLvglRenderer::process_pending_refreshes() {
     }
   }
   // WebSocket parsing and LVGL state application are owned by HATiLvgl.
+  process_one_ha_entity_state_rest();
   ha_ws_client_loop();
   process_one_ha_camera_frame();
 }
@@ -2734,6 +2738,7 @@ void TilesLvglRenderer::show_folder(int folder_id) {
   // from an LVGL event callback.
   request_refresh_folder(folder_id);
   ESP_LOGI(TAG, "%s folder %d", page ? "Refreshing" : "Loading", folder_id);
+
 }
 
 }  // namespace web_admin_local

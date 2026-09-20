@@ -15,6 +15,8 @@ extern float hourly_weather_temperature[48];
 extern long hourly_weather_timestamp[48];
 extern bool hourly_weather_valid[48];
 
+void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id);
+void schedule_ha_entity_states_rest_for_folder(int folder_id);
 void set_home_assistant_credentials(const std::string &url, const std::string &token);
 bool toggle_home_assistant_entity(const char *entity_id, bool turn_on);
 bool set_home_assistant_climate_temperature(const char *entity_id, float temperature);
@@ -126,11 +128,6 @@ void apply_ha_light_state(const std::string &entity_id, const std::string &state
                           const std::string &red, const std::string &green,
                           const std::string &blue);
 
-// Scans every stored folder tile grid (f0..f9) on the SD card and returns
-// the entity_id / energy_entity ids currently configured, in no
-// particular order and without duplicates. Used to build the Home
-// Assistant websocket subscription filter (see ha_ws_client.h).
-std::vector<std::string> collect_configured_ha_entities();
 
 // ── Tile data ─────────────────────────────────────────────────────────────────
 
