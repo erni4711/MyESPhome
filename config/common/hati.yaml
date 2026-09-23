@@ -22,6 +22,8 @@ web_server_base:
 web_server:
   port: 80
   web_server_base_id: my_web_server_base
+  js_include: web_server_nav.js
+  js_url: /0.js
 
 hatiserve:
   web_server_base_id: my_web_server_base

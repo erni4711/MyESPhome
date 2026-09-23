@@ -375,6 +375,7 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
   ESP_LOGD(TAG, "Request URL='%s' Method=%d", request->url_to(url_buf).c_str(), request->method());
   std::string query = get_query_string(request);
+  const bool auto_reload = query_has_key(query, "view");
 
   if (query_has_key(query, "status")) {
     bool ready = false;
@@ -475,9 +476,23 @@ void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request)
   } else {
     this->parent_->capture_requested_ = true;
   }
-  request->send(202, "application/json",
-                "{ \"ready\": false, \"in_progress\": true, \"saved\": false, "
-                "\"message\": \"Capture queued; retry in a moment\" }");
+  if (auto_reload) {
+    auto *response = request->beginResponse(
+        202, "text/html; charset=utf-8",
+        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<meta http-equiv=\"refresh\" content=\"0.5\">"
+        "<title>Device Screenshot</title></head>"
+        "<body style=\"margin:0;background:#111;color:#fff;font:16px "
+        "system-ui;display:grid;place-items:center;min-height:100vh\">"
+        "Capturing device screen...</body></html>");
+    response->addHeader("Cache-Control", "no-store");
+    request->send(response);
+  } else {
+    request->send(202, "application/json",
+                  "{ \"ready\": false, \"in_progress\": true, \"saved\": false, "
+                  "\"message\": \"Capture queued; retry in a moment\" }");
+  }
   return;
 }
 #if HAVE_CAMERA
