@@ -7,6 +7,7 @@
 // #include <sys/statvfs.h>
 #include <cerrno>
 #include <cstring>
+#include <cstdlib>
 #include <vector>
 
 #include "esphome/core/log.h"
@@ -14,6 +15,7 @@
 #include "esp_heap_caps.h"
 #include "esp_partition.h"
 #include "esp_spiffs.h"
+#include "freertos/FreeRTOS.h"
 
 extern "C" esp_err_t esp_vfs_fat_info(const char *base_path,
                                       uint64_t *out_total_bytes,
@@ -24,6 +26,49 @@ namespace hatiserve {
 
 static const char *const TAG = "hatiserve";
 static constexpr size_t MAX_FILE_SIZE = 512 * 1024;
+
+template <typename T>
+struct PsramAllocator {
+  using value_type = T;
+
+  T *allocate(std::size_t count) {
+    void *memory = heap_caps_malloc(count * sizeof(T),
+                                    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (memory == nullptr) std::abort();
+    return static_cast<T *>(memory);
+  }
+
+  void deallocate(T *pointer, std::size_t) { heap_caps_free(pointer); }
+
+  template <typename U>
+  bool operator==(const PsramAllocator<U> &) const {
+    return true;
+  }
+
+  template <typename U>
+  bool operator!=(const PsramAllocator<U> &) const {
+    return false;
+  }
+};
+
+using PsramStringVector =
+    std::vector<std::string, PsramAllocator<std::string>>;
+
+static bool request_url(AsyncWebServerRequest *request, std::string *out_url) {
+  char *buffer = static_cast<char *>(heap_caps_malloc(
+      AsyncWebServerRequest::URL_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (buffer == nullptr) {
+    ESP_LOGE(TAG, "Unable to allocate URL buffer in PSRAM");
+    return false;
+  }
+  *out_url =
+      request
+          ->url_to(std::span<char, AsyncWebServerRequest::URL_BUF_SIZE>(
+              buffer, AsyncWebServerRequest::URL_BUF_SIZE))
+          .str();
+  heap_caps_free(buffer);
+  return true;
+}
 
 static std::string format_bytes(uint64_t bytes) {
   constexpr const char *units[] = {"B", "KB", "MB", "GB"};
@@ -69,8 +114,8 @@ std::string HATiServe::prefix(const std::string &root) const { return "/" + root
 
 bool HATiServe::canHandle(AsyncWebServerRequest *request) const {
   if (request == nullptr) return false;
-  char buffer[AsyncWebServerRequest::URL_BUF_SIZE];
-  const std::string url = request->url_to(buffer).str();
+  std::string url;
+  if (!request_url(request, &url)) return false;
   return url == this->prefix(this->sd_prefix_) || url.starts_with(this->prefix(this->sd_prefix_) + "/") ||
          url == this->prefix(this->spiffs_prefix_) ||
          url.starts_with(this->prefix(this->spiffs_prefix_) + "/");
@@ -79,8 +124,11 @@ bool HATiServe::canHandle(AsyncWebServerRequest *request) const {
 void HATiServe::handleRequest(AsyncWebServerRequest *request) {
   if (request == nullptr) return;
 
-  char buffer[AsyncWebServerRequest::URL_BUF_SIZE];
-  const std::string url = request->url_to(buffer).str();
+  std::string url;
+  if (!request_url(request, &url)) {
+    request->send(503, "text/plain", "Unable to allocate URL buffer");
+    return;
+  }
   const std::string sd_prefix = this->prefix(this->sd_prefix_);
   const bool is_sd = url == sd_prefix || url.starts_with(sd_prefix + "/");
   const std::string selected_prefix = is_sd ? sd_prefix : this->prefix(this->spiffs_prefix_);
@@ -178,8 +226,11 @@ void HATiServe::handleUpload(AsyncWebServerRequest *request,
     }
     return;
   }
-  char buffer[AsyncWebServerRequest::URL_BUF_SIZE];
-  const std::string url = request->url_to(buffer).str();
+  std::string url;
+  if (!request_url(request, &url)) {
+    request->send(503, "text/plain", "Unable to allocate URL buffer");
+    return;
+  }
   const std::string sd_prefix = this->prefix(this->sd_prefix_);
   const bool is_sd = url == sd_prefix || url.starts_with(sd_prefix + "/");
   const std::string selected_prefix = is_sd ? sd_prefix : this->prefix(this->spiffs_prefix_);
@@ -237,8 +288,11 @@ void HATiServe::handleUpload(AsyncWebServerRequest *request,
 
 void HATiServe::serve_root(AsyncWebServerRequest *request, const std::string &url_prefix,
                            const std::string &mount_path) const {
-  char buffer[AsyncWebServerRequest::URL_BUF_SIZE];
-  const std::string url = request->url_to(buffer).str();
+  std::string url;
+  if (!request_url(request, &url)) {
+    request->send(503, "text/plain", "Unable to allocate URL buffer");
+    return;
+  }
   std::string relative = url.size() > url_prefix.size() ? url.substr(url_prefix.size()) : "";
   while (!relative.empty() && relative.front() == '/') relative.erase(relative.begin());
   if (!safe_relative_path(relative)) {
@@ -259,7 +313,8 @@ void HATiServe::serve_root(AsyncWebServerRequest *request, const std::string &ur
       request->send(403, "text/plain", "Unable to open directory");
       return;
     }
-    std::vector<std::string> names;
+    PsramStringVector names;
+    names.reserve(512);
     for (dirent *entry = readdir(dir); entry != nullptr; entry = readdir(dir)) {
       if (entry->d_name[0] == '.' || names.size() >= 512) continue;
       names.emplace_back(entry->d_name);

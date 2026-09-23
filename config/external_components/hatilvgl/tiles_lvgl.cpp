@@ -11,6 +11,9 @@
 #if SOC_JPEG_DECODE_SUPPORTED
 #include <driver/jpeg_decode.h>
 #endif
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+#include <esp32s3/rom/tjpgd.h>
+#endif
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <cstdio>
@@ -59,11 +62,86 @@ bool hourly_weather_valid[48] = {};
 
 constexpr size_t kMaxRestResponseBytes = 65536;
 constexpr size_t kMaxMediaArtworkBytes = 512 * 1024;
+constexpr size_t kMaxMediaArtworkPixels = 1920U * 1088U;
 
 struct MediaArtwork {
   lv_image_dsc_t descriptor{};
   uint8_t *pixels = nullptr;
 };
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+struct RomJpegContext {
+  const uint8_t *input = nullptr;
+  size_t input_size = 0;
+  size_t input_offset = 0;
+  uint8_t *output = nullptr;
+  size_t output_width = 0;
+};
+
+UINT rom_jpeg_input(JDEC *decoder, BYTE *buffer, UINT length) {
+  auto *context = static_cast<RomJpegContext *>(decoder->device);
+  if (context == nullptr || context->input_offset >= context->input_size)
+    return 0;
+  const size_t available = context->input_size - context->input_offset;
+  const size_t count = std::min<size_t>(length, available);
+  if (buffer != nullptr)
+    std::memcpy(buffer, context->input + context->input_offset, count);
+  context->input_offset += count;
+  return static_cast<UINT>(count);
+}
+
+UINT rom_jpeg_output(JDEC *decoder, void *bitmap, JRECT *rectangle) {
+  auto *context = static_cast<RomJpegContext *>(decoder->device);
+  if (context == nullptr || bitmap == nullptr || rectangle == nullptr)
+    return 0;
+  const size_t block_width = rectangle->right - rectangle->left + 1U;
+  const size_t block_height = rectangle->bottom - rectangle->top + 1U;
+  const auto *source = static_cast<const uint8_t *>(bitmap);
+  for (size_t row = 0; row < block_height; ++row) {
+    for (size_t column = 0; column < block_width; ++column) {
+      const size_t source_offset = (row * block_width + column) * 3U;
+      const uint16_t rgb565 = static_cast<uint16_t>(
+          ((source[source_offset] & 0xF8) << 8) |
+          ((source[source_offset + 1] & 0xFC) << 3) |
+          (source[source_offset + 2] >> 3));
+      const size_t output_offset =
+          ((static_cast<size_t>(rectangle->top) + row) *
+               context->output_width +
+           static_cast<size_t>(rectangle->left) + column) *
+          2U;
+      std::memcpy(context->output + output_offset, &rgb565, sizeof(rgb565));
+    }
+  }
+  return 1;
+}
+
+bool decode_jpeg_with_rom(const uint8_t *input, size_t input_size,
+                          uint8_t *output, size_t output_width) {
+  constexpr size_t kWorkBufferBytes = 4096;
+  void *work_buffer = heap_caps_malloc(
+      kWorkBufferBytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (work_buffer == nullptr) {
+    ESP_LOGW(TAG, "Unable to allocate ROM JPEG work buffer");
+    return false;
+  }
+  RomJpegContext context{input, input_size, 0, output, output_width};
+  JDEC decoder = {};
+  const JRESULT prepare_result =
+      jd_prepare(&decoder, rom_jpeg_input, work_buffer, kWorkBufferBytes,
+                 &context);
+  const JRESULT decode_result =
+      prepare_result == JDR_OK
+          ? jd_decomp(&decoder, rom_jpeg_output, 0)
+          : prepare_result;
+  heap_caps_free(work_buffer);
+  if (decode_result != JDR_OK) {
+    ESP_LOGW(TAG, "ROM JPEG decode failed (%d)",
+             static_cast<int>(decode_result));
+    return false;
+  }
+  return true;
+}
+#endif
 
 static std::unordered_map<lv_obj_t *, MediaArtwork> media_artwork_cache;
 void release_media_artwork(lv_obj_t *object);
@@ -323,21 +401,21 @@ void update_weather_forecast(lv_obj_t *column, const char *day,
     lv_label_set_text(lv_obj_get_child(column, 3), low);
     lv_obj_set_style_text_color(lv_obj_get_child(column, 2),
                                 weather_temperature_color(max_temp),
-                                LV_PART_MAIN | LV_STATE_DEFAULT);
+                                LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(lv_obj_get_child(column, 3),
                                 weather_temperature_color(min_temp),
-                                LV_PART_MAIN | LV_STATE_DEFAULT);
+                                LV_STATE_DEFAULT);
     if (high_label) {
       lv_label_set_text(high_label, high);
       lv_obj_set_style_text_color(high_label,
                                   weather_temperature_color(max_temp),
-                                  LV_PART_MAIN | LV_STATE_DEFAULT);
+                                  LV_STATE_DEFAULT);
     }
     if (low_label) {
       lv_label_set_text(low_label, low);
       lv_obj_set_style_text_color(low_label,
                                   weather_temperature_color(min_temp),
-                                  LV_PART_MAIN | LV_STATE_DEFAULT);
+                                  LV_STATE_DEFAULT);
     }
     char amount[24];
     char chance[24];
@@ -685,22 +763,29 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
   ESP_LOGD(TAG, "Media artwork JPEG metadata: %ux%u sampling=%d",
            static_cast<unsigned>(info.width), static_cast<unsigned>(info.height),
            static_cast<int>(info.sample_method));
+
+#if 0
   if (info.width == 0 || info.height == 0 || info.width > 512 ||
       info.height > 512) {
     ESP_LOGW(TAG, "Media artwork dimensions exceed 512x512");
     return false;
   }
+#endif
   decoded_width = (info.width + 15U) & ~15U;
   decoded_height = (info.height + 15U) & ~15U;
   pixel_bytes =
       static_cast<size_t>(decoded_width) * decoded_height * 2U;
-  pixels = static_cast<uint8_t *>(heap_caps_malloc(
-      pixel_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  jpeg_decode_memory_alloc_cfg_t output_memory_config = {};
+  output_memory_config.buffer_direction = JPEG_DEC_ALLOC_OUTPUT_BUFFER;
+  size_t allocated_pixel_bytes = 0;
+  pixels = static_cast<uint8_t *>(jpeg_alloc_decoder_mem(
+      pixel_bytes, &output_memory_config, &allocated_pixel_bytes));
   if (pixels == nullptr) {
     ESP_LOGW(TAG, "Unable to allocate %u media artwork bytes in PSRAM",
              static_cast<unsigned>(pixel_bytes));
     return false;
   }
+  pixel_bytes = allocated_pixel_bytes;
   ESP_LOGD(TAG, "Allocated media artwork decode buffer: %u bytes in PSRAM",
            static_cast<unsigned>(pixel_bytes));
   if (hardware_header_valid) {
@@ -712,7 +797,7 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
     if (engine_result == ESP_OK) {
       jpeg_decode_cfg_t decode_config = {};
       decode_config.output_format = JPEG_DECODE_OUT_FORMAT_RGB565;
-      decode_config.rgb_order = JPEG_DEC_RGB_ELEMENT_ORDER_RGB;
+      decode_config.rgb_order = JPEG_DEC_RGB_ELEMENT_ORDER_BGR;
       decode_config.conv_std = JPEG_YUV_RGB_CONV_STD_BT601;
       decode_result = jpeg_decoder_process(
           decoder, &decode_config, download.data, download.size, pixels,
@@ -730,12 +815,42 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
     int software_width = 0;
     int software_height = 0;
     int software_channels = 0;
+    if (!stbi_info_from_memory(download.data,
+                               static_cast<int>(download.size),
+                               &software_width, &software_height,
+                               &software_channels) ||
+        software_width <= 0 || software_height <= 0 ||
+        static_cast<size_t>(software_width) >
+            kMaxMediaArtworkPixels /
+                static_cast<size_t>(software_height)) {
+      ESP_LOGW(TAG, "Software JPEG dimensions are invalid or too large");
+      return false;
+    }
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    decoded_width = static_cast<uint32_t>(software_width);
+    decoded_height = static_cast<uint32_t>(software_height);
+    pixel_bytes = static_cast<size_t>(decoded_width) * decoded_height * 2U;
+    pixels = static_cast<uint8_t *>(heap_caps_malloc(
+        pixel_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (pixels == nullptr) {
+      ESP_LOGW(TAG, "Unable to allocate ROM JPEG output in PSRAM");
+      return false;
+    }
+    if (!decode_jpeg_with_rom(download.data, download.size, pixels,
+                              decoded_width)) {
+      heap_caps_free(pixels);
+      return false;
+    }
+    output_size = static_cast<uint32_t>(pixel_bytes);
+    ESP_LOGD(TAG, "ROM JPEG decode completed: %ux%u output=%u bytes",
+             static_cast<unsigned>(decoded_width),
+             static_cast<unsigned>(decoded_height),
+             static_cast<unsigned>(output_size));
+#else
     stbi_uc *software_pixels = stbi_load_from_memory(
         download.data, static_cast<int>(download.size), &software_width,
         &software_height, &software_channels, 3);
-    if (software_pixels == nullptr || software_width <= 0 ||
-        software_height <= 0 || software_width > 512 || software_height > 512) {
-      if (software_pixels != nullptr) stbi_image_free(software_pixels);
+    if (software_pixels == nullptr) {
       ESP_LOGW(TAG, "Software JPEG decode failed: %s",
                stbi_failure_reason() ? stbi_failure_reason() : "unknown error");
       return false;
@@ -766,6 +881,7 @@ bool update_media_artwork(lv_obj_t *image, const std::string &picture_url) {
              static_cast<unsigned>(decoded_width),
              static_cast<unsigned>(decoded_height),
              static_cast<unsigned>(output_size));
+#endif
   }
   ESP_LOGD(TAG, "JPEG decode completed: output=%u bytes", 
            static_cast<unsigned>(output_size));
@@ -1416,7 +1532,7 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
             binding.weather_temperature,
             temperature.empty() ? lv_color_white()
                                 : weather_temperature_color(value),
-            LV_PART_MAIN | LV_STATE_DEFAULT);
+            LV_STATE_DEFAULT);
       }
       int offset = 0;
       for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {

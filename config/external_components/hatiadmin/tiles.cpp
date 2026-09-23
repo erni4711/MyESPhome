@@ -4,6 +4,8 @@
 #include <esp_http_client.h>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <sys/stat.h>
 
 #include <cerrno>
@@ -2088,6 +2090,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     FILE* sd_file = nullptr;
     bool sd_write_failed = false;
     bool entity_file_failed = false;
+    size_t processed_objects = 0;
     std::array<FILE*, 9> entity_files{};
     std::array<bool, 9> array_empty{};
 
@@ -2203,7 +2206,10 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
           ++object_depth;
         } else if (c == '}') {
           --object_depth;
-          if (object_depth == 0) process_object();
+          if (object_depth == 0) {
+            process_object();
+            if (++processed_objects % 16 == 0) vTaskDelay(1);
+          }
         }
       }
     }

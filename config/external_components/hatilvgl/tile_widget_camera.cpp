@@ -11,7 +11,15 @@ namespace {
 
 struct CameraEventContext {
   char entity_id[128] = {};
+  char title[128] = {};
+  lv_obj_t *image = nullptr;
 };
+
+void close_camera_popup_cb(lv_event_t *event) {
+  if (lv_event_get_code(event) != LV_EVENT_CLICKED) return;
+  auto *overlay = static_cast<lv_obj_t *>(lv_event_get_user_data(event));
+  if (overlay != nullptr) lv_obj_del(overlay);
+}
 
 void camera_click_cb(lv_event_t *event) {
   if (lv_event_get_code(event) != LV_EVENT_CLICKED) return;
@@ -19,10 +27,55 @@ void camera_click_cb(lv_event_t *event) {
       static_cast<CameraEventContext *>(lv_event_get_user_data(event));
   if (!context || context->entity_id[0] == '\0') return;
 
-  // Camera streaming/popups require a display-capable camera integration.
-  ESP_LOGI("tile_widget_camera",
-           "Camera tile clicked for %s; camera popup is not available",
-           context->entity_id);
+  lv_obj_t *overlay = lv_obj_create(lv_layer_top());
+  lv_obj_set_size(overlay, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_style_bg_color(overlay, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(overlay, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(overlay, 0, 0);
+  lv_obj_set_style_pad_all(overlay, 0, 0);
+  lv_obj_clear_flag(overlay, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(overlay, close_camera_popup_cb, LV_EVENT_CLICKED,
+                      overlay);
+
+  lv_obj_t *image = lv_image_create(overlay);
+  lv_obj_set_size(image, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_style_pad_all(image, 0, 0);
+  lv_obj_align(image, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_add_flag(image, LV_OBJ_FLAG_CLICKABLE);
+  if (context->image != nullptr) {
+    const void *source = lv_image_get_src(context->image);
+    if (source != nullptr) {
+      lv_image_set_src(image, source);
+      lv_obj_clear_flag(image, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  lv_obj_add_event_cb(image, close_camera_popup_cb, LV_EVENT_CLICKED, overlay);
+
+  lv_obj_t *heading = lv_label_create(overlay);
+  lv_label_set_text(heading, context->title[0] ? context->title
+                                               : context->entity_id);
+  lv_obj_set_style_text_color(heading, lv_color_white(), 0);
+  lv_obj_set_style_text_font(heading, ui_font_for_size(16), 0);
+  lv_obj_set_style_bg_color(heading, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(heading, LV_OPA_50, 0);
+  lv_obj_set_style_pad_all(heading, 8, 0);
+  lv_obj_align(heading, LV_ALIGN_TOP_LEFT, 12, 12);
+
+  lv_obj_t *close = lv_button_create(overlay);
+  lv_obj_set_size(close, 48, 48);
+  lv_obj_set_style_bg_color(close, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(close, LV_OPA_50, 0);
+  lv_obj_set_style_border_width(close, 0, 0);
+  lv_obj_set_style_radius(close, LV_RADIUS_CIRCLE, 0);
+  lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -12, 12);
+  lv_obj_t *close_label = lv_label_create(close);
+  lv_label_set_text(close_label, getMdiChar("close").c_str());
+  lv_obj_set_style_text_font(close_label, FONT_MDI_ICONS, 0);
+  lv_obj_set_style_text_color(close_label, lv_color_white(), 0);
+  lv_obj_center(close_label);
+  lv_obj_add_event_cb(close, close_camera_popup_cb, LV_EVENT_CLICKED, overlay);
+
+  register_ha_camera_widget(context->entity_id, image, nullptr);
 }
 
 void camera_context_delete_cb(lv_event_t *event) {
@@ -83,6 +136,8 @@ void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile) {
     auto *context = new CameraEventContext{};
     std::strncpy(context->entity_id, entity.c_str(),
                  sizeof(context->entity_id) - 1);
+    std::strncpy(context->title, name, sizeof(context->title) - 1);
+    context->image = image;
     lv_obj_add_event_cb(parent, camera_click_cb, LV_EVENT_CLICKED, context);
     lv_obj_add_event_cb(parent, camera_context_delete_cb, LV_EVENT_DELETE,
                         context);

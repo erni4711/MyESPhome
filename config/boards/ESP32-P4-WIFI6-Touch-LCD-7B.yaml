@@ -61,6 +61,9 @@ esp32:
       CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM: "y"
       # Leave enough internal heap for the FreeRTOS timer task at boot.
       CONFIG_ESP_MAIN_TASK_STACK_SIZE: "8192"
+      # HATiServe directory/file responses use the ESP-IDF HTTP task and
+      # require more than the default stack when building dynamic responses.
+      CONFIG_HTTPD_TASK_STACK_SIZE: "8192"
       CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"
 
   flash_size: 32MB

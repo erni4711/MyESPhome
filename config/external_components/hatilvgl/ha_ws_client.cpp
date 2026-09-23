@@ -35,10 +35,10 @@ class DirectSerial {
 
 //#static DirectSerial Serial;
 
-#define ESP_LOGE(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
-#define ESP_LOGD(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
-#define ESP_LOGI(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
-#define ESP_LOGW(t, m, ...) printf("[%s:%lu] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGE(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGD(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGI(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGW(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
 
 
 static const char* TAG = "ha_ws_client";  // "hatilvgl";
@@ -224,12 +224,16 @@ void enqueue_json(JsonObject state) {
 
 // Copies one interesting state into the fixed-size queue. The JSON document
 // itself remains owned by the websocket task until this function returns.
-void handle_new_state(JsonObject new_state, const char* source) {
+void handle_new_state(const JsonObject& new_state, const char* source) {
   const char* entity_id = new_state["entity_id"] | "";
   const bool interesting =
       entity_id[0] != '\0' && entity_is_interesting(entity_id);
-  if (!interesting) return;
-  
+  if (!interesting) {
+    // ESP_LOGD(TAG, "Rejected Home Assistant state: entity_id=%s source=%s",
+    //          entity_id, source);
+    return;
+  }
+
   printf("[ha_ws] entity_id=%s interesting=%d source=%s\n",
              entity_id, interesting ? 1 : 0, source);
   ESP_LOGD(TAG, "Accepted Home Assistant state: entity_id=%s source=%s",
@@ -239,9 +243,9 @@ void handle_new_state(JsonObject new_state, const char* source) {
 
 void handle_json_document(JsonDocument& doc) {
   const char* type = doc["type"] | "";
-  ESP_LOGD(TAG, "Received Home Assistant JSON type=%s bare_state=%d",
-           type[0] ? type : "(none)",
-           doc["entity_id"].is<const char*>() ? 1 : 0);
+  // ESP_LOGD(TAG, "Received Home Assistant JSON type=%s bare_state=%d",
+  //          type[0] ? type : "(none)",
+  //          doc["entity_id"].is<const char*>() ? 1 : 0);
   // A bare state object (no "type" field) comes from a get_states reply
   // that was streamed as one JSON document per state instead of a single
   // result array. Treat it like any other state update.
@@ -263,7 +267,7 @@ void handle_json_document(JsonDocument& doc) {
       g_authenticated = true;
       ESP_LOGI(TAG, "Home Assistant websocket authenticated");
       ha_ws_client_subscribe_events();
-      ha_ws_client_request_states();
+      //ha_ws_client_request_states();
     }
   } else if (std::strcmp(type, "auth_invalid") == 0) {
     g_authenticated = false;
@@ -751,7 +755,8 @@ void ha_ws_client_start() {
   cfg.disable_auto_reconnect = false;
   cfg.reconnect_timeout_ms = 10000;
   cfg.network_timeout_ms = 10000;
-  cfg.task_stack = 8192;
+  // Leave headroom for websocket event dispatch and deeply nested JSON parsing.
+  cfg.task_stack = 16384;
   cfg.buffer_size = 4096;
   if (is_tls) {
     // Local Home Assistant installs commonly serve wss:// with a
