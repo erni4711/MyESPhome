@@ -19,6 +19,7 @@
 
 #include "../hatilvgl/tiles_lvgl.h"
 #include "../hatilvgl/ha_ws_client.h"
+#include "../hatilvgl/energy_data.h"
 #include "esphome/components/spiffs/spiffs.h"
 
 // Forward-declare asset accessors defined in web_admin_assets.cpp
@@ -368,9 +369,28 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
   {
     std::string inner;
     inner +=
-        "<label>Energy Entity</label>" + entitySelect(tid + "_energy_entity");
-    inner += "<input type=\"hidden\" id=\"" + tid +
-             "_energy_popup_open_mode\" value=\"1\">";
+        "<label>Energy Statistic</label>" + entitySelect(tid + "_energy_entity");
+    inner += "<label>Unit Override</label><input type=\"text\" id=\"" + tid +
+             "_energy_unit\" placeholder=\"Auto\">";
+    inner += "<label>Decimals</label><select id=\"" + tid +
+             "_energy_decimals\">"
+             "<option value=\"0\">0</option><option value=\"1\">1</option>"
+             "<option value=\"2\">2</option><option value=\"3\">3</option>"
+             "<option value=\"4\">4</option><option value=\"5\">5</option>"
+             "<option value=\"6\">6</option></select>";
+    inner += "<label>Value Size</label><select id=\"" + tid +
+             "_energy_value_font\">"
+             "<option value=\"0\">28 (Default)</option>"
+             "<option value=\"1\">20</option><option value=\"2\">24</option>"
+             "<option value=\"3\">32</option><option value=\"4\">40</option>"
+             "</select>";
+    inner += "<label>Open Chart</label><select id=\"" + tid +
+             "_energy_popup_open_mode\">"
+             "<option value=\"0\">Long press</option>"
+             "<option value=\"1\">Short press</option></select>";
+    inner += "<label>Value Vertical Offset</label><input type=\"number\" id=\"" +
+             tid + "_energy_value_y_offset\" min=\"-100\" max=\"200\" "
+             "step=\"1\" placeholder=\"0\">";
     addTypeFields(h, tid, "energy", inner);
   }
 
@@ -2482,6 +2502,13 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     if (!send_failed)
       send_failed = httpd_resp_send_chunk(*request, "\":", 2) != ESP_OK;
     if (send_failed) break;
+    if (i == 3) {
+      const std::string energy_json = energy_options_json();
+      send_failed =
+          httpd_resp_send_chunk(*request, energy_json.data(),
+                                energy_json.size()) != ESP_OK;
+      continue;
+    }
     FILE* file = fopen(entity_paths[i].c_str(), "rb");
     if (!file) {
       send_failed = httpd_resp_send_chunk(*request, "[]", 2) != ESP_OK;
@@ -2496,6 +2523,23 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
       }
     }
     fclose(file);
+  }
+  if (!send_failed) {
+    const std::string energy_values = energy_preview_values_json();
+    const std::string energy_units = energy_preview_units_json();
+    send_failed =
+        httpd_resp_send_chunk(*request, ",\"energy_values\":", 17) != ESP_OK;
+    if (!send_failed)
+      send_failed = httpd_resp_send_chunk(
+                        *request, energy_values.data(), energy_values.size()) !=
+                    ESP_OK;
+    if (!send_failed)
+      send_failed =
+          httpd_resp_send_chunk(*request, ",\"energy_units\":", 16) != ESP_OK;
+    if (!send_failed)
+      send_failed = httpd_resp_send_chunk(
+                        *request, energy_units.data(), energy_units.size()) !=
+                    ESP_OK;
   }
   if (!send_failed)
     send_failed = httpd_resp_send_chunk(*request, "}", 1) != ESP_OK;

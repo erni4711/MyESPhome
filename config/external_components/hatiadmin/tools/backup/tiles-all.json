@@ -927,7 +927,7 @@
         "row": 4,
         "span_w": 1,
         "span_h": 1,
-        "entity_id": "sensor.senec_webapi_consumption_total_2",
+        "entity_id": "consumption_total",
         "sensor_unit": "",
         "sensor_decimals": 1,
         "sensor_value_font": 0,

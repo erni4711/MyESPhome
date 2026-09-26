@@ -159,6 +159,8 @@ struct TileData {
   std::string entity_id;
   std::string sensor_unit;
   int     sensor_decimals    = -1;
+  int     sensor_value_font  = 0;
+  int     sensor_value_y_offset = 0;
   int     sensor_display_mode = 0;
   float   sensor_gauge_min   = 0.f;
   float   sensor_gauge_max   = 100.f;
@@ -187,6 +189,7 @@ struct TileData {
   int     clock_date_alignment = 1;
   int     key_code            = 40;  // clock time font
   int     key_modifier        = 20;  // clock date font
+  int     popup_open_mode     = 1;
 };
 
 // Tile type constants matching admin.js / web tile types

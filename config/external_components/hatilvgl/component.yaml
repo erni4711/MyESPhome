@@ -8,6 +8,7 @@ files:
   - hatilvgl.h
   - tile_widget_clock.cpp
   - tile_widget_energy.cpp
+  - energy_data.cpp
   - tile_widget_media.cpp
   - tile_widget_navigate.cpp
   - tile_widget_scene.cpp
@@ -22,6 +23,7 @@ files:
   - tile_widget_wled.cpp
   - tiles_lvgl.h
   - ha_ws_client.h
+  - energy_data.h
   - hatilvgl.h
 
 includes:

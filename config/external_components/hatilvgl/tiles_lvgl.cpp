@@ -1,6 +1,7 @@
 #include "tiles_lvgl.h"
 #include "../hatifonts/mdi_icons.h"
 #include "ha_ws_client.h"
+#include "energy_data.h"
 #include <esp_log.h>
 #include <esp_heap_caps.h>
 #include <lvgl.h>
@@ -1968,7 +1969,7 @@ void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id
   };
   
   for (const auto &tile : read_tile_grid_for_lvgl(folder_id)) {
-      if (tile.type == TILE_SENSOR || tile.type == TILE_ENERGY) {
+      if (tile.type == TILE_SENSOR) {
         add_unique(tile.entity_id);
       } else if (tile.type == TILE_SWITCH) {
         add_unique(tile.entity_id);
@@ -2711,6 +2712,8 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     }
     d.sensor_unit       = t["sensor_unit"]      | "";
     d.sensor_decimals   = t["sensor_decimals"]  | -1;
+    d.sensor_value_font = t["sensor_value_font"] | 0;
+    d.sensor_value_y_offset = t["sensor_value_y_offset"] | 0;
     d.sensor_display_mode = t["sensor_display_mode"] | 0;
     d.sensor_gauge_min  = t["sensor_gauge_min"] | 0.0f;
     d.sensor_gauge_max  = t["sensor_gauge_max"] | 100.0f;
@@ -2754,6 +2757,7 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     d.clock_date_alignment = t["clock_date_alignment"] | 1;
     d.key_code          = t["key_code"]         | 40;
     d.key_modifier      = t["key_modifier"]     | 20;
+    d.popup_open_mode   = t["popup_open_mode"]  | 1;
     idx++;
   }
   return result;
@@ -2911,7 +2915,8 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
       lv_obj_set_style_text_color(icon, lv_color_white(), 0);
       lv_obj_set_style_text_font(icon, FONT_MDI_ICONS, 0);
       lv_obj_align(icon, LV_ALIGN_TOP_RIGHT, 0, 0);
-      if (!has_explicit_icon && !tile.entity_id.empty())
+      if (!has_explicit_icon && tile.type != TILE_ENERGY &&
+          !tile.entity_id.empty())
         register_ha_entity_icon(tile.entity_id, icon);
     }
   }
@@ -2919,7 +2924,8 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
   // Delegate to per-type widget builders
   switch (tile.type) {
     case TILE_SENSOR:
-    case TILE_ENERGY:   tile_widget_build_sensor(tile_obj, tile); break;
+      tile_widget_build_sensor(tile_obj, tile); break;
+    case TILE_ENERGY:   tile_widget_build_energy(tile_obj, tile); break;
     case TILE_CLOCK:    tile_widget_build_clock(tile_obj, tile);  break;
     case TILE_SWITCH:   tile_widget_build_switch(tile_obj, tile); break;
     case TILE_NAVIGATE: tile_widget_build_navigate(tile_obj, tile, tile.navigate_target); break;
@@ -2988,6 +2994,7 @@ void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
   // page currently holds *before* destroying them, so a state update that
   // arrives mid-rebuild can never touch a dangling LVGL object pointer.
   clear_ha_entity_widgets();
+  energy_clear_widgets();
 
   // Remove all existing children
   lv_obj_clean(page);
@@ -3058,11 +3065,18 @@ void TilesLvglRenderer::refresh_folder(int folder_id) {
   // SD-card JSON files).
   std::vector<std::string> entities;
   add_ha_entities_on_folder(entities, folder_id);
+  std::vector<std::string> energy_statistics;
+  for (const auto &tile : tiles) {
+    if (tile.type == TILE_ENERGY && !tile.entity_id.empty())
+      energy_statistics.push_back(tile.entity_id);
+  }
+  energy_set_visible_statistics(energy_statistics);
   
   ha_ws_client_set_entity_filter(entities);
   // Drop updates queued for the old LVGL object tree while the folder was
   // rebuilt. The fresh snapshot below repopulates the new widgets.
   ha_ws_client_discard_pending_states();
+  energy_on_websocket_reconnected();
   ha_ws_client_subscribe_events();
 }
 

@@ -1,5 +1,6 @@
 #include "tiles_lvgl.h"
 #include "ha_ws_client.h"
+#include "energy_data.h"
 
 #include <esp_log.h>
 #include <esp_heap_caps.h>
@@ -16,6 +17,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <set>
+#include <atomic>
 
 #undef ESP_LOGE
 #undef ESP_LOGD
@@ -54,7 +56,6 @@ constexpr size_t kStreamProbeBytes = 512;
 constexpr size_t kMaxStateObjectBytes = 65536;
 constexpr size_t kMaxQueuedJsonBytes = 65536;  // queue item storage is PSRAM-backed
 constexpr size_t kQueueLength = 4;
-constexpr int kGetStatesId = 2;
 
 struct QueuedJson {
   size_t length;
@@ -115,10 +116,12 @@ esp_websocket_client_handle_t g_client = nullptr;
 std::string g_url;
 std::string g_token;
 bool g_started = false;
-bool g_authenticated = false;
+std::atomic<bool> g_authenticated{false};
+std::atomic<bool> g_authenticated_on_loop{false};
 uint32_t g_subscribed_id = 0;
 uint32_t g_get_states_id = 0;
 uint32_t g_last_message_id = 0;
+portMUX_TYPE g_message_id_lock = portMUX_INITIALIZER_UNLOCKED;
 PsramString g_rx_buffer;
 std::string g_stream_probe;
 
@@ -147,6 +150,13 @@ bool allocate_queue_items() {
     return false;
   }
   return true;
+}
+
+uint32_t next_message_id() {
+  portENTER_CRITICAL(&g_message_id_lock);
+  const uint32_t id = ++g_last_message_id;
+  portEXIT_CRITICAL(&g_message_id_lock);
+  return id;
 }
 
 void log_websocket_message(const char* direction, const char* message,
@@ -199,6 +209,7 @@ void enqueue_json(JsonObject state) {
     ESP_LOGE(TAG, "Unable to queue Home Assistant state: buffer unavailable");
     return;
   }
+
   *g_enqueue_item = {};
   g_enqueue_item->length =
       serializeJson(state, g_enqueue_item->data, sizeof(g_enqueue_item->data));
@@ -220,6 +231,27 @@ void enqueue_json(JsonObject state) {
   }
   ESP_LOGD(TAG, "Queued Home Assistant state for %s (%u bytes)", entity_id,
            static_cast<unsigned>(g_enqueue_item->length));
+}
+
+void enqueue_protocol_message(JsonObject message) {
+  if (g_enqueue_item == nullptr) {
+    ESP_LOGE(TAG, "Unable to queue Home Assistant protocol message");
+    return;
+  }
+  *g_enqueue_item = {};
+  g_enqueue_item->length = serializeJson(
+      message, g_enqueue_item->data, sizeof(g_enqueue_item->data));
+  if (g_enqueue_item->length == 0 ||
+      g_enqueue_item->length >= sizeof(g_enqueue_item->data)) {
+    ESP_LOGW(TAG, "Home Assistant protocol message exceeds %u bytes",
+             static_cast<unsigned>(sizeof(g_enqueue_item->data) - 1));
+    return;
+  }
+  QueueHandle_t queue = update_queue();
+  if (queue == nullptr ||
+    xQueueSend(queue, g_enqueue_item, pdMS_TO_TICKS(250)) != pdTRUE) {
+    ESP_LOGW(TAG, "Home Assistant protocol queue is full");
+  }
 }
 
 // Copies one interesting state into the fixed-size queue. The JSON document
@@ -263,14 +295,15 @@ void handle_json_document(JsonDocument& doc) {
                                    pdMS_TO_TICKS(5000));
     ESP_LOGI(TAG, "Sent Home Assistant websocket auth request");
   } else if (std::strcmp(type, "auth_ok") == 0) {
-    if (!g_authenticated) {
-      g_authenticated = true;
+    if (!g_authenticated.load()) {
+      g_authenticated.store(true);
+      g_authenticated_on_loop.store(true);
       ESP_LOGI(TAG, "Home Assistant websocket authenticated");
       ha_ws_client_subscribe_events();
       //ha_ws_client_request_states();
     }
   } else if (std::strcmp(type, "auth_invalid") == 0) {
-    g_authenticated = false;
+    g_authenticated.store(false);
     ESP_LOGW(TAG,
              "Home Assistant websocket authentication rejected; check the "
              "configured token");
@@ -289,7 +322,8 @@ void handle_json_document(JsonDocument& doc) {
   } else if (std::strcmp(type, "result") == 0) {
     const int id = doc["id"] | 0;
     const bool success = doc["success"] | false;
-    if (id == kGetStatesId && success) {
+    if (g_get_states_id != 0 && id == static_cast<int>(g_get_states_id) &&
+        success) {
       JsonVariant result = doc["result"];
       if (result.is<JsonArray>()) {
         for (JsonObject state : result.as<JsonArray>()) {
@@ -300,6 +334,8 @@ void handle_json_document(JsonDocument& doc) {
         // Single-state result: streamed one JSON object per state.
         handle_new_state(result.as<JsonObject>(), "initial");
       }
+    } else {
+      enqueue_protocol_message(doc.as<JsonObject>());
     }
   }
 }
@@ -318,7 +354,8 @@ void handle_text_message(const char* message, size_t message_size) {
 }
 
 void reset_connection_state() {
-  g_authenticated = false;
+  g_authenticated.store(false);
+  g_authenticated_on_loop.store(false);
   g_rx_buffer.clear();
   g_stream_probe.clear();
   g_state_object.clear();
@@ -446,7 +483,7 @@ void handle_websocket_data(const char* message, size_t message_size,
     }
     const size_t stream_start = find_result_array_start(g_stream_probe);
     if (stream_start != std::string::npos &&
-        g_stream_probe.find("\"id\":" + std::to_string(g_get_states_id) + "") != std::string::npos &&
+        g_stream_probe.find("\"id\":" + std::to_string(g_get_states_id) + ",") != std::string::npos &&
         g_stream_probe.find("\"type\":\"result\"") != std::string::npos) {
       g_get_states_stream = true;
       const std::string tail = g_stream_probe.substr(stream_start);
@@ -627,7 +664,7 @@ void ha_ws_client_set_entity_filter(
 }
 
 void ha_ws_client_unsubscribe_events() {
-  if (!g_authenticated || g_client == nullptr) return;
+  if (!g_authenticated.load() || g_client == nullptr) return;
   if (g_subscribed_id == 0) {
     ESP_LOGI(TAG, "Not subscribed to Home Assistant state_changed events");
     return;
@@ -650,13 +687,13 @@ void ha_ws_client_unsubscribe_events() {
 }
 void ha_ws_client_subscribe_events() {
   ESP_LOGD(TAG, "Subscribe requested (authenticated=%d subscribed=%u)",
-           g_authenticated ? 1 : 0, g_subscribed_id);
-  if (!g_authenticated || g_client == nullptr) return;
+           g_authenticated.load() ? 1 : 0, g_subscribed_id);
+  if (!g_authenticated.load() || g_client == nullptr) return;
   if (g_subscribed_id != 0) {
     ESP_LOGI(TAG, "Already subscribed to Home Assistant state_changed events");
     return;
   }
-  g_subscribed_id = ++g_last_message_id;  // Use a non-zero id to indicate subscription in progress
+  g_subscribed_id = next_message_id();
   std::string kSubscribe =
       "{\"id\":" 
       + std::to_string(g_subscribed_id) 
@@ -675,9 +712,9 @@ void ha_ws_client_request_states() {
   ESP_LOGI(TAG,
            "Requesting current Home Assistant entity states (authenticated=%d, "
            "client=%p)",
-           g_authenticated, g_client);
-  if (!g_authenticated || g_client == nullptr) return;
-  g_get_states_id = ++g_last_message_id;  // Use a non-zero id to indicate get_states request in progress
+           g_authenticated.load(), g_client);
+  if (!g_authenticated.load() || g_client == nullptr) return;
+  g_get_states_id = next_message_id();
   std::string kGetStates = 
     "{\"id\":"
     + std::to_string(g_get_states_id)
@@ -701,6 +738,7 @@ void ha_ws_client_discard_pending_states() {
     ESP_LOGE(TAG, "Unable to discard Home Assistant states: queue unavailable");
     return;
   }
+
   int discarded = 0;
   while (xQueueReceive(queue, g_consume_item, 0) == pdTRUE) {
     ++discarded;
@@ -709,6 +747,27 @@ void ha_ws_client_discard_pending_states() {
     ESP_LOGD(TAG, "Discarded %d stale Home Assistant state updates", discarded);
   }
 }
+
+uint32_t ha_ws_client_send_request(const std::string &json_fields) {
+  if (!g_authenticated.load() || g_client == nullptr || json_fields.empty())
+    return 0;
+  const uint32_t id = next_message_id();
+  const std::string message =
+      "{\"id\":" + std::to_string(id) + "," + json_fields + "}";
+  const int sent = esp_websocket_client_send_text(
+      g_client, message.c_str(), static_cast<int>(message.size()),
+      pdMS_TO_TICKS(5000));
+  if (sent < 0) {
+    ESP_LOGW(TAG, "Failed to send Home Assistant request id=%lu",
+             static_cast<unsigned long>(id));
+    return 0;
+  }
+  ESP_LOGD(TAG, "Sent Home Assistant request id=%lu",
+           static_cast<unsigned long>(id));
+  return id;
+}
+
+bool ha_ws_client_is_authenticated() { return g_authenticated.load(); }
 
 // void ha_ws_setuo()
 // {
@@ -787,6 +846,8 @@ void ha_ws_client_start() {
 
 void ha_ws_client_loop() {
   if (!g_started || g_consume_item == nullptr) return;
+  if (g_authenticated_on_loop.exchange(false))
+    energy_on_websocket_reconnected();
   QueueHandle_t queue = update_queue();
   if (queue == nullptr) {
     ESP_LOGE(TAG, "Unable to process Home Assistant states: queue unavailable");
@@ -807,8 +868,12 @@ void ha_ws_client_loop() {
                err.c_str());
       continue;
     }
-    apply_ha_entity_state(state_doc);
+    if (state_doc["type"] == "result")
+      energy_handle_ws_message(state_doc);
+    else
+      apply_ha_entity_state(state_doc);
   }
+  energy_service();
 }
 
 }  // namespace web_admin_local

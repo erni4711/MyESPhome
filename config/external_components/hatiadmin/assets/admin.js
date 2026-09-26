@@ -1549,6 +1549,7 @@ function t(key) {
   let saveInFlightByTile = {};
   let queuedSaveByTile = {};
   let sensorMetaCache = { values: {}, units: {}, icons: {}, names: {}, loaded: false };
+  let energyMetaCache = { values: {}, units: {} };
   let sensorMetaFetchInFlight = null;
   let lastSensorMetaFetchMs = 0;
   let entityOptionsCache = null;
@@ -1624,6 +1625,12 @@ function t(key) {
         if (!data || !data.success) throw new Error('Invalid entity options');
         entityOptionsCache = data;
         lastEntityOptionsFetchMs = Date.now();
+        if (data.energy_values || data.energy_units) {
+          energyMetaCache = {
+            values: data.energy_values || {},
+            units: data.energy_units || {}
+          };
+        }
         return data;
       })
       .finally(() => { entityOptionsFetchInFlight = null; });
@@ -4651,8 +4658,10 @@ function t(key) {
   function renderTileFromData(tab, index, tile, sensorMeta) {
     const el = document.getElementById(tab + '-tile-' + index);
     if (!el) return;
-    const metaValues = sensorMeta?.values || {};
-    const metaUnits = sensorMeta?.units || {};
+    const metaValues = Object.assign(
+      {}, sensorMeta?.values || {}, energyMetaCache.values || {});
+    const metaUnits = Object.assign(
+      {}, sensorMeta?.units || {}, energyMetaCache.units || {});
     const metaIcons = sensorMeta?.icons || {};
     const metaNames = sensorMeta?.names || {};
     el.dataset.index = index.toString();
@@ -7139,12 +7148,16 @@ function maybeFillTitleFromSensor(tab) {
       return;
     }
     const applyMeta = (meta) => {
-      const values = (meta && meta.values) || {};
+      const values = Object.assign(
+        {}, (meta && meta.values) || {}, energyMetaCache.values || {});
       const valueElem = document.getElementById(tab + '-tile-' + currentTileIndex + '-value');
       if (valueElem) {
         const decimals = decimalsInput ? decimalsInput.value : '';
         const value = formatSensorValue(values[entity] ?? '--', decimals);
-        const unit = resolveUnitValue(unitInput ? unitInput.value : '', entity, (meta && meta.units) || {});
+        const units = Object.assign(
+          {}, (meta && meta.units) || {}, energyMetaCache.units || {});
+        const unit = resolveUnitValue(
+          unitInput ? unitInput.value : '', entity, units);
         valueElem.innerHTML = value + (unit ? '<span class="tile-unit">' + unit + '</span>' : '');
         applySensorValueFontClass(valueElem, valueFontSelect ? valueFontSelect.value : '0');
       }

@@ -47,6 +47,12 @@ ArduinoJson::Allocator *ha_psram_json_allocator();
 // requests instead; this remains available for compatibility.
 void ha_ws_client_request_states();
 
+// Sends one authenticated Home Assistant command. `json_fields` contains the
+// object fields after the generated request id, without surrounding braces.
+// Returns the request id, or zero when the command could not be sent.
+uint32_t ha_ws_client_send_request(const std::string &json_fields);
+bool ha_ws_client_is_authenticated();
+
 // Discards state updates queued for widgets from a previous tile tree.
 void ha_ws_client_discard_pending_states();
 

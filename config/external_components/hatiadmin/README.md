@@ -134,20 +134,53 @@ The slider calls Home Assistant's `media_player.volume_set` service and its
 position and percentage label stay synchronized with `volume_level` updates.
 The existing media popup retains its larger volume and mute controls.
 
+### Energy tile
+
+Energy tiles use Home Assistant Recorder statistics configured in the Home
+Assistant Energy Dashboard. They no longer display the cumulative live state
+of a sensor. The tile shows the sum of the current day's hourly `change`
+statistics, and its popup provides:
+
+- **24H** hourly bars for the current day.
+- **7D** daily bars for today and the previous six days.
+- Positive and negative bars around a zero line, including negative export
+  flows configured by the Energy Dashboard.
+- Touch/drag readout for the selected hour or day.
+- Missing Recorder buckets as gaps rather than zero values.
+
+Existing type-14 tile configurations remain compatible: their stored
+`energy_entity`, `sensor_entity`, or normalized `entity_id` is used as the
+Home Assistant statistic ID. If that statistic is not configured in the
+Energy Dashboard, the tile reports it as unavailable instead of falling back
+to a cumulative entity state. The editor lists individual configured Energy
+Dashboard statistics and provides unit override, decimal count, value size,
+popup gesture, and vertical-offset controls.
+
+The statistics path is native to HATi and uses the existing authenticated Home
+Assistant WebSocket connection. No MQTT bridge or additional Home Assistant
+custom integration is required. HATi also provides the synthetic
+`consumption_total` source ("House consumed"), calculated per bucket as the
+signed sum of all configured solar, grid, and battery flows. Cost entries,
+other synthetic category totals, and untracked-consumption calculations are
+not included.
+
 In addition to the REST calls above (used for switch toggles and the entity
 picker), `web_admin_local` opens a persistent `ws://` or `wss://` connection
 to `<home_assistant_url>/api/websocket` (see `ha_ws_client.h`/`.cpp`) using
 the same `home_assistant_url` / `home_assistant_token` settings. It:
 
 - Authenticates with the configured long-lived access token (never logged).
-- Sends `subscribe_events` for `state_changed`, then `get_states` to seed
-  initial values (best effort — very large Home Assistant installs may
-  exceed the buffered message size limit and are skipped; the next matching
-  `state_changed` event still updates the tile).
-- Filters incoming state updates to only the `entity_id` / `energy_entity`
+- Sends `subscribe_events` for `state_changed`; targeted REST requests seed
+  the initial values for normal entity-backed tiles.
+- Filters incoming state updates to only the `entity_id`
   ids actually referenced by a stored tile grid, and only ever applies them
   to LVGL labels/gauges from the ESPHome `loop()` task (never from the
   websocket client's own task).
+- Uses correlated `energy/get_prefs`,
+  `recorder/get_statistics_metadata`, and
+  `recorder/statistics_during_period` requests for Energy tiles. Period
+  results are parsed in PSRAM-backed documents and applied from the ESPHome
+  `loop()` task.
 - Uses the ESP-IDF-managed `espressif/esp_websocket_client` component (see
   `__init__.py`); no PlatformIO/Arduino library is required.
 
