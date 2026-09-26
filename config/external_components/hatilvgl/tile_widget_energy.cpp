@@ -1,7 +1,7 @@
 #include "energy_data.h"
 #include "tiles_lvgl.h"
 #include "../hatifonts/mdi_icons.h"
-
+#include "esphome/core/log.h"
 #include <lvgl.h>
 
 #include <algorithm>
@@ -38,6 +38,7 @@ struct EnergyPopupContext {
   lv_obj_t *zero_line = nullptr;
   std::array<lv_obj_t *, 24> bars{};
   std::array<lv_obj_t *, 24> axis_labels{};
+  std::array<lv_obj_t *, 3> scale_labels{};
   lv_timer_t *timer = nullptr;
   uint32_t rendered_generation = UINT32_MAX;
   bool rendered_week = false;
@@ -92,6 +93,10 @@ void clear_chart(EnergyPopupContext *context) {
     if (label) lv_obj_del(label);
     label = nullptr;
   }
+  for (lv_obj_t *&label : context->scale_labels) {
+    if (label) lv_obj_del(label);
+    label = nullptr;
+  }
 }
 
 const char *weekday_text(int64_t start_ms, char *buffer, size_t size) {
@@ -116,9 +121,20 @@ void update_popup(EnergyPopupContext *context) {
   }
 
   const std::string unit = effective_unit(*context, snapshot);
-  if (snapshot.today_total_valid) {
+  float displayed_total = snapshot.today_total;
+  bool displayed_total_valid = snapshot.today_total_valid;
+  if (context->week) {
+    displayed_total = 0.0f;
+    displayed_total_valid = false;
+    for (const EnergyBucket &bucket : snapshot.week) {
+      if (!bucket.valid) continue;
+      displayed_total += bucket.value;
+      displayed_total_valid = true;
+    }
+  }
+  if (displayed_total_valid) {
     const std::string total =
-        format_energy_value(snapshot.today_total, context->decimals, unit);
+        format_energy_value(displayed_total, context->decimals, unit);
     lv_label_set_text(context->value_label, total.c_str());
   } else {
     lv_label_set_text(context->value_label,
@@ -167,28 +183,48 @@ void update_popup(EnergyPopupContext *context) {
     minimum -= 0.5f;
   }
 
-  constexpr int chart_width = 690;
-  constexpr int chart_height = 300;
   constexpr int axis_height = 28;
+  const int display_height = lv_disp_get_ver_res(lv_disp_get_default());
+
+  const int chart_width = lv_obj_get_width(context->chart);
+  const int chart_height = display_height * 70 / 100 - axis_height;
+  constexpr int scale_width = 63;
+  const int plot_width = chart_width - scale_width;
   const int gap = context->week ? 12 : 4;
   const int bar_width =
-      std::max(4, (chart_width - gap * (slots + 1)) / slots);
+      std::max(4, (plot_width - gap * (slots + 1)) / slots);
   const float range = maximum - minimum;
   const int zero_y = static_cast<int>(
       std::lround(chart_height * maximum / range));
 
   context->zero_line = lv_obj_create(context->chart);
-  lv_obj_set_size(context->zero_line, chart_width, 1);
-  lv_obj_set_pos(context->zero_line, 0, zero_y);
+  lv_obj_set_size(context->zero_line, plot_width, 1);
+  lv_obj_set_pos(context->zero_line, scale_width, zero_y);
   lv_obj_set_style_bg_color(
       context->zero_line, lv_color_make(0x80, 0x80, 0x80), 0);
   lv_obj_set_style_bg_opa(context->zero_line, LV_OPA_60, 0);
   lv_obj_set_style_border_width(context->zero_line, 0, 0);
 
+  for (int i = 0; i < 3; ++i) {
+    const float value = maximum - range * static_cast<float>(i) / 2.0f;
+    lv_obj_t *label = lv_label_create(context->chart);
+    context->scale_labels[i] = label;
+    char text[16];
+    std::snprintf(text, sizeof(text), "%.1f", value);
+    lv_label_set_text(label, text);
+    lv_obj_set_width(label, scale_width - 4);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_style_text_color(label, lv_color_make(0xB0, 0xB0, 0xB0), 0);
+    lv_obj_set_style_text_font(label, ui_font_for_size(10), 0);
+    lv_obj_set_pos(label, 0, static_cast<int>(
+                                  std::lround((chart_height - 12) *
+                                              static_cast<float>(i) / 2.0f)));
+  }
+
   for (int i = 0; i < slots; ++i) {
     const EnergyBucket &bucket =
         context->week ? snapshot.week[i] : snapshot.day[i];
-    const int x = gap + i * (bar_width + gap);
+    const int x = scale_width + gap + i * (bar_width + gap);
     if (bucket.valid) {
       const int value_y = static_cast<int>(
           std::lround(chart_height * (maximum - bucket.value) / range));
@@ -226,6 +262,7 @@ void update_popup(EnergyPopupContext *context) {
     lv_obj_set_pos(label, x - (context->week ? gap / 2 : 6),
                    chart_height + 4);
   }
+  ESP_LOGD("tile_widget_energy", "Chart height set to %d +%d (Axis height) = %d", chart_height, axis_height, chart_height + axis_height);
   lv_obj_set_height(context->chart, chart_height + axis_height);
 }
 
@@ -331,12 +368,18 @@ void open_energy_popup(lv_event_t *event) {
   lv_obj_add_event_cb(overlay, popup_delete_cb, LV_EVENT_DELETE, context);
 
   lv_obj_t *panel = lv_obj_create(overlay);
-  lv_obj_set_size(panel, 780, 570);
+  const int display_width = lv_disp_get_hor_res(lv_disp_get_default());
+  const int display_height = lv_disp_get_ver_res(lv_disp_get_default());
+  const bool compact = display_height < 560;
+  const int panel_height = display_height;
+  const int panel_padding = compact ? 12 : 18;
+  const int chart_height = display_height * 70 / 100;
+  lv_obj_set_size(panel, display_width, panel_height);
   lv_obj_set_style_bg_color(panel, lv_color_make(0x2A, 0x2A, 0x2A), 0);
   lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, 0);
-  lv_obj_set_style_radius(panel, 18, 0);
+  lv_obj_set_style_radius(panel, 0, 0);
   lv_obj_set_style_border_width(panel, 0, 0);
-  lv_obj_set_style_pad_all(panel, 18, 0);
+  lv_obj_set_style_pad_all(panel, panel_padding, 0);
   lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_align(panel, LV_ALIGN_CENTER, 0, 0);
 
@@ -362,18 +405,20 @@ void open_energy_popup(lv_event_t *event) {
   lv_label_set_text(context->value_label, "--");
   lv_obj_set_style_text_color(context->value_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(context->value_label, ui_font_for_size(28), 0);
-  lv_obj_align(context->value_label, LV_ALIGN_TOP_LEFT, 4, 40);
+  lv_obj_align(context->value_label, LV_ALIGN_TOP_LEFT, 4, compact ? 48 : 40);
 
   context->status_label = lv_label_create(panel);
   lv_label_set_text(context->status_label, "Loading...");
   lv_obj_set_style_text_color(
       context->status_label, lv_color_make(0xB0, 0xB0, 0xB0), 0);
   lv_obj_set_style_text_font(context->status_label, ui_font_for_size(14), 0);
-  lv_obj_align(context->status_label, LV_ALIGN_TOP_LEFT, 4, 76);
+  lv_obj_align(context->status_label, LV_ALIGN_TOP_LEFT, 4,
+               compact ? 82 : 76);
 
   context->day_button = lv_button_create(panel);
   lv_obj_set_size(context->day_button, 90, 38);
-  lv_obj_align(context->day_button, LV_ALIGN_TOP_RIGHT, -110, 48);
+  lv_obj_align(context->day_button, LV_ALIGN_TOP_RIGHT, -110,
+               compact ? 56 : 48);
   lv_obj_t *day_label = lv_label_create(context->day_button);
   lv_label_set_text(day_label, "24H");
   lv_obj_center(day_label);
@@ -382,7 +427,8 @@ void open_energy_popup(lv_event_t *event) {
 
   context->week_button = lv_button_create(panel);
   lv_obj_set_size(context->week_button, 90, 38);
-  lv_obj_align(context->week_button, LV_ALIGN_TOP_RIGHT, -12, 48);
+  lv_obj_align(context->week_button, LV_ALIGN_TOP_RIGHT, -12,
+               compact ? 56 : 48);
   lv_obj_t *week_label = lv_label_create(context->week_button);
   lv_label_set_text(week_label, "7D");
   lv_obj_center(week_label);
@@ -390,14 +436,15 @@ void open_energy_popup(lv_event_t *event) {
                       context);
 
   context->chart = lv_obj_create(panel);
-  lv_obj_set_size(context->chart, 690, 328);
+  lv_obj_set_size(context->chart, display_width - panel_padding * 2,
+                  LV_PCT(70));
   lv_obj_set_style_bg_color(context->chart, lv_color_make(0x20, 0x20, 0x20), 0);
   lv_obj_set_style_bg_opa(context->chart, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(context->chart, 0, 0);
   lv_obj_set_style_pad_all(context->chart, 0, 0);
   lv_obj_clear_flag(context->chart, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(context->chart, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_align(context->chart, LV_ALIGN_TOP_MID, 0, 112);
+  lv_obj_align(context->chart, LV_ALIGN_TOP_MID, 0, compact ? 116 : 112);
   lv_obj_add_event_cb(context->chart, chart_readout_cb, LV_EVENT_ALL, context);
 
   context->readout = lv_label_create(panel);
@@ -421,11 +468,18 @@ void tile_context_delete_cb(lv_event_t *event) {
 
 void tile_widget_build_energy(lv_obj_t *parent, const TileData &tile) {
   const std::string statistic_id = tile.entity_id;
-  const char *heading =
-      tile.title.empty() ? statistic_id.c_str() : tile.title.c_str();
+  EnergySnapshot initial_snapshot;
+  const bool has_snapshot =
+      !statistic_id.empty() && energy_get_snapshot(statistic_id, initial_snapshot);
+  const std::string fallback_title =
+      has_snapshot && !initial_snapshot.name.empty()
+          ? initial_snapshot.name
+          : statistic_id;
+  const std::string heading =
+      tile.title.empty() ? fallback_title : tile.title;
 
   lv_obj_t *title = lv_label_create(parent);
-  lv_label_set_text(title, heading);
+  lv_label_set_text(title, heading.c_str());
   lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
   lv_obj_set_width(title, LV_PCT(78));
   lv_obj_set_style_text_color(title, lv_color_make(0xB0, 0xB0, 0xB0), 0);
@@ -452,7 +506,7 @@ void tile_widget_build_energy(lv_obj_t *parent, const TileData &tile) {
                            tile.sensor_unit);
     auto *context = new EnergyTileContext();
     context->statistic_id = statistic_id;
-    context->title = tile.title.empty() ? statistic_id : tile.title;
+    context->title = heading;
     context->configured_unit = tile.sensor_unit;
     context->decimals =
         tile.sensor_decimals < 0 ? 1 : tile.sensor_decimals;

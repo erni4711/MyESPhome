@@ -737,6 +737,26 @@ void energy_request_refresh(const std::string &statistic_id,
 }
 
 std::string energy_options_json() {
+  std::unordered_map<std::string, std::string> entity_labels;
+  if (FILE *file = fopen("/spiffs/eo_e.json", "rb")) {
+    std::string entity_options_json;
+    char buffer[1024];
+    size_t count = 0;
+    while ((count = fread(buffer, 1, sizeof(buffer), file)) > 0)
+      entity_options_json.append(buffer, count);
+    JsonDocument entity_options;
+    if (deserializeJson(entity_options, entity_options_json) ==
+            DeserializationError::Ok &&
+        entity_options.is<JsonArrayConst>()) {
+      for (JsonObjectConst option : entity_options.as<JsonArrayConst>()) {
+        const char *value = option["v"] | "";
+        const char *text = option["t"] | "";
+        if (value[0] && text[0]) entity_labels[value] = text;
+      }
+    }
+    fclose(file);
+  }
+
   SnapshotLock lock;
   std::vector<const EnergySnapshot *> sources;
   for (const auto &entry : g_records) {
@@ -753,11 +773,12 @@ std::string energy_options_json() {
   for (const auto *source : sources) {
     if (!first) json += ',';
     first = false;
-    std::string label = source->name.empty()
-                            ? humanize_id(source->statistic_id)
-                            : source->name;
-    if (!source->unit.empty()) label += " (" + source->unit + ")";
-    label += " - " + source->statistic_id;
+    const auto label_it = entity_labels.find(source->statistic_id);
+    std::string label =
+        label_it != entity_labels.end()
+            ? label_it->second
+            : (source->name.empty() ? humanize_id(source->statistic_id)
+                                    : source->name);
     json += "{\"v\":\"" + json_escape(source->statistic_id) +
             "\",\"t\":\"" + json_escape(label) + "\"}";
   }

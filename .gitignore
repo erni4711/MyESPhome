@@ -13,7 +13,7 @@ config/components/screenshot/__pycache__
 config/.venv/
 config/.venv
 config/.mypy_cache/
-config/boot.logee
+config/boot.log
 config/sd_mount.log
 config/backup/
 config/components/sd_spi_card/__pycache__/
@@ -39,3 +39,4 @@ config/p4-test.yaml
 config/boards/ESP32-P4-test.yaml
 config/7i-wohn.yaml
 config/7inch.yaml
+config/external_components/hatiadmin/tools/backup/192.168.10.34-all.json

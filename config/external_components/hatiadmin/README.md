@@ -155,6 +155,8 @@ Energy Dashboard, the tile reports it as unavailable instead of falling back
 to a cumulative entity state. The editor lists individual configured Energy
 Dashboard statistics and provides unit override, decimal count, value size,
 popup gesture, and vertical-offset controls.
+The selector displays the friendly statistic name and unit; the statistic ID
+remains the internal option value and is not shown in the descriptor.
 
 The statistics path is native to HATi and uses the existing authenticated Home
 Assistant WebSocket connection. No MQTT bridge or additional Home Assistant
