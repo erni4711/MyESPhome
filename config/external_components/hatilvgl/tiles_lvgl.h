@@ -25,6 +25,8 @@ bool set_home_assistant_media_volume(const char *entity_id, float volume);
 bool set_home_assistant_media_mute(const char *entity_id, bool muted);
 bool set_home_assistant_media_position(const char *entity_id, float position);
 bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct);
+bool set_home_assistant_select_option(const char *entity_id, const char *option);
+bool press_home_assistant_button(const char *entity_id);
 bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin);
 bool set_home_assistant_light_rgb(const char *entity_id, int red, int green, int blue);
 bool set_home_assistant_light_effect(const char *entity_id, const char *effect);
@@ -88,10 +90,10 @@ void register_ha_weather_widget(const std::string &entity_id, lv_obj_t *icon_lab
 void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
                              lv_obj_t *brightness, lv_obj_t *color_temp,
                              lv_obj_t *red, lv_obj_t *green, lv_obj_t *blue);
-void register_ha_wled_widget(const std::string &entity_id, lv_obj_t *power,
-                             lv_obj_t *brightness, lv_obj_t *red,
-                             lv_obj_t *green, lv_obj_t *blue,
-                             lv_obj_t *effect);
+void register_ha_wled_widget(const std::string &entity_id,
+                             lv_obj_t *brightness, lv_obj_t *preset_dropdown = nullptr);
+void register_ha_wled_preset_widget(const std::string &entity_id,
+                                    lv_obj_t *preset_dropdown);
 void unregister_ha_light_popup(lv_obj_t *popup);
 void unregister_ha_widget_object(lv_obj_t *object);
 
@@ -138,7 +140,9 @@ void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
                          const std::string &brightness, const std::string &red,
                          const std::string &green, const std::string &blue,
                          const std::string &effect,
-                         const std::string &effect_list);
+                         const std::string &effect_list,
+                         const std::string &preset_options = "",
+                         const std::string &preset_state = "");
 
 
 // ── Tile data ─────────────────────────────────────────────────────────────────
@@ -168,6 +172,8 @@ struct TileData {
   std::string cover_entity;
   std::string camera_entity;
   std::string wled_entity;
+  std::string wled_preset_entity;
+  std::string wled_restart_entity;
   std::string animation_file;
   std::string text_value;
   int     text_value_font     = 0;
@@ -281,6 +287,7 @@ class TilesLvglRenderer {
 // ── Global renderer instance (set in WebAdminLocal::setup) ───────────────────
 // Declared here, defined in tiles_lvgl.cpp.
 extern TilesLvglRenderer *g_tiles_renderer;
+void hatilvgl_publish_displayed_folder(int folder_id);
 
 // Read tile grid for one folder from SPIFFS.
 std::vector<TileData> read_tile_grid_for_lvgl(int folder_id);

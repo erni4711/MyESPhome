@@ -98,16 +98,41 @@ web_admin_local:
 The endpoint returns HTTP 503 when the REST settings are absent and HTTP 502
 when Home Assistant cannot be reached or returns invalid JSON.
 
+## Displayed folder select
+
+The `hatilvgl` component automatically exposes a Home Assistant select entity
+named **Displayed Folder**. Its options use the names stored in
+`/spiffs/t_folders.json`. Selecting an option in Home Assistant changes the
+folder displayed by HATi, while navigation performed on the touchscreen
+updates the select entity's state.
+
 ## Home Assistant websocket live updates
 
 ### WLED tile
 
 The HATi tile editor includes a **WLED** tile type for Home Assistant
 `light.*` entities backed by WLED. The tile displays live power, brightness,
-and RGB values and provides controls for power, brightness, RGB color, and
-cycling through common WLED effects. Actions use Home Assistant's
-`light.turn_on`/`light.turn_off` REST services, while the existing WebSocket
-connection keeps the tile synchronized with Home Assistant state changes.
+and optionally a preset dropdown backed by a Home Assistant `select.*` entity.
+The editor limits these fields to main WLED lights and their matching
+`Preset`/`Restart` entities, excluding segment controls. Moving the brightness
+control to zero calls `light.turn_off`; moving it above zero calls
+`light.turn_on` with the selected brightness. The existing WebSocket connection
+keeps the controls synchronized with Home Assistant state changes, including
+the select entity's `options` attribute and current state. Preset changes call
+`select.select_option`. When a restart entity is configured, the tile shows a
+bottom-left restart icon button that calls `button.press`.
+For existing WLED tiles that only store the main `light.*` entity, HATi infers
+the standard WLED companion entity IDs (for example, `light.wled_3` maps to
+`select.wled_preset_3` and `button.wled_restart_3`). The editor replaces these
+inferred values with the matching entities discovered from Home Assistant and
+persists them automatically.
+
+### Media player tile
+
+Media player tiles include an inline volume slider above the playback controls.
+The slider calls Home Assistant's `media_player.volume_set` service and its
+position and percentage label stay synchronized with `volume_level` updates.
+The existing media popup retains its larger volume and mute controls.
 
 In addition to the REST calls above (used for switch toggles and the entity
 picker), `web_admin_local` opens a persistent `ws://` or `wss://` connection

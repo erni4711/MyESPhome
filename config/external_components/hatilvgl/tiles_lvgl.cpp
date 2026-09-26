@@ -4,6 +4,7 @@
 #include <esp_log.h>
 #include <esp_heap_caps.h>
 #include <lvgl.h>
+#include <src/widgets/dropdown/lv_dropdown.h>
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
 #include <esp_task_wdt.h>
@@ -305,6 +306,7 @@ struct SensorWidgetBinding {
   lv_obj_t *light_blue = nullptr;
   lv_obj_t *wled_power = nullptr;
   lv_obj_t *wled_brightness = nullptr;
+  lv_obj_t *wled_preset = nullptr;
   lv_obj_t *wled_red = nullptr;
   lv_obj_t *wled_green = nullptr;
   lv_obj_t *wled_blue = nullptr;
@@ -1076,21 +1078,15 @@ void register_ha_light_popup(const std::string &entity_id, lv_obj_t *popup,
   ESP_LOGD(TAG, "Registered light popup for %s", entity_id.c_str());
 }
 
-void register_ha_wled_widget(const std::string &entity_id, lv_obj_t *power,
-                             lv_obj_t *brightness, lv_obj_t *red,
-                             lv_obj_t *green, lv_obj_t *blue,
-                             lv_obj_t *effect) {
-  if (entity_id.empty() || power == nullptr) {
+void register_ha_wled_widget(const std::string &entity_id,
+                             lv_obj_t *brightness, lv_obj_t *preset_dropdown) {
+  if (entity_id.empty() || brightness == nullptr) {
     ESP_LOGW(TAG, "Ignoring invalid WLED widget for entity '%s'", entity_id.c_str());
     return;
   }
   SensorWidgetBinding binding;
-  binding.wled_power = power;
   binding.wled_brightness = brightness;
-  binding.wled_red = red;
-  binding.wled_green = green;
-  binding.wled_blue = blue;
-  binding.wled_effect = effect;
+  binding.wled_preset = preset_dropdown;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
   const auto watch = [](lv_obj_t *object) {
@@ -1101,12 +1097,21 @@ void register_ha_wled_widget(const std::string &entity_id, lv_obj_t *power,
             static_cast<lv_obj_t *>(lv_event_get_current_target(event)));
     }, LV_EVENT_DELETE, nullptr);
   };
-  watch(power);
   watch(brightness);
-  watch(red);
-  watch(green);
-  watch(blue);
-  watch(effect);
+}
+
+void register_ha_wled_preset_widget(const std::string &entity_id,
+                                    lv_obj_t *preset_dropdown) {
+  if (entity_id.empty() || preset_dropdown == nullptr) return;
+  SensorWidgetBinding binding;
+  binding.wled_preset = preset_dropdown;
+  MutexGuard lock(widget_registry_mutex());
+  g_sensor_widget_bindings[entity_id].push_back(binding);
+  lv_obj_add_event_cb(preset_dropdown, [](lv_event_t *event) {
+    if (lv_event_get_code(event) == LV_EVENT_DELETE)
+      unregister_ha_widget_object(static_cast<lv_obj_t *>(
+          lv_event_get_current_target(event)));
+  }, LV_EVENT_DELETE, nullptr);
 }
 
 void unregister_ha_light_popup(lv_obj_t *popup) {
@@ -1162,12 +1167,8 @@ void unregister_ha_widget_object(lv_obj_t *object) {
              binding.light_red == object ||
              binding.light_green == object ||
              binding.light_blue == object ||
-             binding.wled_power == object ||
              binding.wled_brightness == object ||
-             binding.wled_red == object ||
-             binding.wled_green == object ||
-             binding.wled_blue == object ||
-             binding.wled_effect == object ||
+             binding.wled_preset == object ||
              std::any_of(std::begin(binding.weather_forecast),
                          std::end(binding.weather_forecast),
                          [object](lv_obj_t *forecast) { return forecast == object; }) ||
@@ -1442,6 +1443,18 @@ void apply_ha_entity_state(const JsonDocument &state) {
     apply_ha_light_state(id, value, brightness, color_temp, red, green, blue);
     apply_ha_wled_state(id, value, brightness, red, green, blue, effect,
                         effect_list);
+    return;
+  }
+
+  if (id.rfind("select.", 0) == 0) {
+    std::string options;
+    for (JsonVariantConst item : attributes["options"].as<JsonArrayConst>()) {
+      const char *option = item | "";
+      if (option == nullptr) continue;
+      if (!options.empty()) options += "\n";
+      options += option;
+    }
+    apply_ha_wled_state(id, value, "", "", "", "", "", "", options, value);
     return;
   }
 
@@ -1907,8 +1920,10 @@ void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
                          const std::string &brightness, const std::string &red,
                          const std::string &green, const std::string &blue,
                          const std::string &effect,
-                         const std::string &effect_list) {
-  (void) effect_list;
+                         const std::string &effect_list,
+                         const std::string &preset_options,
+                         const std::string &preset_state) {
+  (void) effect_list; (void) effect; (void) red; (void) green; (void) blue;
   if (entity_id.empty()) return;
 
   std::vector<SensorWidgetBinding> bindings;
@@ -1920,34 +1935,26 @@ void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
   }
 
   const bool is_on = state == "on";
-  auto set_rgb_slider = [](lv_obj_t *slider, const std::string &value) {
-    if (slider == nullptr || value.empty()) return;
-    const int channel = std::max(0, std::min(255, std::atoi(value.c_str())));
-    lv_slider_set_value(slider, channel, LV_ANIM_OFF);
-  };
-
   for (const auto &binding : bindings) {
-    if (binding.wled_power == nullptr) continue;
+    if (binding.wled_brightness == nullptr && binding.wled_preset == nullptr) continue;
 
-    if (is_on) {
-      lv_obj_add_state(binding.wled_power, LV_STATE_CHECKED);
-    } else {
-      lv_obj_clear_state(binding.wled_power, LV_STATE_CHECKED);
-    }
-    lv_obj_t *power_label = lv_obj_get_child(binding.wled_power, 0);
-    if (power_label != nullptr)
-      lv_label_set_text(power_label, is_on ? "ON" : "OFF");
-
-    if (binding.wled_brightness != nullptr && !brightness.empty()) {
+    if (binding.wled_brightness != nullptr && is_on && !brightness.empty()) {
       const int raw = std::max(0, std::min(255, std::atoi(brightness.c_str())));
       lv_slider_set_value(binding.wled_brightness, raw * 100 / 255,
                           LV_ANIM_OFF);
+    } else if (binding.wled_brightness != nullptr && !is_on) {
+      lv_slider_set_value(binding.wled_brightness, 0, LV_ANIM_OFF);
     }
-    set_rgb_slider(binding.wled_red, red);
-    set_rgb_slider(binding.wled_green, green);
-    set_rgb_slider(binding.wled_blue, blue);
-    if (binding.wled_effect != nullptr && !effect.empty())
-      lv_label_set_text(binding.wled_effect, effect.c_str());
+    if (binding.wled_preset != nullptr) {
+      if (!preset_options.empty())
+        lv_dropdown_set_options(binding.wled_preset, preset_options.c_str());
+      if (!preset_state.empty()) {
+        const uint32_t index = lv_dropdown_get_option_index(
+            binding.wled_preset, preset_state.c_str());
+        if (index < lv_dropdown_get_option_count(binding.wled_preset))
+          lv_dropdown_set_selected(binding.wled_preset, index);
+      }
+    }
   }
 }
 
@@ -1973,6 +1980,8 @@ void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id
                  tile.type == TILE_CLIMATE || tile.type == TILE_CAMERA ||
                  tile.type == TILE_COVER || tile.type == TILE_WLED) {
         add_unique(tile.entity_id);
+        if (tile.type == TILE_WLED) add_unique(tile.wled_preset_entity);
+        if (tile.type == TILE_WLED) add_unique(tile.wled_restart_entity);
       }
   }
 }
@@ -2022,6 +2031,78 @@ bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
 
   if (result != ESP_OK || status < 200 || status >= 300) {
     ESP_LOGW(TAG, "Home Assistant toggle failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  return true;
+}
+
+bool set_home_assistant_select_option(const char *entity_id, const char *option) {
+  if (!entity_id || !option || !entity_id[0] || !option[0] ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot select option: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (!dot || std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "select") {
+    ESP_LOGW(TAG, "Cannot select option for non-select entity: %s", entity_id);
+    return false;
+  }
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/select/select_option";
+  esp_http_client_config_t config = {};
+  config.url = url.c_str(); config.method = HTTP_METHOD_POST; config.timeout_ms = 5000;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (!client) return false;
+  const std::string auth = "Bearer " + home_assistant_token;
+  JsonDocument body_doc;
+  body_doc["entity_id"] = entity_id;
+  body_doc["option"] = option;
+  std::string body;
+  serializeJson(body_doc, body);
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body.c_str(), static_cast<int>(body.size()));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant select option failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  return true;
+}
+
+bool press_home_assistant_button(const char *entity_id) {
+  if (!entity_id || !entity_id[0] || home_assistant_url.empty() ||
+      home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot press button: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (!dot || std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "button") {
+    ESP_LOGW(TAG, "Cannot press non-button entity: %s", entity_id);
+    return false;
+  }
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/button/press";
+  esp_http_client_config_t config = {};
+  config.url = url.c_str(); config.method = HTTP_METHOD_POST; config.timeout_ms = 5000;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (!client) return false;
+  const std::string auth = "Bearer " + home_assistant_token;
+  const std::string body = std::string("{\"entity_id\":\"") + entity_id + "\"}";
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body.c_str(), static_cast<int>(body.size()));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant button press failed for %s (status=%d, error=%s)",
              entity_id, status, esp_err_to_name(result));
     return false;
   }
@@ -2570,6 +2651,27 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
   else if (doc["tiles"].is<JsonArray>())  arr = doc["tiles"].as<JsonArray>();
   else return result;
 
+  auto infer_wled_companion = [](const std::string &light_entity,
+                                 const char *domain,
+                                 const char *role) {
+    if (light_entity.rfind("light.", 0) != 0) return std::string();
+    const std::string object_id = light_entity.substr(6);
+    if (object_id.empty()) return std::string();
+    size_t digit_start = object_id.size();
+    while (digit_start > 0 &&
+           std::isdigit(static_cast<unsigned char>(object_id[digit_start - 1]))) {
+      --digit_start;
+    }
+    std::string stem = object_id;
+    std::string numeric_suffix;
+    if (digit_start > 0 && digit_start < object_id.size() &&
+        object_id[digit_start - 1] == '_') {
+      stem = object_id.substr(0, digit_start - 1);
+      numeric_suffix = object_id.substr(digit_start - 1);
+    }
+    return std::string(domain) + "." + stem + "_" + role + numeric_suffix;
+  };
+
   int idx = 0;
   for (JsonObject t : arr) {
     if (idx >= 35) break;
@@ -2595,6 +2697,18 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
       default:           legacy_entity = t["sensor_entity"] | ""; break;
     }
     d.entity_id         = t["entity_id"] | legacy_entity;
+    d.wled_preset_entity = t["wled_preset_entity"] | "";
+    d.wled_restart_entity = t["wled_restart_entity"] | "";
+    if (d.type == TILE_WLED && !d.entity_id.empty()) {
+      if (d.wled_preset_entity.empty()) {
+        d.wled_preset_entity =
+            infer_wled_companion(d.entity_id, "select", "preset");
+      }
+      if (d.wled_restart_entity.empty()) {
+        d.wled_restart_entity =
+            infer_wled_companion(d.entity_id, "button", "restart");
+      }
+    }
     d.sensor_unit       = t["sensor_unit"]      | "";
     d.sensor_decimals   = t["sensor_decimals"]  | -1;
     d.sensor_display_mode = t["sensor_display_mode"] | 0;
@@ -2992,6 +3106,7 @@ void TilesLvglRenderer::show_folder(int folder_id) {
   // navigation never performs SPIFFS I/O and widget destruction synchronously
   // from an LVGL event callback.
   request_refresh_folder(folder_id);
+  hatilvgl_publish_displayed_folder(folder_id);
   ESP_LOGI(TAG, "%s folder %d", page ? "Refreshing" : "Loading", folder_id);
 
 }

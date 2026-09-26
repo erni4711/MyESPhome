@@ -801,6 +801,11 @@ lvgl:
             type: flex
             flex_flow: row
           widgets: []
+      - dropdown:
+          id: lvgl_feature_dropdown
+          hidden: true
+          options:
+            - ""
       # - obj:
       #     styles: header_footer
       #     bg_opa: COVER

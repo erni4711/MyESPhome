@@ -1,10 +1,14 @@
 #pragma once
 
+#include <array>
+#include <string>
+
 #include "ha_ws_client.h"
 #include "tiles_lvgl.h"
 #include "esphome/core/component.h"
 #include "esphome/components/light/light_state.h"
 #include "esphome/components/number/number.h"
+#include "esphome/components/select/select.h"
 
 namespace web_admin_local {
 
@@ -16,6 +20,20 @@ void settings_set_display_controls(esphome::light::LightState *backlight,
                                    esphome::number::Number *timeout);
 void settings_set_brightness(float brightness);
 void settings_set_timeout(float timeout);
+void hatilvgl_publish_displayed_folder(int folder_id);
+
+class HATiFolderSelect : public esphome::select::Select {
+ public:
+  void configure_folders();
+  void publish_folder(int folder_id);
+
+ protected:
+  void control(size_t index) override;
+
+  std::array<std::string, 10> folder_options_;
+  std::array<int, 10> folder_ids_{};
+  size_t folder_count_ = 0;
+};
 
 class HATiLvglComponent : public esphome::Component {
  public:
@@ -35,30 +53,19 @@ class HATiLvglComponent : public esphome::Component {
     timeout_ = timeout;
   }
 
-  void setup() override {
-    ESP_LOGI("hatilvgl", "Calling ha_ws_client_configure");
-    ha_ws_client_configure(home_assistant_url_, home_assistant_token_);
-    settings_set_display_controls(backlight_, timeout_);
-    renderer_start_after_ = esphome::millis() + 5000;
+  void set_folder_select(HATiFolderSelect *folder_select) {
+    folder_select_ = folder_select;
   }
 
-  void loop() override {
-    if (!hatilvgl_is_api_connected()) return;
-    if (esphome::millis() < renderer_start_after_) return;
-    if (g_tiles_renderer == nullptr) {
-      g_tiles_renderer = new TilesLvglRenderer();
-      g_tiles_renderer->setup();
-      g_tiles_renderer->show_folder(0);
-      ESP_LOGI("hatilvgl", "TilesLvglRenderer created; home page load queued");
-    }
-    g_tiles_renderer->process_pending_refreshes();
-  }
+  void setup() override;
+  void loop() override;
 
  protected:
   std::string home_assistant_url_;
   std::string home_assistant_token_;
   esphome::light::LightState *backlight_ = nullptr;
   esphome::number::Number *timeout_ = nullptr;
+  HATiFolderSelect *folder_select_ = nullptr;
   uint32_t renderer_start_after_ = 0;
 };
 

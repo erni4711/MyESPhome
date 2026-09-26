@@ -821,6 +821,11 @@ lvgl:
           type: flex
           flex_flow: row
         widgets: []
+    - dropdown:
+        id: lvgl_feature_dropdown
+        hidden: true
+        options:
+          - ""
 
   on_swipe_left:
     - lvgl.page.next:

@@ -1732,11 +1732,72 @@ function t(key) {
   function refreshEntityOptionLists(tab) {
     return fetchEntityOptions()
       .then(data => {
+        const entryName = entry => String(entry?.t || entry?.v || '').trim();
+        const stripSuffix = (entry, suffix) => {
+          const name = entryName(entry);
+          return name.toLowerCase().endsWith(suffix.toLowerCase())
+            ? name.slice(0, -suffix.length).trim()
+            : '';
+        };
+        const presets = Array.isArray(data.selects)
+          ? data.selects.filter(entry => stripSuffix(entry, ' Preset'))
+          : [];
+        const restarts = Array.isArray(data.buttons)
+          ? data.buttons.filter(entry => stripSuffix(entry, ' Restart'))
+          : [];
+        const presetBases = new Set(
+          presets.map(entry => stripSuffix(entry, ' Preset')));
+        const restartBases = new Set(
+          restarts.map(entry => stripSuffix(entry, ' Restart')));
+        const wledBases = new Set(
+          [...presetBases].filter(base => restartBases.has(base)));
+        const wledLights = (Array.isArray(data.switches) ? data.switches : [])
+          .filter(entry => {
+            const name = entryName(entry);
+            const lowerName = name.toLowerCase();
+            return String(entry?.v || '').startsWith('light.') &&
+              !lowerName.includes(' segment ') &&
+              !lowerName.endsWith(' main') &&
+              wledBases.has(name);
+          });
+        const wledPresets = presets.filter(
+          entry => wledBases.has(stripSuffix(entry, ' Preset')));
+        const wledRestarts = restarts.filter(
+          entry => wledBases.has(stripSuffix(entry, ' Restart')));
         rebuildEntitySelect(tab + '_sensor_entity', data.sensors);
         rebuildEntitySelect(tab + '_energy_entity', data.energy);
         rebuildEntitySelect(tab + '_weather_entity', data.weathers);
         rebuildEntitySelect(tab + '_switch_entity', data.switches);
-        rebuildEntitySelect(tab + '_wled_entity', data.switches);
+        rebuildEntitySelect(tab + '_wled_entity', wledLights);
+        rebuildEntitySelect(tab + '_wled_preset_entity', wledPresets);
+        rebuildEntitySelect(tab + '_wled_restart_entity', wledRestarts);
+        const wledLightSelect =
+          document.getElementById(tab + '_wled_entity');
+        const selectedLight = wledLights.find(
+          entry => String(entry?.v || '') === String(wledLightSelect?.value || ''));
+        const selectedBase = entryName(selectedLight);
+        let inferredCompanion = false;
+        const selectCompanion = (id, entries, suffix) => {
+          const select = document.getElementById(id);
+          if (!select || select.value || !selectedBase) return;
+          const match = entries.find(
+            entry => stripSuffix(entry, suffix) === selectedBase);
+          if (!match) return;
+          select.value = String(match.v || '');
+          if (!select.value) return;
+          select.dataset.configuredValue = select.value;
+          inferredCompanion = true;
+        };
+        selectCompanion(
+          tab + '_wled_preset_entity', wledPresets, ' Preset');
+        selectCompanion(
+          tab + '_wled_restart_entity', wledRestarts, ' Restart');
+        if (inferredCompanion &&
+            currentTileTab === tab &&
+            document.getElementById(tab + '_tile_type')?.value === '21') {
+          updateDraft(tab);
+          scheduleAutoSave(tab);
+        }
         rebuildEntitySelect(tab + '_media_entity', data.media);
         rebuildEntitySelect(tab + '_climate_entity', data.climates);
         rebuildEntitySelect(tab + '_cover_entity', data.covers);
@@ -1989,10 +2050,12 @@ function t(key) {
   function setNavigateTargetOptions(options) {
     const folderOptions = Array.isArray(options) ? options : [];
     document.querySelectorAll('select[id$="_navigate_target"]').forEach(select => {
-      const selectedValue = select.value;
-      Array.from(select.options).forEach(option => {
-        if (Number(option.value) > 0) option.remove();
-      });
+      const selectedValue = select.dataset.configuredValue ?? select.value;
+      select.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '-- Select --';
+      select.appendChild(placeholder);
       folderOptions.forEach(folder => {
         const option = document.createElement('option');
         option.value = String(folder.value);
@@ -2001,13 +2064,15 @@ function t(key) {
       });
       if (Array.from(select.options).some(option => option.value === selectedValue)) {
         select.value = selectedValue;
+      } else {
+        select.value = '';
       }
     });
   }
 
   function ensureNavigateTargetOption(folderId, label) {
     const value = Number(folderId);
-    if (!Number.isInteger(value) || value <= 0) return;
+    if (!Number.isInteger(value) || value < 0) return;
     if (!Array.isArray(navigateFolderOptions)) {
       navigateFolderOptions = [];
     }
@@ -2030,7 +2095,7 @@ function t(key) {
     navigateFolderOptions = folders
       .map(folder => {
         const id = Number(folder?.id);
-        if (!Number.isInteger(id) || id <= 0) return null;
+        if (!Number.isInteger(id) || id < 0) return null;
         return {
           value: id,
           label: String(folder?.name || formatFolderLabel('', id)).trim()
@@ -2060,7 +2125,7 @@ function t(key) {
         document.querySelectorAll('.folder-tab-btn[data-folder-id]'))
         .map(button => {
           const folderId = Number(button.dataset.folderId);
-          if (!Number.isInteger(folderId) || folderId <= 0) return null;
+          if (!Number.isInteger(folderId) || folderId < 0) return null;
           const buttonLabel = button.querySelector('span')?.textContent || '';
           return {
             value: String(folderId),
@@ -2072,10 +2137,12 @@ function t(key) {
 
     tabEl.querySelectorAll('select[id$="_navigate_target"]')
       .forEach(select => {
-        const selectedValue = select.value;
-        Array.from(select.options).forEach(option => {
-          if (Number(option.value) > 0) option.remove();
-        });
+        const selectedValue = select.dataset.configuredValue ?? select.value;
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Select --';
+        select.appendChild(placeholder);
         folderOptions.forEach(folder => {
           const option = document.createElement('option');
           option.value = folder.value;
@@ -2085,9 +2152,7 @@ function t(key) {
         const selectedExists = Array.from(select.options)
           .some(option => option.value === selectedValue);
         if (selectedExists) select.value = selectedValue;
-        else if (Array.from(select.options).some(option => option.value === '0')) {
-          select.value = '0';
-        }
+        else select.value = '';
       });
   }
 
@@ -3034,6 +3099,11 @@ function t(key) {
     const switchSelect = document.getElementById(prefix + '_switch_entity');
     const switchStyleSelect = document.getElementById(prefix + '_switch_style');
     const switchPopupModeSelect = document.getElementById(prefix + '_switch_popup_open_mode');
+    const wledSelect = document.getElementById(prefix + '_wled_entity');
+    const wledPresetSelect =
+      document.getElementById(prefix + '_wled_preset_entity');
+    const wledRestartSelect =
+      document.getElementById(prefix + '_wled_restart_entity');
     const mediaSelect = document.getElementById(prefix + '_media_entity');
     const climateSelect = document.getElementById(prefix + '_climate_entity');
     const coverSelect = document.getElementById(prefix + '_cover_entity');
@@ -3138,9 +3208,15 @@ function t(key) {
     bindLive(textInput, 'input', 'textValue', () => { updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(textFontInput, 'change', 'textFont', () => { updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(navigateSelect, 'change', 'navigateTarget', () => {
+      navigateSelect.dataset.configuredValue = navigateSelect.value;
       syncFolderPinControls(tab);
-      updateTilePreview(tab);
       updateDraft(tab);
+      updateTilePreview(tab);
+      const tile = document.getElementById(
+        tab + '-tile-' + currentTileIndex);
+      if (tile && currentTileTab === tab) {
+        tile.dataset.navigateTarget = navigateSelect.value || '0';
+      }
       scheduleAutoSave(tab);
     });
     bindLive(folderPinToggle, 'change', 'folderPinToggle', () => {
@@ -3158,6 +3234,35 @@ function t(key) {
     bindLive(switchSelect, 'change', 'switchEntity', () => { maybeFillTitleFromSwitch(tab); updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(switchStyleSelect, 'change', 'switchStyle', () => { updateTilePreview(tab); updateDraft(tab); scheduleAutoSave(tab); });
     bindLive(switchPopupModeSelect, 'change', 'switchPopupMode', () => { updateDraft(tab); scheduleAutoSave(tab); });
+    bindLive(wledSelect, 'change', 'wledEntity', () => {
+      if (wledSelect.value) {
+        wledSelect.dataset.configuredValue = wledSelect.value;
+      } else {
+        delete wledSelect.dataset.configuredValue;
+      }
+      maybeFillTitleFromEntity(tab, '_wled_entity');
+      updateTilePreview(tab);
+      updateDraft(tab);
+      scheduleAutoSave(tab);
+    });
+    bindLive(wledPresetSelect, 'change', 'wledPresetEntity', () => {
+      if (wledPresetSelect.value) {
+        wledPresetSelect.dataset.configuredValue = wledPresetSelect.value;
+      } else {
+        delete wledPresetSelect.dataset.configuredValue;
+      }
+      updateDraft(tab);
+      scheduleAutoSave(tab);
+    });
+    bindLive(wledRestartSelect, 'change', 'wledRestartEntity', () => {
+      if (wledRestartSelect.value) {
+        wledRestartSelect.dataset.configuredValue = wledRestartSelect.value;
+      } else {
+        delete wledRestartSelect.dataset.configuredValue;
+      }
+      updateDraft(tab);
+      scheduleAutoSave(tab);
+    });
     bindLive(mediaSelect, 'change', 'mediaEntity', () => {
       if (mediaSelect.value) {
         mediaSelect.dataset.configuredValue = mediaSelect.value;
@@ -3860,17 +3965,10 @@ function t(key) {
               tilesData[tab][tileIndex].folder_pin =
                 String(data?.folder_pin || '');
             }
+            const tile = document.getElementById(tab + '-tile-' + tileIndex);
+            if (tile) tile.dataset.navigateTarget = resolvedNavTarget;
             syncFolderPinControls(tab);
-            const navTargetNum = parseInt(resolvedNavTarget, 10);
-            // Loading the target tab must not use the navigate tile's title or
-            // icon as folder metadata.
-            ensureFolderTabUi(navTargetNum).then(ok => {
-              restoreCurrentTileSelectionUi();
-              if (!ok) {
-                persistSelectedTileState();
-                setTimeout(() => location.reload(), 400);
-              }
-            });
+            restoreCurrentTileSelectionUi();
           }
           if (previousType === 4 && typeValue === '0') {
             persistSelectedTileState();
@@ -7554,9 +7652,24 @@ function normalizeIconName(value) {
 
   function loadNavigateFields(tab, data) {
     const prefix = tab;
+    const target = document.getElementById(prefix + '_navigate_target');
     const toggle = document.getElementById(prefix + '_folder_pin_enabled');
     const input = document.getElementById(prefix + '_folder_pin');
     const status = document.getElementById(prefix + '_folder_pin_status');
+    if (target) {
+      const value = String(data?.navigate_target ?? '0');
+      target.dataset.configuredValue = value;
+      if (Array.isArray(navigateFolderOptions)) {
+        setNavigateTargetOptions(navigateFolderOptions);
+      }
+      if (!Array.from(target.options).some(option => option.value === value)) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        target.appendChild(option);
+      }
+      target.value = value;
+    }
     if (toggle) toggle.checked = data?.folder_pin_enabled === true;
     if (input) {
       input.value = String(data?.folder_pin || '');
@@ -7585,9 +7698,14 @@ function normalizeIconName(value) {
 
   function resetNavigateFields(tab) {
     const prefix = tab;
+    const target = document.getElementById(prefix + '_navigate_target');
     const toggle = document.getElementById(prefix + '_folder_pin_enabled');
     const input = document.getElementById(prefix + '_folder_pin');
     const status = document.getElementById(prefix + '_folder_pin_status');
+    if (target) {
+      target.value = '';
+      delete target.dataset.configuredValue;
+    }
     if (toggle) toggle.checked = false;
     if (input) {
       input.value = '';
@@ -10728,12 +10846,42 @@ function loadCameraFields(tab, data) {
     if (configured) el.dataset.configuredValue = configured;
     else delete el.dataset.configuredValue;
     maybeFillTitleFromEntity(tab, '_wled_entity');
+    const preset = document.getElementById(tab + '_wled_preset_entity');
+    const presetValue = data.wled_preset_entity || '';
+    if (preset) {
+      if (presetValue && !Array.from(preset.options).some(opt => opt.value === presetValue)) {
+        const option = document.createElement('option');
+        option.value = presetValue;
+        option.textContent = presetValue;
+        preset.appendChild(option);
+      }
+      preset.value = presetValue;
+      if (presetValue) preset.dataset.configuredValue = presetValue;
+      else delete preset.dataset.configuredValue;
+    }
+    const restart = document.getElementById(tab + '_wled_restart_entity');
+    const restartValue = data.wled_restart_entity || '';
+    if (restart) {
+      if (restartValue && !Array.from(restart.options).some(opt => opt.value === restartValue)) {
+        const option = document.createElement('option');
+        option.value = restartValue;
+        option.textContent = restartValue;
+        restart.appendChild(option);
+      }
+      restart.value = restartValue;
+      if (restartValue) restart.dataset.configuredValue = restartValue;
+      else delete restart.dataset.configuredValue;
+    }
   }
 
   function saveWledFields(tab, formData) {
     const entity = document.getElementById(tab + '_wled_entity')?.value || '';
     formData.append('wled_entity', entity);
     formData.append('sensor_entity', entity);
+    formData.append('wled_preset_entity',
+      document.getElementById(tab + '_wled_preset_entity')?.value || '');
+    formData.append('wled_restart_entity',
+      document.getElementById(tab + '_wled_restart_entity')?.value || '');
   }
 
   function resetWledFields(tab) {
@@ -10741,6 +10889,16 @@ function loadCameraFields(tab, data) {
     if (el) {
       el.value = '';
       delete el.dataset.configuredValue;
+    }
+    const preset = document.getElementById(tab + '_wled_preset_entity');
+    if (preset) {
+      preset.value = '';
+      delete preset.dataset.configuredValue;
+    }
+    const restart = document.getElementById(tab + '_wled_restart_entity');
+    if (restart) {
+      restart.value = '';
+      delete restart.dataset.configuredValue;
     }
   }
 

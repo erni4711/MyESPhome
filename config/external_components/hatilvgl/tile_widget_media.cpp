@@ -409,7 +409,31 @@ void tile_widget_build_media(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_text_font(state, ui_font_for_size(12), 0);
   lv_obj_set_style_text_align(state, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_width(state, LV_PCT(100));
-  lv_obj_align(state, LV_ALIGN_BOTTOM_MID, 0, -38);
+  lv_obj_align(state, LV_ALIGN_BOTTOM_MID, 0, -66);
+
+  lv_obj_t *volume_icon = lv_label_create(parent);
+  const std::string volume_icon_char = getMdiChar("volume-high");
+  lv_label_set_text(volume_icon,
+                    volume_icon_char.empty() ? "?" : volume_icon_char.c_str());
+  lv_obj_set_style_text_color(volume_icon, muted, 0);
+  lv_obj_set_style_text_font(volume_icon, FONT_MDI_ICONS, 0);
+  lv_obj_align(volume_icon, LV_ALIGN_BOTTOM_LEFT, 0, -43);
+
+  lv_obj_t *volume_slider = lv_slider_create(parent);
+  lv_obj_set_width(volume_slider, LV_PCT(62));
+  lv_obj_set_height(volume_slider, 12);
+  lv_slider_set_range(volume_slider, 0, 100);
+  lv_slider_set_value(volume_slider, 50, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(volume_slider, lv_color_make(0x18, 0x3B, 0x52), 0);
+  lv_obj_set_style_bg_color(volume_slider, accent, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(volume_slider, white, LV_PART_KNOB);
+  lv_obj_align(volume_slider, LV_ALIGN_BOTTOM_MID, 0, -46);
+
+  lv_obj_t *volume_label = lv_label_create(parent);
+  lv_label_set_text(volume_label, "50%");
+  lv_obj_set_style_text_color(volume_label, muted, 0);
+  lv_obj_set_style_text_font(volume_label, ui_font_for_size(11), 0);
+  lv_obj_align(volume_label, LV_ALIGN_BOTTOM_RIGHT, 0, -43);
 
   lv_obj_t *controls = lv_obj_create(parent);
   lv_obj_set_size(controls, LV_PCT(100), 36);
@@ -426,6 +450,15 @@ void tile_widget_build_media(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *play_pause = nullptr;
   lv_obj_t *next = nullptr;
   if (!entity.empty()) {
+    auto *volume_context = new MediaVolumeContext{};
+    std::snprintf(volume_context->entity_id,
+                  sizeof(volume_context->entity_id), "%s", entity.c_str());
+    volume_context->value_label = volume_label;
+    lv_obj_add_event_cb(volume_slider, media_volume_cb, LV_EVENT_RELEASED,
+                        volume_context);
+    lv_obj_add_event_cb(volume_slider, media_volume_context_delete_cb,
+                        LV_EVENT_DELETE, volume_context);
+
     previous = create_media_button(controls, entity.c_str(),
                                    "media_previous_track", "skip-previous");
     play_pause = create_media_button(controls, entity.c_str(),
@@ -438,7 +471,7 @@ void tile_widget_build_media(lv_obj_t *parent, const TileData &tile) {
 
   if (!entity.empty()) {
     register_ha_media_widget(entity, title, subtitle, state, play_pause, icon,
-                             artwork);
+                             artwork, volume_slider, volume_label);
     auto *popup_context = new MediaPopupContext{};
     std::snprintf(popup_context->entity_id, sizeof(popup_context->entity_id),
                   "%s", entity.c_str());

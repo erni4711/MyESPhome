@@ -22,8 +22,8 @@
     ["HATiSetup", "/admin"],
     ["HATiConfig", "/admin/tiles"],
     ["Device Screenshot", "/screenshot.png?view=1"],
-    ["SD card", "/sdcard"],
-    ["SPIFFS", "/spiffs"],
+    ["SD card", "/sdcard/"],
+    ["SPIFFS", "/spiffs/"],
   ].forEach(([label, path]) => {
     const link = document.createElement("a");
     link.textContent = label;

@@ -129,11 +129,12 @@ lv_obj_t *weather_forecast_column(lv_obj_t *parent, lv_obj_t *source = nullptr,
   lv_label_set_long_mode(day_label, LV_LABEL_LONG_CLIP);
   lv_label_set_long_mode(icon_label, LV_LABEL_LONG_CLIP);
   lv_obj_align(day_label, LV_ALIGN_TOP_MID, 0, 0);
-  // Normal weather tiles use these columns directly. Keep the icon in its
-  // own band so its glyph cannot overlap the high-temperature label.
-  lv_obj_align(icon_label, LV_ALIGN_TOP_MID, 0, source ? 26 : 14);
-  lv_obj_align(high_label, LV_ALIGN_TOP_MID, 0, source ? 54 : 66);
-  lv_obj_align(low_label, LV_ALIGN_TOP_MID, 0, source ? 73 : 88);
+  const int icon_y = compact ? 18 : (source ? 26 : 14);
+  const int high_y = compact ? 59 : (source ? 54 : 66);
+  const int low_y = compact ? 75 : (source ? 73 : 88);
+  lv_obj_align(icon_label, LV_ALIGN_TOP_MID, 0, icon_y);
+  lv_obj_align(high_label, LV_ALIGN_TOP_MID, 0, high_y);
+  lv_obj_align(low_label, LV_ALIGN_TOP_MID, 0, low_y);
   return column;
 }
 
@@ -459,17 +460,22 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_label_set_text(temp, "--");
   lv_obj_set_style_text_color(temp, white, 0);
   lv_obj_set_style_text_font(temp, ui_font_for_size(22), 0);
-  lv_obj_set_style_text_align(temp, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_width(temp, LV_PCT(100));
-  lv_obj_align(temp, LV_ALIGN_TOP_MID, 0, compact_layout ? 8 : 62);
+  lv_obj_set_style_text_align(
+      temp, compact_layout ? LV_TEXT_ALIGN_LEFT : LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_width(temp, compact_layout ? LV_PCT(42) : LV_PCT(100));
+  lv_obj_align(temp, compact_layout ? LV_ALIGN_TOP_LEFT : LV_ALIGN_TOP_MID,
+               compact_layout ? 48 : 0, compact_layout ? 8 : 62);
 
   lv_obj_t *condition = lv_label_create(parent);
   lv_label_set_text(condition, "--");
   lv_obj_set_style_text_color(condition, white, 0);
   lv_obj_set_style_text_font(condition, ui_font_for_size(14), 0);
-  lv_obj_set_style_text_align(condition, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_width(condition, LV_PCT(100));
-  lv_obj_align(condition, LV_ALIGN_TOP_MID, 0, compact_layout ? 34 : 38);
+  lv_obj_set_style_text_align(
+      condition, compact_layout ? LV_TEXT_ALIGN_LEFT : LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_width(condition, compact_layout ? LV_PCT(42) : LV_PCT(100));
+  lv_obj_align(condition,
+               compact_layout ? LV_ALIGN_TOP_LEFT : LV_ALIGN_TOP_MID,
+               compact_layout ? 48 : 0, compact_layout ? 34 : 38);
 
   lv_obj_t *forecast[kMaxForecastDays] = {};
   lv_obj_t *high_labels[kMaxForecastDays] = {};
@@ -516,8 +522,9 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
     if (forecast_row == nullptr) break;
     forecast[i] = weather_forecast_column(forecast_row, nullptr,
                                           inline_weather, compact_layout);
-    const uint8_t column_count = inline_weather
-        ? display_forecast_count : popup_forecast_count;
+    const uint8_t column_count =
+        display_forecast_count > 0 ? display_forecast_count
+                                   : popup_forecast_count;
     lv_obj_set_width(forecast[i], LV_PCT(100 / column_count));
     if (compact_inline) {
       lv_obj_set_style_text_font(lv_obj_get_child(forecast[i], 0),

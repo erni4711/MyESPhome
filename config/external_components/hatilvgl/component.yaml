@@ -19,6 +19,7 @@ files:
   - tile_widget_camera.cpp
   - tile_widget_settings.cpp
   - tile_widget_dart.cpp
+  - tile_widget_wled.cpp
   - tiles_lvgl.h
   - ha_ws_client.h
   - hatilvgl.h

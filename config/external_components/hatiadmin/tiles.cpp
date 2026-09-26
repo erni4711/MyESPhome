@@ -396,7 +396,7 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
     inner += "<label>Target Folder</label>";
     inner += "<select id=\"" + tid +
              "_navigate_target\">"
-             "<option value=\"0\">-- Select --</option></select>";
+             "<option value=\"\">-- Select --</option></select>";
     // Folder PIN (shown only when a real folder is selected by JS)
     inner +=
         "<label class=\"inline-checkbox folder-pin-label\">"
@@ -562,6 +562,10 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
     std::string inner;
     inner += "<label>WLED Light Entity</label>" +
              entitySelect(tid + "_wled_entity");
+    inner += "<label>WLED Preset Entity (optional)</label>" +
+             entitySelect(tid + "_wled_preset_entity");
+    inner += "<label>WLED Restart Entity (optional)</label>" +
+             entitySelect(tid + "_wled_restart_entity");
     addTypeFields(h, tid, "wled", inner);
   }
 
@@ -1014,6 +1018,8 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "['cover_entity',data.cover_entity||data.entity_id||data.sensor_entity],"
       "['camera_entity',data.camera_entity||data.entity_id||data.sensor_entity],"
       "['wled_entity',data.wled_entity||data.entity_id||data.sensor_entity],"
+      "['wled_preset_entity',data.wled_preset_entity],"
+      "['wled_restart_entity',data.wled_restart_entity],"
       "['scene_alias',data.scene_alias]"
       "];"
       "emap.forEach(function(p){"
@@ -1057,6 +1063,8 @@ void TilesHandler::handleRequest(AsyncWebServerRequest* request) {
       "[tab+'_cover_entity',data.cover_entity||data.entity_id||data.sensor_entity],"
       "[tab+'_camera_entity',data.camera_entity||data.entity_id||data.sensor_entity],"
       "[tab+'_wled_entity',data.wled_entity||data.entity_id||data.sensor_entity],"
+      "[tab+'_wled_preset_entity',data.wled_preset_entity],"
+      "[tab+'_wled_restart_entity',data.wled_restart_entity],"
       "[tab+'_scene_alias',data.scene_alias]"
       "].forEach(function(pair){"
       "if(!pair[1])return;"
@@ -1510,14 +1518,17 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
         setIntField("bg_color", "bg_color");
       }
       setIntField("background_opacity", "background_opacity");
+      setIntField("navigate_target", "navigate_target");
 
       // Type-specific string fields
       static const char* strFields[] = {
           "entity_id",        "sensor_entity",    "sensor_unit", "switch_entity",
-          "navigate_target",  "scene_alias",     "weather_entity",
+          "scene_alias",      "weather_entity",
           "energy_entity",    "media_entity",    "climate_entity",
           "cover_entity",     "camera_entity",   "animation_file",
-          "climate_geometry", "text_value",      "key_macro",
+          "wled_entity",      "wled_preset_entity", "wled_restart_entity",
+          "climate_geometry", "text_value",
+          "key_macro",
           "clock_show_time",  "clock_show_date", "clock_show_weekday",
           "clock_shadow", nullptr};
       for (int i = 0; strFields[i]; i++)
@@ -1587,8 +1598,8 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
       // links.
       std::string resp = "{\"success\":true";
       if (request->hasArg("navigate_target")) {
-        resp += ",\"navigate_target\":";
-        resp += request->arg("navigate_target");
+        resp += ",\"navigate_target\":" +
+                std::to_string(tile["navigate_target"] | 0);
       }
       resp += "}";
       ESP_LOGI("web_admin_local.api.tiles", "Saved tile %ld in folder %u",
@@ -2091,8 +2102,8 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     bool sd_write_failed = false;
     bool entity_file_failed = false;
     size_t processed_objects = 0;
-    std::array<FILE*, 9> entity_files{};
-    std::array<bool, 9> array_empty{};
+    std::array<FILE*, 11> entity_files{};
+    std::array<bool, 11> array_empty{};
 
     static void append_escaped(FILE* file, const std::string& value) {
       for (char c : value) {
@@ -2153,7 +2164,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
           domain == "sensor" &&
           attributes.is<JsonObjectConst>() &&
           attributes["device_class"] == "energy";
-      size_t category = 9;
+      size_t category = 11;
       if (is_energy_sensor || domain == "energy")
         category = 3;
       else if (domain == "sensor" || domain == "binary_sensor")
@@ -2171,9 +2182,13 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
         category = 6;
       else if (domain == "camera")
         category = 7;
+      else if (domain == "select")
+        category = 9;
+      else if (domain == "button")
+        category = 10;
       else if (domain == "scene" || domain == "script")
         category = 8;
-      if (category == 9) return;
+      if (category == 11) return;
       append_entity(category, id, t);
     }
 
@@ -2221,19 +2236,19 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   response.array_empty.fill(true);
   static constexpr const char* const category_names[] = {
       "sensors", "switches", "weathers", "energy", "media",
-      "climates", "covers", "cameras", "scenes"};
+      "climates", "covers", "cameras", "scenes", "selects", "buttons"};
   static constexpr const char* const category_file_names[] = {
       "eo_s", "eo_sw", "eo_w", "eo_e", "eo_m",
-      "eo_c", "eo_cv", "eo_cam", "eo_sc"};
-  std::array<std::string, 9> entity_tmp_paths;
-  std::array<std::string, 9> entity_paths;
+      "eo_c", "eo_cv", "eo_cam", "eo_sc", "eo_sel", "eo_btn"};
+  std::array<std::string, 11> entity_tmp_paths;
+  std::array<std::string, 11> entity_paths;
   if (!esphome::spiffs::ensure_mounted()) {
     request->send(507, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"SPIFFS is unavailable\"}");
     return;
   }
   bool entity_files_ready = true;
-  for (size_t i = 0; i < 9; ++i) {
+  for (size_t i = 0; i < 11; ++i) {
     entity_paths[i] =
         std::string("/spiffs/") + category_file_names[i] + ".json";
     entity_tmp_paths[i] = entity_paths[i] + ".tmp";
@@ -2369,7 +2384,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
                   "request failed\"}");
     return;
   }
-  for (size_t i = 0; i < 9; ++i) {
+  for (size_t i = 0; i < 11; ++i) {
     remove(entity_paths[i].c_str());
     if (rename(entity_tmp_paths[i].c_str(), entity_paths[i].c_str()) != 0)
       response.entity_file_failed = true;
@@ -2455,7 +2470,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   bool send_failed =
       httpd_resp_send_chunk(*request, kResponsePrefix,
                             sizeof(kResponsePrefix) - 1) != ESP_OK;
-  for (size_t i = 0; i < 9; ++i) {
+  for (size_t i = 0; i < 11; ++i) {
     ESP_LOGI("web_admin_local.entity_options", "Processing category: %s", category_names[i]);
     if (send_failed) break;
     send_failed = httpd_resp_send_chunk(*request, ",\"", 2) != ESP_OK;

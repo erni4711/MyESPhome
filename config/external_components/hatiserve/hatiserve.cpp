@@ -13,6 +13,7 @@
 #include "esphome/core/log.h"
 #include "esphome/components/spiffs/spiffs.h"
 #include "esp_heap_caps.h"
+#include "esp_http_server.h"
 #include "esp_partition.h"
 #include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
@@ -25,7 +26,8 @@ extern "C" esp_err_t esp_vfs_fat_info(const char *base_path,
 namespace hatiserve {
 
 static const char *const TAG = "hatiserve";
-static constexpr size_t MAX_FILE_SIZE = 512 * 1024;
+static constexpr size_t FILE_STREAM_BUFFER_SIZE = 16 * 1024;
+static constexpr size_t MAX_UPLOAD_SIZE = 512 * 1024;
 
 template <typename T>
 struct PsramAllocator {
@@ -260,9 +262,9 @@ void HATiServe::handleUpload(AsyncWebServerRequest *request,
     ESP_LOGI(TAG, "Upload started: %s", path.c_str());
   }
   if (upload_file_ == nullptr) return;
-  if (len > MAX_FILE_SIZE - std::min(upload_size_, MAX_FILE_SIZE)) {
+  if (len > MAX_UPLOAD_SIZE - std::min(upload_size_, MAX_UPLOAD_SIZE)) {
     ESP_LOGW(TAG, "Upload exceeds %u byte limit: %s",
-             static_cast<unsigned>(MAX_FILE_SIZE), path.c_str());
+             static_cast<unsigned>(MAX_UPLOAD_SIZE), path.c_str());
     fclose(upload_file_);
     upload_file_ = nullptr;
     remove(path.c_str());
@@ -457,8 +459,8 @@ void HATiServe::serve_root(AsyncWebServerRequest *request, const std::string &ur
     return;
   }
 
-  if (!S_ISREG(info.st_mode) || info.st_size > static_cast<off_t>(MAX_FILE_SIZE)) {
-    request->send(413, "text/plain", "File is too large or not a regular file");
+  if (!S_ISREG(info.st_mode)) {
+    request->send(404, "text/plain", "Path is not a regular file");
     return;
   }
   FILE *file = fopen(path.c_str(), "rb");
@@ -467,26 +469,41 @@ void HATiServe::serve_root(AsyncWebServerRequest *request, const std::string &ur
     return;
   }
   const std::string content_type = mime_type(path);
-  const size_t file_size = static_cast<size_t>(info.st_size);
-  uint8_t *contents = static_cast<uint8_t *>(
-      heap_caps_malloc(file_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-  if (contents == nullptr) {
+  uint8_t *buffer = static_cast<uint8_t *>(
+      heap_caps_malloc(FILE_STREAM_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (buffer == nullptr) {
     fclose(file);
-    request->send(507, "text/plain", "Not enough memory to serve file");
+    request->send(507, "text/plain", "Not enough memory to stream file");
     return;
   }
-  const size_t read = fread(contents, 1, file_size, file);
+
+  httpd_req_t *http_request = static_cast<httpd_req_t *>(*request);
+  httpd_resp_set_type(http_request, content_type.c_str());
+  httpd_resp_set_hdr(http_request, "Cache-Control", "no-store");
+  httpd_resp_set_hdr(http_request, "Access-Control-Allow-Origin", "*");
+
+  bool success = true;
+  while (success) {
+    const size_t read = fread(buffer, 1, FILE_STREAM_BUFFER_SIZE, file);
+    if (read > 0 && httpd_resp_send_chunk(
+                         http_request, reinterpret_cast<const char *>(buffer), read) != ESP_OK) {
+      ESP_LOGW(TAG, "Unable to stream file %s", path.c_str());
+      success = false;
+      break;
+    }
+    if (read < FILE_STREAM_BUFFER_SIZE) {
+      if (ferror(file) != 0) {
+        ESP_LOGW(TAG, "Unable to read file %s", path.c_str());
+        success = false;
+      }
+      break;
+    }
+  }
   fclose(file);
-  if (read != file_size) {
-    heap_caps_free(contents);
-    request->send(500, "text/plain", "Unable to read file");
-    return;
+  if (success && httpd_resp_send_chunk(http_request, nullptr, 0) != ESP_OK) {
+    ESP_LOGW(TAG, "Unable to finish streaming file %s", path.c_str());
   }
-  // web_server_idf sends this response synchronously, so the PSRAM buffer
-  // remains valid until the HTTP transmission has completed.
-  request->send(request->beginResponse(200, content_type.c_str(), contents,
-                                       file_size));
-  heap_caps_free(contents);
+  heap_caps_free(buffer);
 }
 
 std::string HATiServe::html_escape(const std::string &value) {
