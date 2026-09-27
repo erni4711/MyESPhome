@@ -6,8 +6,8 @@
   navigation.setAttribute("aria-label", "Device tools");
   Object.assign(navigation.style, {
     position: "fixed",
-    top: "12px",
-    right: "12px",
+    top: "20px",
+    right: "60px",
     zIndex: "2147483647",
     display: "flex",
     gap: "8px",
