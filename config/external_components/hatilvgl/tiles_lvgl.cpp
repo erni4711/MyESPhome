@@ -215,7 +215,9 @@ void process_one_ha_entity_state_rest() {
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_GET;
-  config.timeout_ms = 5000;
+  // This request runs from loopTask; keep the network wait below the task
+  // watchdog interval so an unavailable Home Assistant cannot stall the UI.
+  config.timeout_ms = 1500;
   config.event_handler = ha_state_http_event_handler;
   config.user_data = &response;
   esp_http_client_handle_t client = esp_http_client_init(&config);

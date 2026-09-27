@@ -122,6 +122,7 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     // Time font size from key_code (stored as clock time font size, default 40)
     const lv_font_t *font = clock_font(tile.key_code, 40);
     lv_obj_t *time_lbl = clock_label(parent, tbuf, font, white, tile.clock_shadow);
+    lv_obj_set_width(time_lbl, LV_PCT(100));
     const lv_text_align_t alignment = tile.clock_time_alignment == 0
         ? LV_TEXT_ALIGN_LEFT : tile.clock_time_alignment == 2
         ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_CENTER;
@@ -175,6 +176,7 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     lv_obj_t *date_lbl = clock_label(parent, dbuf, clock_font(tile.key_modifier, 20),
                                       lv_color_make(0xCC, 0xCC, 0xCC),
                                       tile.clock_shadow);
+    lv_obj_set_width(date_lbl, LV_PCT(100));
     const lv_text_align_t alignment = tile.clock_date_alignment == 0
         ? LV_TEXT_ALIGN_LEFT : tile.clock_date_alignment == 2
         ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_CENTER;

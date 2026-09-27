@@ -2260,8 +2260,9 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   static constexpr const char* const category_file_names[] = {
       "eo_s", "eo_sw", "eo_w", "eo_e", "eo_m",
       "eo_c", "eo_cv", "eo_cam", "eo_sc", "eo_sel", "eo_btn"};
-  std::array<std::string, 11> entity_tmp_paths;
-  std::array<std::string, 11> entity_paths;
+  auto entity_tmp_paths =
+      std::make_unique<std::array<std::string, 11>>();
+  auto entity_paths = std::make_unique<std::array<std::string, 11>>();
   if (!esphome::spiffs::ensure_mounted()) {
     request->send(507, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"SPIFFS is unavailable\"}");
@@ -2269,28 +2270,28 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   }
   bool entity_files_ready = true;
   for (size_t i = 0; i < 11; ++i) {
-    entity_paths[i] =
+    (*entity_paths)[i] =
         std::string("/spiffs/") + category_file_names[i] + ".json";
-    entity_tmp_paths[i] = entity_paths[i] + ".tmp";
-    response.entity_files[i] = fopen(entity_tmp_paths[i].c_str(), "wb");
+    (*entity_tmp_paths)[i] = (*entity_paths)[i] + ".tmp";
+    response.entity_files[i] = fopen((*entity_tmp_paths)[i].c_str(), "wb");
     if (!response.entity_files[i]) {
       ESP_LOGW("web_admin_local.entity_options",
                "Failed to open SPIFFS file %s: %s",
-               entity_tmp_paths[i].c_str(), strerror(errno));
+               (*entity_tmp_paths)[i].c_str(), strerror(errno));
       entity_files_ready = false;
       break;
     }
     if (fputc('[', response.entity_files[i]) == EOF) {
       ESP_LOGW("web_admin_local.entity_options",
                "Failed to initialize SPIFFS file %s: %s",
-               entity_tmp_paths[i].c_str(), strerror(errno));
+               (*entity_tmp_paths)[i].c_str(), strerror(errno));
       entity_files_ready = false;
       break;
     }
   }
   if (!entity_files_ready) {
     response.close_entity_files();
-    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    for (const auto& path : *entity_tmp_paths) remove(path.c_str());
     request->send(507, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Unable to create SPIFFS "
                   "entity files\"}");
@@ -2316,7 +2317,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
       heap_caps_malloc(url_buffer_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   if (!url) {
     response.close_entity_files();
-    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    for (const auto& path : *entity_tmp_paths) remove(path.c_str());
     if (response.sd_file) {
       fclose(response.sd_file);
       response.sd_file = nullptr;
@@ -2351,7 +2352,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   if (!client) {
     heap_caps_free(url);
     response.close_entity_files();
-    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    for (const auto& path : *entity_tmp_paths) remove(path.c_str());
     if (response.sd_file) {
       fclose(response.sd_file);
       response.sd_file = nullptr;
@@ -2370,7 +2371,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
     heap_caps_free(url);
     esp_http_client_cleanup(client);
     response.close_entity_files();
-    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    for (const auto& path : *entity_tmp_paths) remove(path.c_str());
     if (response.sd_file) {
       fclose(response.sd_file);
       response.sd_file = nullptr;
@@ -2398,19 +2399,19 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   }
   if (http_result != ESP_OK || response.status != 200) {
     if (save_to_sd) remove(sd_tmp_path.c_str());
-    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    for (const auto& path : *entity_tmp_paths) remove(path.c_str());
     request->send(502, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Home Assistant REST API "
                   "request failed\"}");
     return;
   }
   for (size_t i = 0; i < 11; ++i) {
-    remove(entity_paths[i].c_str());
-    if (rename(entity_tmp_paths[i].c_str(), entity_paths[i].c_str()) != 0)
+    remove((*entity_paths)[i].c_str());
+    if (rename((*entity_tmp_paths)[i].c_str(), (*entity_paths)[i].c_str()) != 0)
       response.entity_file_failed = true;
   }
   if (response.entity_file_failed) {
-    for (const auto& path : entity_tmp_paths) remove(path.c_str());
+    for (const auto& path : *entity_tmp_paths) remove(path.c_str());
     request->send(507, "application/json; charset=utf-8",
                   "{\"success\":false,\"error\":\"Unable to finalize SPIFFS "
                   "entity files\"}");
@@ -2433,11 +2434,11 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
   }
 
   size_t response_size = 0;
-  for (size_t i = 0; i < entity_paths.size(); ++i) {
+  for (size_t i = 0; i < entity_paths->size(); ++i) {
     struct stat file_info {};
-    if (stat(entity_paths[i].c_str(), &file_info) != 0) continue;
+    if (stat((*entity_paths)[i].c_str(), &file_info) != 0) continue;
     ESP_LOGI("web_admin_local.entity_options", "Entity options file: %s, size: %lld",
-             entity_paths[i].c_str(), static_cast<long long>(file_info.st_size));
+             (*entity_paths)[i].c_str(), static_cast<long long>(file_info.st_size));
     if (file_info.st_size < 0 ||
         static_cast<uint64_t>(file_info.st_size) >
             kMaxEntityOptionsResponseBytes - response_size) {
@@ -2509,7 +2510,7 @@ void EntityOptionsHandler::handleRequest(AsyncWebServerRequest* request) {
                                 energy_json.size()) != ESP_OK;
       continue;
     }
-    FILE* file = fopen(entity_paths[i].c_str(), "rb");
+    FILE* file = fopen((*entity_paths)[i].c_str(), "rb");
     if (!file) {
       send_failed = httpd_resp_send_chunk(*request, "[]", 2) != ESP_OK;
       continue;
