@@ -7,7 +7,7 @@
   Object.assign(navigation.style, {
     position: "fixed",
     top: "20px",
-    right: "60px",
+    left: "75px",
     zIndex: "2147483647",
     display: "flex",
     gap: "8px",
