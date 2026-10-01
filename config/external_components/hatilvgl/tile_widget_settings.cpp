@@ -124,20 +124,12 @@ void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t accent = lv_color_make(0x26, 0xA6, 0x9A);
   const char *title = tile.title.empty() ? "Settings" : tile.title.c_str();
 
-  const bool icon_disabled = isMdiIconDisabled(tile.icon_name);
-  const std::string icon_name = tile.icon_name.empty()
-                                    ? "cog"
-                                    : normalizeMdiIconName(tile.icon_name);
-  const std::string icon_char =
-      icon_disabled || icon_name.empty() ? "" : getMdiChar(icon_name);
-
-  if (!icon_char.empty()) {
-    lv_obj_t *icon = lv_label_create(parent);
-    lv_label_set_text(icon, icon_char.c_str());
-    lv_obj_set_style_text_color(icon, accent, 0);
-    lv_obj_set_style_text_font(icon, FONT_MDI_ICONS, 0);
-    lv_obj_align(icon, LV_ALIGN_CENTER, 0, -20);
-  }
+  lv_obj_t *battery_icon = lv_label_create(parent);
+  lv_label_set_text(battery_icon, getMdiChar("battery-outline").c_str());
+  lv_obj_set_style_text_color(battery_icon, lv_color_white(), 0);
+  lv_obj_set_style_text_font(battery_icon, FONT_MDI_ICONS, 0);
+  lv_obj_align(battery_icon, LV_ALIGN_TOP_RIGHT, -6, 4);
+  hatilvgl_register_battery_icon(battery_icon);
 
   lv_obj_t *title_label = lv_label_create(parent);
   lv_label_set_text(title_label, title);
@@ -147,6 +139,11 @@ void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_style_text_font(title_label, ui_font_for_size(16), 0);
   lv_obj_set_style_text_align(title_label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(title_label, LV_ALIGN_CENTER, 0, 18);
+
+  lv_obj_t *battery = make_label(parent, "--%", 0,
+                                 ui_font_for_size(13), white);
+  lv_obj_align(battery, LV_ALIGN_BOTTOM_RIGHT, -6, -4);
+  hatilvgl_register_battery_label(battery);
 
   lv_obj_add_flag(parent, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(parent, settings_click_cb, LV_EVENT_CLICKED, nullptr);

@@ -11,6 +11,61 @@ typedef struct _lv_obj_t lv_obj_t;
 
 namespace web_admin_local {
 
+  struct TileGeometry {
+    int     col         = 0;
+    int     row         = 0;
+    int     span_w      = 1;
+    int     span_h      = 1;
+  };
+struct TileData {
+  int     type        = 0;
+  struct TileGeometry {
+    int     col         = 0;
+    int     row         = 0;
+    int     span_w      = 1;
+    int     span_h      = 1;
+  } geometry;
+  uint32_t bg_color   = 0;       // 0 = type default
+  std::string icon_name;
+  std::string title;
+  std::string entity_id;
+  std::string sensor_unit;
+  int     sensor_decimals    = -1;
+  int     sensor_value_font  = 0;
+  int     sensor_value_y_offset = 0;
+  int     sensor_display_mode = 0;
+  float   sensor_gauge_min   = 0.f;
+  float   sensor_gauge_max   = 100.f;
+  std::string switch_entity;
+  int     switch_style        = 0;
+  std::string scene_alias;
+  std::string weather_entity;
+  std::string energy_entity;
+  std::string media_entity;
+  std::string climate_entity;
+  std::string cover_entity;
+  std::string camera_entity;
+  std::string wled_entity;
+  std::string wled_preset_entity;
+  std::string wled_restart_entity;
+  std::string animation_file;
+  std::string text_value;
+  int     text_value_font     = 0;
+  int     navigate_target     = 0;
+  int     clock_flags         = 1;   // bit0=show_time, bit1=show_date
+  int     clock_time_format   = 0;
+  int     clock_date_format   = 0;
+  bool    clock_show_weekday  = false;
+  bool    clock_shadow        = false;
+  bool    clock_show_battery  = false;
+  int     clock_time_alignment = 1;
+  int     clock_date_alignment = 1;
+  int     key_code            = 40;  // clock time font
+  int     key_modifier        = 20;  // clock date font
+  int     popup_open_mode     = 1;
+};
+
+
 extern float hourly_weather_temperature[48];
 extern long hourly_weather_timestamp[48];
 extern bool hourly_weather_valid[48];
@@ -20,6 +75,7 @@ void schedule_ha_entity_states_rest_for_folder(int folder_id);
 void set_home_assistant_credentials(const std::string &url, const std::string &token);
 bool toggle_home_assistant_entity(const char *entity_id, bool turn_on);
 bool set_home_assistant_climate_temperature(const char *entity_id, float temperature);
+bool set_home_assistant_climate_mode(const char *entity_id, const char *mode);
 bool call_home_assistant_media_command(const char *entity_id, const char *command);
 bool set_home_assistant_media_volume(const char *entity_id, float volume);
 bool set_home_assistant_media_mute(const char *entity_id, bool muted);
@@ -42,9 +98,9 @@ struct SwitchToggleContext {
 //
 // tile_widget_build_sensor() registers the value label / gauge arc of every
 // TILE_SENSOR / TILE_ENERGY tile here, keyed by entity id. ha_ws_client.cpp
-// looks entities up by id and calls apply_ha_entity_state() from the
-// ESPHome loop() task whenever a matching `state_changed` event (or an
-// initial get_states result) arrives over the websocket.
+// looks entities up by id and calls TilesLvglRenderer::apply_ha_entity_state()
+// from the ESPHome loop() task whenever a matching `state_changed` event (or
+// an initial get_states result) arrives over the websocket.
 
 // Registers a sensor/energy tile's widgets for live updates. `gauge_arc`
 // may be nullptr when the tile has no gauge. Safe to call only from code
@@ -56,10 +112,16 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
                                 const std::string &configured_unit = "");
 void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label);
 void register_ha_climate_widget(const std::string &entity_id,
+                                const TileGeometry &tile_geo,
                                 lv_obj_t *current_temperature,
                                 lv_obj_t *setpoint,
                                 lv_obj_t *mode,
-                                lv_obj_t *icon);
+                                lv_obj_t *icon,
+                                lv_obj_t *minus = nullptr,
+                                lv_obj_t *plus = nullptr,
+                                lv_obj_t *target_arc = nullptr,
+                                lv_obj_t *current_marker = nullptr,
+                                lv_obj_t *mode_button = nullptr);
 void register_ha_media_widget(const std::string &entity_id,
                               lv_obj_t *title,
                               lv_obj_t *subtitle,
@@ -102,95 +164,8 @@ void unregister_ha_widget_object(lv_obj_t *object);
 // can never dereference a stale LVGL object pointer.
 void clear_ha_entity_widgets();
 
-// Applies one Home Assistant entity state update to any currently
-// registered widgets. MUST be called only from the ESPHome loop() task
-// (see WebAdminLocal::loop() / ha_ws_client_loop()) -- never from the
-// websocket client task.
-void apply_ha_entity_state(const std::string &entity_id, const std::string &state,
-                            const std::string &unit,
-                            const std::string &icon = "");
-void apply_ha_entity_state(const JsonDocument &state);
-void apply_ha_weather_state(const std::string &entity_id, const std::string &state,
-                             const std::string &temperature, const std::string &condition,
-                             const std::string &unit, const std::string &forecast);
-void apply_ha_weather_forecast_state(const std::string &entity_id,
-                                     const std::string &forecast);
-void apply_ha_weather_forecast_day_state(const JsonDocument &state);
-void apply_ha_climate_state(const std::string &entity_id,
-                            const std::string &current_temperature,
-                            const std::string &setpoint,
-                            const std::string &hvac_mode,
-                            const std::string &unit,
-                            const std::string &icon);
-void apply_ha_media_state(const std::string &entity_id,
-                          const std::string &state,
-                          const std::string &title,
-                          const std::string &subtitle,
-                          const std::string &icon,
-                          const std::string &entity_picture = "",
-                          float volume_level = -1.0f,
-                          bool volume_muted = false,
-                          float media_position = -1.0f,
-                          float media_duration = -1.0f);
-void apply_ha_light_state(const std::string &entity_id, const std::string &state,
-                          const std::string &brightness, const std::string &color_temp,
-                          const std::string &red, const std::string &green,
-                          const std::string &blue);
-void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
-                         const std::string &brightness, const std::string &red,
-                         const std::string &green, const std::string &blue,
-                         const std::string &effect,
-                         const std::string &effect_list,
-                         const std::string &preset_options = "",
-                         const std::string &preset_state = "");
-
-
 // ── Tile data ─────────────────────────────────────────────────────────────────
 
-struct TileData {
-  int     type        = 0;
-  int     col         = 0;
-  int     row         = 0;
-  int     span_w      = 1;
-  int     span_h      = 1;
-  uint32_t bg_color   = 0;       // 0 = type default
-  std::string icon_name;
-  std::string title;
-  std::string entity_id;
-  std::string sensor_unit;
-  int     sensor_decimals    = -1;
-  int     sensor_value_font  = 0;
-  int     sensor_value_y_offset = 0;
-  int     sensor_display_mode = 0;
-  float   sensor_gauge_min   = 0.f;
-  float   sensor_gauge_max   = 100.f;
-  std::string switch_entity;
-  int     switch_style        = 0;
-  std::string scene_alias;
-  std::string weather_entity;
-  std::string energy_entity;
-  std::string media_entity;
-  std::string climate_entity;
-  std::string cover_entity;
-  std::string camera_entity;
-  std::string wled_entity;
-  std::string wled_preset_entity;
-  std::string wled_restart_entity;
-  std::string animation_file;
-  std::string text_value;
-  int     text_value_font     = 0;
-  int     navigate_target     = 0;
-  int     clock_flags         = 1;   // bit0=show_time, bit1=show_date
-  int     clock_time_format   = 0;
-  int     clock_date_format   = 0;
-  bool    clock_show_weekday  = false;
-  bool    clock_shadow        = false;
-  int     clock_time_alignment = 1;
-  int     clock_date_alignment = 1;
-  int     key_code            = 40;  // clock time font
-  int     key_modifier        = 20;  // clock date font
-  int     popup_open_mode     = 1;
-};
 
 // Tile type constants matching admin.js / web tile types
 static const int TILE_EMPTY    =  0;
@@ -253,6 +228,58 @@ struct FolderPage {
 class TilesLvglRenderer {
  public:
   TilesLvglRenderer() = default;
+
+  // Applies Home Assistant state to widgets owned by this renderer. Must be
+  // called only from the ESPHome/LVGL loop task.
+  void apply_ha_entity_state(const std::string &entity_id,
+                             const std::string &state,
+                             const std::string &unit,
+                             const std::string &icon = "");
+  void apply_ha_entity_state(const JsonDocument &state);
+  void apply_ha_weather_state(const std::string &entity_id,
+                              const std::string &state,
+                              const std::string &temperature,
+                              const std::string &condition,
+                              const std::string &unit,
+                              const std::string &forecast);
+  void apply_ha_weather_forecast_state(const std::string &entity_id,
+                                       const std::string &forecast);
+  void apply_ha_weather_forecast_day_state(const JsonDocument &state);
+  void apply_ha_climate_state(const std::string &entity_id,
+                              const std::string &current_temperature,
+                              const std::string &setpoint,
+                              const std::string &hvac_mode,
+                              const std::string &hvac_action,
+                              const std::string &unit,
+                              const std::string &icon,
+                              bool available = true);
+  void apply_ha_media_state(const std::string &entity_id,
+                            const std::string &state,
+                            const std::string &title,
+                            const std::string &subtitle,
+                            const std::string &icon,
+                            const std::string &entity_picture = "",
+                            float volume_level = -1.0f,
+                            bool volume_muted = false,
+                            float media_position = -1.0f,
+                            float media_duration = -1.0f);
+  void apply_ha_light_state(const std::string &entity_id,
+                            const std::string &state,
+                            const std::string &brightness,
+                            const std::string &color_temp,
+                            const std::string &red,
+                            const std::string &green,
+                            const std::string &blue);
+  void apply_ha_wled_state(const std::string &entity_id,
+                           const std::string &state,
+                           const std::string &brightness,
+                           const std::string &red,
+                           const std::string &green,
+                           const std::string &blue,
+                           const std::string &effect,
+                           const std::string &effect_list,
+                           const std::string &preset_options = "",
+                           const std::string &preset_state = "");
 
   // Must be called from setup() after ESPHome has initialized LVGL.
   void setup();

@@ -35,6 +35,24 @@ persisted JSON, firmware API, LVGL renderer, and ESPHome configuration aligned.
   - Real multi-folder compatibility fixture. Preserve it unless the task
     explicitly asks to update the backup.
 
+## Battery display pattern
+
+The P4 10.1-inch board estimates battery percentage from the GPIO20 voltage
+divider and publishes it through `hatilvgl_set_battery_level()`. The settings
+tile uses a registered live MDI battery icon in the top-right corner instead
+of its configured tile icon:
+
+- Above 80%: `battery-90`, green.
+- 30% through 80%: `battery-50`, white.
+- Below 30% and at least 10%: `battery-30`, yellow.
+- Below 10%: `battery-alert`, red.
+- Unknown value: `battery-outline`, white.
+
+Register dynamic battery labels or icons through the shared HATi helpers in
+`hatilvgl.h`/`hatilvgl.cpp`. Remove registrations on `LV_EVENT_DELETE` so
+folder rebuilds cannot retain stale LVGL pointers. Keep the existing battery
+percentage label behavior when adding an icon.
+
 Search for existing behavior before editing. HATi features commonly span more
 than one component, and a change is incomplete if only the visible UI or only
 the renderer is updated.

@@ -3,7 +3,12 @@
 #include <ArduinoJson.h>
 #include <atomic>
 #include <cstdio>
+#include <algorithm>
+#include <cmath>
+#include <vector>
+#include <lvgl.h>
 #include "esphome/components/spiffs/spiffs.h"
+#include "../hatifonts/mdi_icons.h"
 
 namespace web_admin_local {
 
@@ -13,6 +18,9 @@ esphome::light::LightState *g_backlight = nullptr;
 esphome::number::Number *g_timeout = nullptr;
 HATiFolderSelect *g_folder_select = nullptr;
 std::atomic<int> g_requested_folder{-1};
+std::vector<lv_obj_t *> g_battery_labels;
+std::vector<lv_obj_t *> g_battery_icons;
+float g_battery_level = NAN;
 }
 
 void HATiFolderSelect::configure_folders() {
@@ -123,6 +131,75 @@ void settings_set_timeout(float timeout) {
     return;
   }
   g_timeout->make_call().set_value(timeout).perform();
+}
+
+void hatilvgl_set_battery_level(float percent) {
+  g_battery_level = std::isfinite(percent)
+                        ? std::max(0.0f, std::min(100.0f, percent))
+                        : NAN;
+  char text[12];
+  if (std::isfinite(g_battery_level)) {
+    std::snprintf(text, sizeof(text), "%d%%",
+                  static_cast<int>(std::lround(g_battery_level)));
+  } else {
+    std::snprintf(text, sizeof(text), "--%%");
+  }
+  for (auto *label : g_battery_labels) {
+    if (label != nullptr && lv_obj_is_valid(label)) {
+      lv_label_set_text(label, text);
+    }
+  }
+  const char *icon_name = !std::isfinite(g_battery_level)
+                              ? "battery-outline"
+                              : g_battery_level > 80.0f
+                                    ? "battery-90"
+                                    : g_battery_level < 10.0f
+                                          ? "battery-alert"
+                                          : g_battery_level < 30.0f
+                                                ? "battery-30"
+                                                : "battery-50";
+  const lv_color_t color = !std::isfinite(g_battery_level)
+                               ? lv_color_white()
+                               : g_battery_level > 80.0f
+                                     ? lv_color_make(0x40, 0xC8, 0x60)
+                                     : g_battery_level < 10.0f
+                                           ? lv_color_make(0xF0, 0x30, 0x30)
+                                           : g_battery_level < 30.0f
+                                                 ? lv_color_make(0xF0, 0xC0, 0x30)
+                                                 : lv_color_white();
+  const std::string icon_char = getMdiChar(icon_name);
+  for (auto *icon : g_battery_icons) {
+    if (icon != nullptr && lv_obj_is_valid(icon)) {
+      lv_label_set_text(icon, icon_char.empty() ? "?" : icon_char.c_str());
+      lv_obj_set_style_text_color(icon, color, 0);
+    }
+  }
+}
+
+void hatilvgl_register_battery_label(lv_obj_t *label) {
+  if (label == nullptr) return;
+  g_battery_labels.push_back(label);
+  lv_obj_add_event_cb(label, [](lv_event_t *event) {
+    if (lv_event_get_code(event) != LV_EVENT_DELETE) return;
+    auto *label = static_cast<lv_obj_t *>(lv_event_get_current_target(event));
+    g_battery_labels.erase(
+        std::remove(g_battery_labels.begin(), g_battery_labels.end(), label),
+        g_battery_labels.end());
+  }, LV_EVENT_DELETE, nullptr);
+  hatilvgl_set_battery_level(g_battery_level);
+}
+
+void hatilvgl_register_battery_icon(lv_obj_t *icon) {
+  if (icon == nullptr) return;
+  g_battery_icons.push_back(icon);
+  lv_obj_add_event_cb(icon, [](lv_event_t *event) {
+    if (lv_event_get_code(event) != LV_EVENT_DELETE) return;
+    auto *icon = static_cast<lv_obj_t *>(lv_event_get_current_target(event));
+    g_battery_icons.erase(
+        std::remove(g_battery_icons.begin(), g_battery_icons.end(), icon),
+        g_battery_icons.end());
+  }, LV_EVENT_DELETE, nullptr);
+  hatilvgl_set_battery_level(g_battery_level);
 }
 
 void HATiLvglComponent::setup() {

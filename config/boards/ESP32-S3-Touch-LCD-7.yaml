@@ -234,6 +234,7 @@ switch:
     entity_category: "config"
     disabled_by_default: true
     turn_on_action:
+      - light.turn_off: display_backlight
       - logger.log: "Starting Antiburn"
       - if:
           condition: lvgl.is_paused
@@ -459,7 +460,6 @@ lvgl:
     then:
       - logger.log: "LVGL is idle"
       - light.turn_off: display_backlight
-      - switch.turn_on: switch_antiburn
       - lvgl.pause:
   # <<: !include ../gui/styles.yaml
   top_layer:

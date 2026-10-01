@@ -180,9 +180,9 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   lv_obj_set_size(switch_obj, LV_PCT(72), LV_PCT(50));
   lv_obj_set_style_bg_color(switch_obj, lv_color_make(0x2A, 0x2A, 0x2A), 0);
   lv_obj_set_style_bg_color(switch_obj, accent,
-                            LV_PART_MAIN | LV_STATE_CHECKED);
+                             LV_STATE_CHECKED);
   lv_obj_set_style_bg_color(switch_obj, lv_color_make(0x4A, 0x4A, 0x4A),
-                            LV_PART_MAIN | LV_STATE_PRESSED);
+                             LV_STATE_PRESSED);
   lv_obj_set_style_radius(switch_obj, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_border_width(switch_obj, 0, 0);
   lv_obj_set_style_shadow_width(switch_obj, 0, 0);

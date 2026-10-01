@@ -3137,6 +3137,7 @@ function t(key) {
     const clockDateFormatSelect = document.getElementById(prefix + '_clock_date_format');
     const clockWeekdayCheck = document.getElementById(prefix + '_clock_show_weekday');
     const clockShadowCheck = document.getElementById(prefix + '_clock_shadow');
+    const clockBatteryCheck = document.getElementById(prefix + '_clock_show_battery');
     const clockTimeAlignmentSelect = document.getElementById(prefix + '_clock_time_alignment');
     const clockDateAlignmentSelect = document.getElementById(prefix + '_clock_date_alignment');
     const settingsPanel = document.getElementById(prefix + 'Settings');
@@ -11147,6 +11148,7 @@ function getClockPreviewLanguage() {
     }
     if (clockWeekdayCheck) clockWeekdayCheck.checked = !!(data && (data.clock_show_weekday === true || String(data.clock_show_weekday) === '1'));
     if (clockShadowCheck) clockShadowCheck.checked = !!(data && (data.clock_shadow === true || String(data.clock_shadow) === '1'));
+    if (clockBatteryCheck) clockBatteryCheck.checked = !!(data && (data.clock_show_battery === true || String(data.clock_show_battery) === '1'));
     if (clockTimeAlignmentSelect) clockTimeAlignmentSelect.value = String(data?.clock_time_alignment ?? 1);
     if (clockDateAlignmentSelect) clockDateAlignmentSelect.value = String(data?.clock_date_alignment ?? 1);
   }
@@ -11197,6 +11199,7 @@ function getClockPreviewLanguage() {
     formData.append('clock_date_format', document.getElementById(tab + '_clock_date_format')?.value || '0');
     formData.append('clock_show_weekday', document.getElementById(tab + '_clock_show_weekday')?.checked ? '1' : '0');
     formData.append('clock_shadow', document.getElementById(tab + '_clock_shadow')?.checked ? '1' : '0');
+    formData.append('clock_show_battery', document.getElementById(tab + '_clock_show_battery')?.checked ? '1' : '0');
     formData.append('clock_time_alignment', document.getElementById(tab + '_clock_time_alignment')?.value || '1');
     formData.append('clock_date_alignment', document.getElementById(tab + '_clock_date_alignment')?.value || '1');
   }
@@ -11215,6 +11218,8 @@ function getClockPreviewLanguage() {
     if (weekdayEl) weekdayEl.checked = false;
     const shadowEl = document.getElementById(tab + '_clock_shadow');
     if (shadowEl) shadowEl.checked = false;
+    const batteryEl = document.getElementById(tab + '_clock_show_battery');
+    if (batteryEl) batteryEl.checked = false;
     const timeAlignmentEl = document.getElementById(tab + '_clock_time_alignment');
     if (timeAlignmentEl) timeAlignmentEl.value = '1';
     const dateAlignmentEl = document.getElementById(tab + '_clock_date_alignment');

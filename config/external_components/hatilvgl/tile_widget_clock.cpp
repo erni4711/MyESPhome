@@ -1,5 +1,6 @@
 // Clock tile: shows HH:MM time and optional date.
 #include "tiles_lvgl.h"
+#include "hatilvgl.h"
 #include <lvgl.h>
 #include <ctime>
 #include <cstdio>
@@ -185,6 +186,16 @@ void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {
     if (show_time) {
       timer_context->date_label = date_lbl;
     }
+  }
+
+  if (tile.clock_show_battery) {
+    lv_obj_t *battery = clock_label(parent, "--%", ui_font_for_size(16),
+                                    lv_color_make(0xCC, 0xCC, 0xCC),
+                                    tile.clock_shadow);
+    lv_obj_set_width(battery, LV_PCT(100));
+    lv_obj_set_style_text_align(battery, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(battery, LV_ALIGN_BOTTOM_MID, 0, -4);
+    hatilvgl_register_battery_label(battery);
   }
 }
 

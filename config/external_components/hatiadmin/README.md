@@ -80,6 +80,23 @@ The SPIFFS partition is formatted automatically if it cannot be mounted. This
 initializes a new partition after flashing the partition table, but can erase
 cached entity files if the existing filesystem is corrupted.
 
+To download the Home Assistant device registry for inspection or backup, run
+the companion WebSocket tool from this directory:
+
+```powershell
+python tools\get-ha-device-registry.py `
+  --url http://homeassistant.local:8123 `
+  --output tools\backup\device-registry.json
+```
+
+The tool reads the long-lived token from `config/secrets.yaml` by default.
+Use `--token` or `--secrets` to override the token source. It requires the
+`websocket-client` Python package:
+
+```powershell
+python -m pip install websocket-client
+```
+
 Tile grids and folder metadata are also stored in SPIFFS using the short root
 paths `/spiffs/t_f0.json` through `/spiffs/t_f9.json` and
 `/spiffs/t_folders.json`. This keeps the tile configuration independent of the

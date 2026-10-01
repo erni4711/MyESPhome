@@ -15,7 +15,7 @@ $tempDirectory = Join-Path `
 $sourceFiles = Get-ChildItem -LiteralPath $configRoot -File -Recurse |
     Where-Object {
         $_.FullName -notlike '*\.esphome\*' -and
-        $_.Extension -in @('.c', '.cpp', '.h', '.yaml', '.yml')
+        $_.Extension -in @('.c', '.cpp', '.h', '.json', '.yaml', '.yml')
     }
 $mdiMapPath = Join-Path $fontRoot 'mdi_icons.cpp'
 $mdiMapSource = [IO.File]::ReadAllText($mdiMapPath)
@@ -45,12 +45,23 @@ foreach ($sourceFile in $sourceFiles) {
             [Text.RegularExpressions.RegexOptions]::Singleline)) {
         [void]$selectedNames.Add($match.Groups['name3'].Value)
     }
+    foreach ($match in [regex]::Matches(
+            $source,
+            '"icon_name"\s*:\s*"(?<name4>[A-Za-z0-9-]+)"')) {
+        [void]$selectedNames.Add($match.Groups['name4'].Value)
+    }
 }
 
 foreach ($name in $codepointsByName.Keys) {
     if ($name.StartsWith('weather-', [StringComparison]::OrdinalIgnoreCase)) {
         [void]$selectedNames.Add($name)
     }
+}
+
+# Climate state icons are selected through a runtime variable, so they cannot
+# be discovered reliably from literal getMdiChar("...") calls.
+foreach ($name in @('radiator', 'radiator-disabled', 'radiator-off')) {
+    [void]$selectedNames.Add($name)
 }
 
 $missingNames = @(

@@ -49,6 +49,8 @@ namespace web_admin_local {
 
 
 
+int tile_climate_arc_diameter(const GridGeometry &geo, const TileGeometry &tile);
+void tile_climate_arc_position_for_temperature(int radius, float temperature, int &x, int &y);
 
 
 
@@ -247,7 +249,9 @@ void process_one_ha_entity_state_rest() {
              entity_id.c_str(), error.c_str());
     return;
   }
-  apply_ha_entity_state(state);
+  if (g_tiles_renderer != nullptr) {
+    g_tiles_renderer->apply_ha_entity_state(state);
+  }
 }
 
 void set_home_assistant_credentials(const std::string &url, const std::string &token) {
@@ -264,6 +268,7 @@ void set_home_assistant_credentials(const std::string &url, const std::string &t
 namespace {
 
 struct SensorWidgetBinding {
+  TileGeometry tile_geo;
   lv_obj_t *value_label = nullptr;
   lv_obj_t *entity_icon = nullptr;
   lv_obj_t *gauge_arc = nullptr;
@@ -285,6 +290,11 @@ struct SensorWidgetBinding {
   lv_obj_t *climate_setpoint = nullptr;
   lv_obj_t *climate_mode = nullptr;
   lv_obj_t *climate_icon = nullptr;
+  lv_obj_t *climate_minus = nullptr;
+  lv_obj_t *climate_plus = nullptr;
+  lv_obj_t *climate_target_arc = nullptr;
+  lv_obj_t *climate_current_marker = nullptr;
+  lv_obj_t *climate_mode_button = nullptr;
   lv_obj_t *media_title = nullptr;
   lv_obj_t *media_subtitle = nullptr;
   lv_obj_t *media_state = nullptr;
@@ -516,16 +526,28 @@ void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label)
 }
 
 void register_ha_climate_widget(const std::string &entity_id,
+                                const TileGeometry &tile_geo,
                                 lv_obj_t *current_temperature,
                                 lv_obj_t *setpoint,
                                 lv_obj_t *mode,
-                                lv_obj_t *icon) {
+                                lv_obj_t *icon,
+                                lv_obj_t *minus,
+                                lv_obj_t *plus,
+                                lv_obj_t *target_arc,
+                                lv_obj_t *current_marker,
+                                lv_obj_t *mode_button) {
   if (entity_id.empty()) return;
   SensorWidgetBinding binding;
+  binding.tile_geo = tile_geo;
   binding.climate_current_temperature = current_temperature;
   binding.climate_setpoint = setpoint;
   binding.climate_mode = mode;
   binding.climate_icon = icon;
+  binding.climate_minus = minus;
+  binding.climate_plus = plus;
+  binding.climate_target_arc = target_arc;
+  binding.climate_current_marker = current_marker;
+  binding.climate_mode_button = mode_button;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
   const auto watch = [](lv_obj_t *object) {
@@ -541,7 +563,14 @@ void register_ha_climate_widget(const std::string &entity_id,
   watch(setpoint);
   watch(mode);
   watch(icon);
-  ESP_LOGD(TAG, "Registered climate widget for %s", entity_id.c_str());
+  watch(mode_button);
+  ESP_LOGI(TAG,
+           "Registered climate widget: entity=%s arc=%p marker=%p "
+           "temperature=%p setpoint=%p",
+           entity_id.c_str(), static_cast<void *>(target_arc),
+           static_cast<void *>(current_marker),
+           static_cast<void *>(current_temperature),
+           static_cast<void *>(setpoint));
 }
 
 struct MediaArtworkDownload {
@@ -1221,9 +1250,9 @@ void clear_ha_entity_widgets() {
   g_sensor_widget_bindings.clear();
 }
 
-void apply_ha_entity_state(const std::string &entity_id, const std::string &state,
-                            const std::string &unit,
-                            const std::string &icon) {
+void TilesLvglRenderer::apply_ha_entity_state(
+    const std::string &entity_id, const std::string &state,
+    const std::string &unit, const std::string &icon) {
   apply_entity_icon(entity_id, icon);
   if (entity_id.empty()) {
     ESP_LOGW(TAG, "Ignoring entity state update with empty entity ID");
@@ -1285,7 +1314,7 @@ void apply_ha_entity_state(const std::string &entity_id, const std::string &stat
   }
 }
 
-void apply_ha_entity_state(const JsonDocument &state) {
+void TilesLvglRenderer::apply_ha_entity_state(const JsonDocument &state) {
   const char *entity_id = state["entity_id"] | "";
   if (entity_id[0] == '\0') {
     ESP_LOGW(TAG, "Ignoring Home Assistant state without an entity ID");
@@ -1476,8 +1505,10 @@ void apply_ha_entity_state(const JsonDocument &state) {
         attribute_string("current_temperature");
     const std::string setpoint = attribute_string("temperature");
     const std::string hvac_mode = attributes["hvac_mode"] | value;
+    const std::string hvac_action = attributes["hvac_action"] | "";
+    const bool available = value != "unavailable" && value != "unknown";
     apply_ha_climate_state(id, current_temperature, setpoint, hvac_mode,
-                           unit, icon);
+                           hvac_action, unit, icon, available);
     return;
   }
 
@@ -1501,9 +1532,10 @@ void apply_ha_entity_state(const JsonDocument &state) {
   apply_ha_entity_state(id, value, unit, icon);
 }
 
-void apply_ha_weather_state(const std::string &entity_id, const std::string &state,
-                              const std::string &temperature, const std::string &condition,
-                              const std::string &unit, const std::string &forecast) {
+void TilesLvglRenderer::apply_ha_weather_state(
+    const std::string &entity_id, const std::string &state,
+    const std::string &temperature, const std::string &condition,
+    const std::string &unit, const std::string &forecast) {
     std::vector<SensorWidgetBinding> bindings;
     {
       MutexGuard lock(widget_registry_mutex());
@@ -1591,8 +1623,8 @@ void apply_ha_weather_state(const std::string &entity_id, const std::string &sta
     }
   }
 
-void apply_ha_weather_forecast_state(const std::string &entity_id,
-                                     const std::string &forecast) {
+void TilesLvglRenderer::apply_ha_weather_forecast_state(
+    const std::string &entity_id, const std::string &forecast) {
   std::vector<SensorWidgetBinding> bindings;
   {
     MutexGuard lock(widget_registry_mutex());
@@ -1656,7 +1688,8 @@ void apply_ha_weather_forecast_state(const std::string &entity_id,
   }
 }
 
-void apply_ha_weather_forecast_day_state(const JsonDocument &state) {
+void TilesLvglRenderer::apply_ha_weather_forecast_day_state(
+    const JsonDocument &state) {
   const std::string entity_id = state["entity_id"] | "";
   const size_t prefix_length = std::strlen("sensor.owm_onecall_daily_");
   if (entity_id.rfind("sensor.owm_onecall_daily_", 0) != 0 ||
@@ -1732,12 +1765,48 @@ void apply_ha_weather_forecast_day_state(const JsonDocument &state) {
   }
 }
 
-void apply_ha_climate_state(const std::string &entity_id,
-                            const std::string &current_temperature,
-                            const std::string &setpoint,
-                            const std::string &hvac_mode,
-                            const std::string &unit,
-                            const std::string &icon) {
+static void update_climate_current_marker(const GridGeometry &geo_, const TileGeometry &tile_geo, lv_obj_t *marker, lv_obj_t *arc,
+                                          float temperature) {
+  if (!marker || !arc || !std::isfinite(temperature)) {
+    ESP_LOGW(TAG,
+             "Climate marker update skipped: marker=%p arc=%p temperature=%.2f "
+             "finite=%d",
+             static_cast<void *>(marker), static_cast<void *>(arc), temperature,
+             std::isfinite(temperature));
+    return;
+  }
+  lv_obj_t *parent = lv_obj_get_parent(marker);
+  if (!parent) {
+    ESP_LOGW(TAG, "Climate marker update skipped: marker=%p has no parent",
+             static_cast<void *>(marker));
+    return;
+  }
+  const int radius = tile_climate_arc_diameter(geo_, tile_geo) / 2;
+  int offset_x = 0;
+  int offset_y = 0;
+  tile_climate_arc_position_for_temperature(radius, temperature, offset_x,
+                                            offset_y);
+  lv_obj_align_to(marker, arc, LV_ALIGN_CENTER, offset_x, offset_y);
+
+  ESP_LOGI(TAG,
+           "Climate marker updated: marker=%p arc=%p parent=%p temperature=%.2f "
+           "center=%d,%d radius=%d pos=%d,%d "
+           "marker_size=%dx%d arc_size=%dx%d hidden=%d",
+           static_cast<void *>(marker), static_cast<void *>(arc),
+           static_cast<void *>(parent), temperature,
+           lv_obj_get_width(arc) / 2, lv_obj_get_height(arc) / 2, radius,
+           offset_x, offset_y, lv_obj_get_width(marker),
+           static_cast<int>(lv_obj_get_height(marker)),
+           static_cast<int>(lv_obj_get_width(arc)),
+           static_cast<int>(lv_obj_get_height(arc)),
+           lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN));
+}
+
+void TilesLvglRenderer::apply_ha_climate_state(
+    const std::string &entity_id, const std::string &current_temperature,
+    const std::string &setpoint, const std::string &hvac_mode,
+    const std::string &hvac_action, const std::string &unit,
+    const std::string &icon, bool available) {
   std::vector<SensorWidgetBinding> bindings;
   {
     MutexGuard lock(widget_registry_mutex());
@@ -1746,26 +1815,149 @@ void apply_ha_climate_state(const std::string &entity_id,
     bindings = it->second;
   }
   const std::string suffix = unit.empty() ? "" : " " + unit;
+  std::string normalized_mode = hvac_mode;
+  std::transform(normalized_mode.begin(), normalized_mode.end(),
+                 normalized_mode.begin(), [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  std::string normalized_action = hvac_action;
+  std::transform(normalized_action.begin(), normalized_action.end(),
+                 normalized_action.begin(), [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  const bool active = normalized_action == "heating" ||
+                      normalized_action == "preheating" ||
+                      normalized_action == "cooling" ||
+                      normalized_action == "drying" ||
+                      normalized_action == "fan";
+  const lv_color_t state_color =
+      !available ? lv_color_make(0x80, 0x80, 0x80) :
+      active && (normalized_action == "cooling")
+          ? lv_color_make(0x21, 0x96, 0xF3)
+          : active && (normalized_action == "drying")
+                ? lv_color_make(0xFF, 0xB5, 0x81)
+                : active && (normalized_action == "fan")
+                      ? lv_color_make(0x00, 0xBC, 0xD4)
+                      : normalized_mode == "off"
+                            ? lv_color_make(0x80, 0x80, 0x80)
+                            : lv_color_make(0xFF, 0x6F, 0x22);
+  const bool radiator_off = !available || normalized_mode == "off";
+  const bool radiator_eco = normalized_mode == "eco";
+  const bool radiator_burst = normalized_mode == "boost" ||
+                              normalized_mode == "burst" ||
+                              normalized_action == "boost" ||
+                              normalized_action == "burst";
+  const bool radiator_heating =
+      normalized_mode == "heat" || normalized_mode == "heating" ||
+      normalized_action == "heating" || normalized_action == "preheating";
+  const char *radiator_icon =
+      radiator_off       ? "radiator-off" :
+      radiator_eco       ? "radiator-disabled" :
+      radiator_burst     ? "radiator" :
+      radiator_heating   ? "radiator" :
+                           nullptr;
+  ESP_LOGI(TAG, "Climate state: entity=%s available=%d current=%s setpoint=%s "
+                 "mode=%s action=%s unit=%s",
+           entity_id.c_str(), available, current_temperature.c_str(),
+           setpoint.c_str(), hvac_mode.c_str(), hvac_action.c_str(),
+           unit.c_str());
   for (const auto &binding : bindings) {
     if (binding.climate_current_temperature) {
-      const std::string text = current_temperature.empty()
+      const std::string text = !available || current_temperature.empty()
                                    ? "--"
                                    : current_temperature + suffix;
       lv_label_set_text(binding.climate_current_temperature, text.c_str());
     }
     if (binding.climate_setpoint) {
-      const std::string text = setpoint.empty() ? "--" : setpoint + suffix;
+      const std::string text = !available || setpoint.empty() ? "--"
+                                                               : setpoint + suffix;
       lv_label_set_text(binding.climate_setpoint, text.c_str());
     }
     if (binding.climate_mode) {
       lv_label_set_text(binding.climate_mode,
-                        hvac_mode.empty() ? "--" : hvac_mode.c_str());
+                        !available || hvac_mode.empty() ? "--"
+                                                        : hvac_mode.c_str());
     }
-    if (binding.climate_icon && !icon.empty()) {
-      const std::string icon_name = normalizeMdiIconName(icon);
+    if (binding.climate_mode) {
+      lv_obj_set_style_text_color(binding.climate_mode, state_color, 0);
+    }
+    if (binding.climate_mode_button) {
+      if (available) {
+        lv_obj_clear_state(binding.climate_mode_button, LV_STATE_DISABLED);
+      } else {
+        lv_obj_add_state(binding.climate_mode_button, LV_STATE_DISABLED);
+      }
+    }
+    if (binding.climate_icon) {
+      lv_obj_set_style_text_color(binding.climate_icon, state_color, 0);
+    }
+    if (binding.climate_minus) {
+      if (available) lv_obj_clear_state(binding.climate_minus, LV_STATE_DISABLED);
+      else lv_obj_add_state(binding.climate_minus, LV_STATE_DISABLED);
+    }
+    if (binding.climate_plus) {
+      if (available) lv_obj_clear_state(binding.climate_plus, LV_STATE_DISABLED);
+      else lv_obj_add_state(binding.climate_plus, LV_STATE_DISABLED);
+    }
+    if (binding.climate_target_arc) {
+      const bool arc_disabled = !available || normalized_mode == "off";
+      const lv_color_t arc_color = arc_disabled
+                                       ? lv_color_make(0x70, 0x70, 0x70)
+                                       : lv_color_make(0xFF, 0xB8, 0x4D);
+      const lv_color_t knob_color = arc_disabled
+                                        ? lv_color_make(0x90, 0x90, 0x90)
+                                        : lv_color_white();
+      if (arc_disabled) {
+        lv_obj_add_state(binding.climate_target_arc, LV_STATE_DISABLED);
+      } else {
+        lv_obj_clear_state(binding.climate_target_arc, LV_STATE_DISABLED);
+      }
+      lv_obj_set_style_arc_color(binding.climate_target_arc, arc_color,
+                                 LV_PART_MAIN);
+      lv_obj_set_style_arc_color(binding.climate_target_arc, arc_color,
+                                 LV_PART_INDICATOR);
+      lv_obj_set_style_bg_color(binding.climate_target_arc, knob_color,
+                                LV_PART_KNOB);
+      lv_obj_set_style_border_color(binding.climate_target_arc, arc_color,
+                                    LV_PART_KNOB);
+    }
+    if (binding.climate_target_arc && !setpoint.empty() && available) {
+      char *end = nullptr;
+      const float value = strtof(setpoint.c_str(), &end);
+      if (end != setpoint.c_str() && std::isfinite(value)) {
+        lv_arc_set_value(binding.climate_target_arc,
+                         static_cast<int>(std::lround(value * 10.0f)));
+      }
+    }
+    if (binding.climate_current_marker) {
+      char *end = nullptr;
+      const float value = strtof(current_temperature.c_str(), &end);
+      ESP_LOGI(TAG,
+               "Climate marker input: entity=%s text=%s parsed=%.2f end=%s "
+               "available=%d marker=%p arc=%p",
+               entity_id.c_str(), current_temperature.c_str(), value,
+               end ? end : "(null)", available,
+               static_cast<void *>(binding.climate_current_marker),
+               static_cast<void *>(binding.climate_target_arc));
+      if (!available || current_temperature.empty() ||
+          end == current_temperature.c_str() || !std::isfinite(value)) {
+        lv_obj_add_flag(binding.climate_current_marker, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        lv_obj_clear_flag(binding.climate_current_marker, LV_OBJ_FLAG_HIDDEN);
+        update_climate_current_marker(geo_, binding.tile_geo, binding.climate_current_marker,
+                                      binding.climate_target_arc, value);
+      }
+    }
+    if (binding.climate_icon && (radiator_icon != nullptr || !icon.empty())) {
+      const std::string icon_name = radiator_icon != nullptr
+                                        ? radiator_icon
+                                        : normalizeMdiIconName(icon);
       const std::string icon_char = getMdiChar(icon_name);
       if (!icon_char.empty()) {
         lv_label_set_text(binding.climate_icon, icon_char.c_str());
+        lv_obj_set_style_text_color(
+            binding.climate_icon,
+            radiator_burst ? lv_color_make(0xF4, 0x43, 0x36) : state_color, 0);
       }
     }
   }
@@ -1785,16 +1977,12 @@ static std::string format_media_time(float seconds) {
   return text;
 }
 
-void apply_ha_media_state(const std::string &entity_id,
-                          const std::string &state,
-                          const std::string &title,
-                          const std::string &subtitle,
-                          const std::string &icon,
-                          const std::string &entity_picture,
-                          float volume_level,
-                          bool volume_muted,
-                          float media_position,
-                          float media_duration) {
+void TilesLvglRenderer::apply_ha_media_state(
+    const std::string &entity_id, const std::string &state,
+    const std::string &title, const std::string &subtitle,
+    const std::string &icon, const std::string &entity_picture,
+    float volume_level, bool volume_muted, float media_position,
+    float media_duration) {
   std::vector<SensorWidgetBinding> bindings;
   {
     MutexGuard lock(widget_registry_mutex());
@@ -1888,10 +2076,11 @@ void apply_ha_media_state(const std::string &entity_id,
   }
 }
 
-void apply_ha_light_state(const std::string &entity_id, const std::string &state,
-                              const std::string &brightness, const std::string &color_temp,
-                              const std::string &red, const std::string &green,
-                              const std::string &blue) {
+void TilesLvglRenderer::apply_ha_light_state(
+    const std::string &entity_id, const std::string &state,
+    const std::string &brightness, const std::string &color_temp,
+    const std::string &red, const std::string &green,
+    const std::string &blue) {
       std::vector<SensorWidgetBinding> bindings;
       {
         MutexGuard lock(widget_registry_mutex());
@@ -1919,13 +2108,12 @@ void apply_ha_light_state(const std::string &entity_id, const std::string &state
       }
     }
 
-void apply_ha_wled_state(const std::string &entity_id, const std::string &state,
-                         const std::string &brightness, const std::string &red,
-                         const std::string &green, const std::string &blue,
-                         const std::string &effect,
-                         const std::string &effect_list,
-                         const std::string &preset_options,
-                         const std::string &preset_state) {
+void TilesLvglRenderer::apply_ha_wled_state(
+    const std::string &entity_id, const std::string &state,
+    const std::string &brightness, const std::string &red,
+    const std::string &green, const std::string &blue,
+    const std::string &effect, const std::string &effect_list,
+    const std::string &preset_options, const std::string &preset_state) {
   (void) effect_list; (void) effect; (void) red; (void) green; (void) blue;
   if (entity_id.empty()) return;
 
@@ -2016,7 +2204,7 @@ bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
-  config.timeout_ms = 5000;
+  config.timeout_ms = 1500;
   esp_http_client_handle_t client = esp_http_client_init(&config);
   if (client == nullptr) {
     ESP_LOGW(TAG, "Unable to initialize Home Assistant REST client");
@@ -2114,6 +2302,8 @@ bool press_home_assistant_button(const char *entity_id) {
 
 bool set_home_assistant_climate_temperature(const char *entity_id,
                                             float temperature) {
+  ESP_LOGI(TAG, "Climate request start: entity=%s target=%.1f",
+           entity_id ? entity_id : "(null)", temperature);
   if (entity_id == nullptr || entity_id[0] == '\0' ||
       home_assistant_url.empty() || home_assistant_token.empty()) {
     ESP_LOGW(TAG, "Cannot set climate temperature: Home Assistant REST API is not configured");
@@ -2137,7 +2327,7 @@ bool set_home_assistant_climate_temperature(const char *entity_id,
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
-  config.timeout_ms = 5000;
+  config.timeout_ms = 1500;
   esp_http_client_handle_t client = esp_http_client_init(&config);
   if (client == nullptr) {
     ESP_LOGW(TAG, "Unable to initialize Home Assistant climate client");
@@ -2160,6 +2350,59 @@ bool set_home_assistant_climate_temperature(const char *entity_id,
              entity_id, status, esp_err_to_name(result));
     return false;
   }
+  ESP_LOGI(TAG, "Climate request success: entity=%s target=%.1f status=%d",
+           entity_id, temperature, status);
+  return true;
+}
+
+bool set_home_assistant_climate_mode(const char *entity_id, const char *mode) {
+  ESP_LOGI(TAG, "Climate mode request start: entity=%s mode=%s",
+           entity_id ? entity_id : "(null)", mode ? mode : "(null)");
+  if (entity_id == nullptr || entity_id[0] == '\0' ||
+      mode == nullptr || mode[0] == '\0' ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot set climate mode: Home Assistant REST API is not configured");
+    return false;
+  }
+  const char *dot = strchr(entity_id, '.');
+  if (dot == nullptr || dot == entity_id ||
+      std::string(entity_id, static_cast<size_t>(dot - entity_id)) != "climate") {
+    ESP_LOGW(TAG, "Cannot set climate mode for non-climate entity: %s",
+             entity_id);
+    return false;
+  }
+
+  std::string url = home_assistant_url;
+  while (!url.empty() && url.back() == '/') url.pop_back();
+  url += "/api/services/climate/set_hvac_mode";
+  esp_http_client_config_t config = {};
+  config.url = url.c_str();
+  config.method = HTTP_METHOD_POST;
+  config.timeout_ms = 1500;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize Home Assistant climate mode client");
+    return false;
+  }
+
+  const std::string auth = "Bearer " + home_assistant_token;
+  char body[192];
+  snprintf(body, sizeof(body),
+           "{\"entity_id\":\"%s\",\"hvac_mode\":\"%s\"}",
+           entity_id, mode);
+  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, body, static_cast<int>(strlen(body)));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant climate mode failed for %s (status=%d, error=%s)",
+             entity_id, status, esp_err_to_name(result));
+    return false;
+  }
+  ESP_LOGI(TAG, "Climate mode request success: entity=%s mode=%s status=%d",
+           entity_id, mode, status);
   return true;
 }
 
@@ -2627,8 +2870,8 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
   std::vector<TileData> result(35);
   // Fill default grid positions
   for (int i = 0; i < 35; i++) {
-    result[i].col = i % 7;
-    result[i].row = i / 7;
+    result[i].geometry.col = i % 7;
+    result[i].geometry.row = i / 7;
   }
 
   if (!esphome::spiffs::ensure_mounted()) return result;
@@ -2680,10 +2923,10 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     if (idx >= 35) break;
     TileData &d = result[idx];
     d.type              = t["type"]             | 0;
-    d.col               = t["col"]              | (idx % 7);
-    d.row               = t["row"]              | (idx / 7);
-    d.span_w            = std::max(1, (int)(t["span_w"] | 1));
-    d.span_h            = std::max(1, (int)(t["span_h"] | 1));
+    d.geometry.col      = t["col"]              | (idx % 7);
+    d.geometry.row      = t["row"]              | (idx / 7);
+    d.geometry.span_w   = std::max(1, (int)(t["span_w"] | 1));
+    d.geometry.span_h   = std::max(1, (int)(t["span_h"] | 1));
     d.bg_color          = t["bg_color"]         | 0u;
     d.icon_name         = t["icon_name"]        | "";
     d.title             = t["title"]            | "";
@@ -2755,6 +2998,9 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     d.clock_shadow = t["clock_shadow"].is<const char *>()
         ? (std::strcmp(t["clock_shadow"] | "0", "1") == 0)
         : (t["clock_shadow"] | false);
+    d.clock_show_battery = t["clock_show_battery"].is<const char *>()
+        ? (std::strcmp(t["clock_show_battery"] | "0", "1") == 0)
+        : (t["clock_show_battery"] | false);
     d.clock_time_alignment = t["clock_time_alignment"] | 1;
     d.clock_date_alignment = t["clock_date_alignment"] | 1;
     d.key_code          = t["key_code"]         | 40;
@@ -2776,11 +3022,12 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_energy(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_media(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_text(lv_obj_t *parent, const TileData &tile);
-void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile);
+void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const GridGeometry &geo);
 void tile_widget_build_camera(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_dart(lv_obj_t *parent, const TileData &tile);
 void tile_widget_build_wled(lv_obj_t *parent, const TileData &tile);
+
 
 // ── Shared helper: create a label with given text, colour, font size ──────────
 
@@ -2861,10 +3108,10 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
   if (tile.type == TILE_EMPTY) return;
 
   // Clamp layout
-  int col    = std::max(0, std::min(tile.col,    geo_.cols - 1));
-  int row    = std::max(0, std::min(tile.row,    geo_.rows - 1));
-  int span_w = std::max(1, std::min(tile.span_w, geo_.cols - col));
-  int span_h = std::max(1, std::min(tile.span_h, geo_.rows - row));
+  int col    = std::max(0, std::min(tile.geometry.col,    geo_.cols - 1));
+  int row    = std::max(0, std::min(tile.geometry.row,    geo_.rows - 1));
+  int span_w = std::max(1, std::min(tile.geometry.span_w, geo_.cols - col));
+  int span_h = std::max(1, std::min(tile.geometry.span_h, geo_.rows - row));
   for (int r = row; r < row + span_h; ++r)
     for (int c = col; c < col + span_w; ++c)
       if (occupied_[r][c]) return;
@@ -2935,7 +3182,7 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
     case TILE_WEATHER:  tile_widget_build_weather(tile_obj, tile); break;
     case TILE_MEDIA:    tile_widget_build_media(tile_obj, tile);  break;
     case TILE_TEXT:     tile_widget_build_text(tile_obj, tile);   break;
-    case TILE_CLIMATE:  tile_widget_build_climate(tile_obj, tile); break;
+    case TILE_CLIMATE:  tile_widget_build_climate(tile_obj, tile, geo_); break;
     case TILE_CAMERA:   tile_widget_build_camera(tile_obj, tile);  break;
     case TILE_SETTINGS: tile_widget_build_settings(tile_obj, tile); break;
     case TILE_DART:     tile_widget_build_dart(tile_obj, tile); break;

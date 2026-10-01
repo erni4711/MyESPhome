@@ -40,3 +40,4 @@ config/boards/ESP32-P4-test.yaml
 config/7i-wohn.yaml
 config/7inch.yaml
 config/external_components/hatiadmin/tools/backup/192.168.10.34-all.json
+config/external_components/hatiadmin/tools/backup/device-registry.json

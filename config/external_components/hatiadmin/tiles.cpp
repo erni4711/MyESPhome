@@ -473,6 +473,10 @@ static std::string buildFolderTabHtml(const FolderMeta& m) {
         "<label class=\"inline-checkbox\">"
         "<input type=\"checkbox\" id=\"" +
         tid + "_clock_shadow\"> Text Shadow</label>";
+    inner +=
+        "<label class=\"inline-checkbox\">"
+        "<input type=\"checkbox\" id=\"" +
+        tid + "_clock_show_battery\"> Show Battery</label>";
     inner += "<label>Time Alignment</label><select id=\"" + tid + "_clock_time_alignment\">"
              "<option value=\"0\">Left</option><option value=\"1\" selected>Center</option>"
              "<option value=\"2\">Right</option></select>";
@@ -1550,7 +1554,7 @@ void ApiTilesHandler::handleRequest(AsyncWebServerRequest* request) {
           "climate_geometry", "text_value",
           "key_macro",
           "clock_show_time",  "clock_show_date", "clock_show_weekday",
-          "clock_shadow", nullptr};
+          "clock_shadow",     "clock_show_battery", nullptr};
       for (int i = 0; strFields[i]; i++)
         setStrField(strFields[i], strFields[i]);
 

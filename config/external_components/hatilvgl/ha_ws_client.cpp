@@ -24,19 +24,6 @@
 #undef ESP_LOGI
 #undef ESP_LOGW
 
-class DirectSerial {
- public:
-  int printf(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    const int result = esp_rom_vprintf(format, args);
-    va_end(args);
-    return result;
-  }
-};
-
-//#static DirectSerial Serial;
-
 #define ESP_LOGE(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
 #define ESP_LOGD(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
 #define ESP_LOGI(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
@@ -871,7 +858,9 @@ void ha_ws_client_loop() {
     if (state_doc["type"] == "result")
       energy_handle_ws_message(state_doc);
     else
-      apply_ha_entity_state(state_doc);
+      if (g_tiles_renderer != nullptr) {
+        g_tiles_renderer->apply_ha_entity_state(state_doc);
+      }
   }
   energy_service();
 }

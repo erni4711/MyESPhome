@@ -125,7 +125,7 @@ lv_obj_t *create_media_button(lv_obj_t *parent, const char *entity_id,
   lv_obj_set_size(button, 38, 34);
   lv_obj_set_style_bg_color(button, lv_color_make(0x33, 0x33, 0x33), 0);
   lv_obj_set_style_bg_color(button, lv_color_make(0x26, 0xA6, 0x9A),
-                            LV_PART_MAIN | LV_STATE_PRESSED);
+                             LV_STATE_PRESSED);
   lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_border_width(button, 0, 0);
   lv_obj_set_style_shadow_width(button, 0, 0);

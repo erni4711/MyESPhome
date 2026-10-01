@@ -638,58 +638,43 @@ script:
 
 <<: !include ../common/7i-fonts.yaml
 
-# sensor:
-#   # Battery level via ADC on waveshare IO ch32v003
-#   - platform: waveshare_io_ch32v003
-#     name: "Battery level"
-#     waveshare_io_ch32v003_id: ioexp 
-#     id: wave_adc
-#     # Calculation: value = adc * 3 * 3.3V / 1023.0
-#     # Therefore, reference_voltage is set to 9.9 (3 * 3.3)
-#     reference_voltage: 9.9 
-
-#   # Example configuration entry I2C
-#   - platform: bme280_i2c
-#     address: 0x76
-#     temperature:
-#       name: "BME280 Temperature"
-#     pressure:
-#       name: "BME280 Pressure"
-#     humidity:
-#       name: "BME280 Humidity"
-#   - platform: wifi_signal
-#     name: "WiFi Signal Strength"
-#   - platform: adc
-#     id: voltage_raw
-#     pin: GPIO6
-#     attenuation: auto
-#     name: "Analog Value"
-#     update_interval: 60s
-#     filters:
-#     - multiply: 3.0
-#     # on_value:
-#     # - lvgl.label.update:
-#     #     id: voltage_text
-#     #     text:
-#     #       format: "%.2fV"
-#     #       args: [ 'x' ]
-#   - platform: template
-#     id: battery_percent
-#     unit_of_measurement: "%"
-#     update_interval: 20s
-#     lambda: |-
-#       float v = id(wave_adc).state;
-#       if (v > 4.2) v = 4.2;
-#       if (v < 3.0) v = 3.0;
-#       return (v - 3.0) * 100.0 / (4.2 - 3.0);
-
+# Battery sensing:
+# The schematic routes the battery through 100 kOhm / 200 kOhm to GPIO20.
+# GPIO20 therefore measures two thirds of the actual battery voltage.
 
 sensor:
+  - platform: adc
+    id: battery_voltage
+    name: "Battery Voltage"
+    pin: GPIO20
+    attenuation: auto
+    update_interval: 30s
+    filters:
+      - multiply: 3
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+
   - platform: template
     id: battery_percent
+    name: "Battery Level"
     unit_of_measurement: "%"
-    update_interval: never
-    lambda: return NAN;
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 30s
+    on_value:
+      then:
+        - lambda: |-
+            web_admin_local::hatilvgl_set_battery_level(x);
+    lambda: |-
+      const float voltage = id(battery_voltage).state;
+      if (isnan(voltage)) return NAN;
+      float clamped = voltage;
+      if (clamped < 3.0f) clamped = 3.0f;
+      if (clamped > 4.2f) clamped = 4.2f;
+      return (clamped - 3.0f) * 100.0f / 1.2f;
   - platform: template
     id: bme_temperature
     unit_of_measurement: "°C"

@@ -106,10 +106,10 @@ lv_obj_t *weather_forecast_column(lv_obj_t *parent, lv_obj_t *source = nullptr,
   lv_obj_t *low_label = weather_popup_label(column, low, ui_font_for_size(12));
   lv_obj_set_style_text_color(
       high_label, weather_temperature_color(weather_temperature_value(high)),
-      LV_PART_MAIN | LV_STATE_DEFAULT);
+       LV_STATE_DEFAULT);
   lv_obj_set_style_text_color(
       low_label, weather_temperature_color(weather_temperature_value(low)),
-      LV_PART_MAIN | LV_STATE_DEFAULT);
+       LV_STATE_DEFAULT);
   lv_obj_t *amount = weather_popup_label(
       column, source ? lv_label_get_text(lv_obj_get_child(source, 4)) : "0.0 mm",
       ui_font_for_size(10));
@@ -162,7 +162,7 @@ lv_obj_t *add_temperature_labels(lv_obj_t *parent, lv_obj_t **forecast,
     if (output) output[i] = label;
     lv_obj_set_style_text_color(
         label, weather_temperature_color(weather_temperature_value(text)),
-        LV_PART_MAIN | LV_STATE_DEFAULT);
+         LV_STATE_DEFAULT);
     lv_obj_set_width(label, LV_PCT(100 / forecast_count));
   }
   return row;
@@ -410,10 +410,10 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   const lv_color_t white = lv_color_white();
   // The inline chart/forecast layout needs more than two grid rows and at
   // least five columns so the forecast columns remain readable.
-  const bool inline_weather = tile.span_w >= 5 && tile.span_h > 2;
+  const bool inline_weather = tile.geometry.span_w >= 5 && tile.geometry.span_h > 2;
   const int inline_height = lv_obj_get_height(parent);
   const bool compact_layout = (inline_height > 0 && inline_height < 380) ||
-                              tile.span_h <= 3;
+                              tile.geometry.span_h <= 3;
   const bool compact_inline = inline_weather && compact_layout;
   const int forecast_row_y = compact_inline ? 82 : 105;
   const int icon_line_height = lv_font_get_line_height(
@@ -480,12 +480,12 @@ void tile_widget_build_weather(lv_obj_t *parent, const TileData &tile) {
   lv_obj_t *forecast[kMaxForecastDays] = {};
   lv_obj_t *high_labels[kMaxForecastDays] = {};
   lv_obj_t *low_labels[kMaxForecastDays] = {};
-  const uint8_t display_forecast_count = inline_weather || tile.span_h >= 2
+  const uint8_t display_forecast_count = inline_weather || tile.geometry.span_h >= 2
       ? static_cast<uint8_t>(compact_inline
                                  ? 4
-                                 : (tile.span_w >= 7
+                                 : (tile.geometry.span_w >= 7
                                       ? kMaxForecastDays
-                                      : (tile.span_w >= 5 ? 7 : 4)))
+                                      : (tile.geometry.span_w >= 5 ? 7 : 4)))
       : 0;
   constexpr uint8_t popup_forecast_count = kMaxForecastDays;
   lv_obj_t *forecast_row = nullptr;

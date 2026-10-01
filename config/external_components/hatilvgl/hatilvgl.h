@@ -20,6 +20,9 @@ void settings_set_display_controls(esphome::light::LightState *backlight,
                                    esphome::number::Number *timeout);
 void settings_set_brightness(float brightness);
 void settings_set_timeout(float timeout);
+void hatilvgl_set_battery_level(float percent);
+void hatilvgl_register_battery_label(lv_obj_t *label);
+void hatilvgl_register_battery_icon(lv_obj_t *icon);
 void hatilvgl_publish_displayed_folder(int folder_id);
 
 class HATiFolderSelect : public esphome::select::Select {
