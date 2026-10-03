@@ -10,10 +10,11 @@
 // subscribes to `state_changed` events. Initial states are loaded through
 // targeted REST requests by the tile renderer.
 //
-// All network I/O and JSON parsing happens on the esp_websocket_client
-// library's own FreeRTOS task (the event handler callback). Matching
-// entity updates are queued and only ever applied to LVGL widgets from
-// ha_ws_client_loop(), which must be called from the ESPHome loop() task.
+// WebSocket network I/O and JSON parsing happens on the
+// esp_websocket_client library's own FreeRTOS task (the event handler
+// callback). Targeted REST state requests use a separate worker task.
+// Matching entity updates are queued and only ever applied to LVGL widgets
+// from ha_ws_client_loop(), which must be called from the ESPHome loop() task.
 
 namespace web_admin_local {
 

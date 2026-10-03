@@ -18,6 +18,8 @@
 #endif
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -60,6 +62,7 @@ static std::string home_assistant_url;
 static std::string home_assistant_token;
 static std::vector<std::string> pending_rest_entities;
 static size_t next_rest_entity = 0;
+static uint32_t rest_request_generation = 0;
 float hourly_weather_temperature[48] = {};
 long hourly_weather_timestamp[48] = {};
 bool hourly_weather_valid[48] = {};
@@ -172,10 +175,29 @@ struct RestResponse {
 
 };
 
+struct RestRequest {
+  std::string entity_id;
+  std::string url;
+  std::string auth;
+  uint32_t generation = 0;
+};
+
+struct RestResult {
+  std::string entity_id;
+  JsonDocument state;
+  uint32_t generation = 0;
+
+  RestResult() : state(ha_psram_json_allocator()) {}
+};
+
+static QueueHandle_t rest_request_queue = nullptr;
+static QueueHandle_t rest_result_queue = nullptr;
+static TaskHandle_t rest_worker_task = nullptr;
+
 esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
   if (event == nullptr || event->user_data == nullptr) return ESP_FAIL;
-  // REST state requests run synchronously from loopTask. Reset its watchdog
-  // while the HTTP client is delivering a potentially slow response.
+  // Reset the worker watchdog while the HTTP client is delivering a
+  // potentially slow response.
   esp_task_wdt_reset();
   if (event->event_id != HTTP_EVENT_ON_DATA || event->data_len <= 0) return ESP_OK;
   auto *response = static_cast<RestResponse *>(event->user_data);
@@ -187,49 +209,29 @@ esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
   return ESP_OK;
 }
 
-void schedule_ha_entity_states_rest_for_folder(int folder_id) {
-  pending_rest_entities.clear();
-  add_ha_entities_on_folder(pending_rest_entities, folder_id);
-  for (auto &entity_id : pending_rest_entities) {
-    ESP_LOGD(TAG, "Scheduling REST update for entity: %s", entity_id.c_str());
-  }
-  next_rest_entity = 0;
-}
-
-void process_one_ha_entity_state_rest() {
-  if (home_assistant_url.empty() || home_assistant_token.empty() ||
-      next_rest_entity >= pending_rest_entities.size()) {
-    return;
-  }
-  std::string base_url = home_assistant_url;
-  while (!base_url.empty() && base_url.back() == '/') base_url.pop_back();
-  const std::string auth = "Bearer " + home_assistant_token;
-
-  const std::string entity_id = pending_rest_entities[next_rest_entity++];
-  if (entity_id.empty()) return;
-  const std::string url = base_url + "/api/states/" + entity_id;
+bool perform_ha_entity_state_rest(const RestRequest &request,
+                                  JsonDocument &state) {
   RestResponse response;
   if (response.data == nullptr) {
     ESP_LOGW(TAG, "Unable to allocate REST response buffer in PSRAM for %s",
-             entity_id.c_str());
-    return;
+             request.entity_id.c_str());
+    return false;
   }
   esp_http_client_config_t config = {};
-  config.url = url.c_str();
+  config.url = request.url.c_str();
   config.method = HTTP_METHOD_GET;
-  // This request runs from loopTask; keep the network wait below the task
-  // watchdog interval so an unavailable Home Assistant cannot stall the UI.
   config.timeout_ms = 1500;
   config.event_handler = ha_state_http_event_handler;
   config.user_data = &response;
   esp_http_client_handle_t client = esp_http_client_init(&config);
   if (client == nullptr) {
     ESP_LOGW(TAG, "Unable to initialize REST state request for %s",
-             entity_id.c_str());
-    return;
+             request.entity_id.c_str());
+    return false;
   }
-  ESP_LOGD(TAG, "Performing REST state request for entity: %s", entity_id.c_str());
-  esp_http_client_set_header(client, "Authorization", auth.c_str());
+  ESP_LOGD(TAG, "Performing REST state request for entity: %s",
+           request.entity_id.c_str());
+  esp_http_client_set_header(client, "Authorization", request.auth.c_str());
   esp_http_client_set_header(client, "Accept", "application/json");
   esp_task_wdt_reset();
   const esp_err_t result = esp_http_client_perform(client);
@@ -238,19 +240,104 @@ void process_one_ha_entity_state_rest() {
   esp_http_client_cleanup(client);
   if (result != ESP_OK || status < 200 || status >= 300) {
     ESP_LOGW(TAG, "REST state request failed for %s (status=%d, error=%s)",
-             entity_id.c_str(), status, esp_err_to_name(result));
-    return;
+             request.entity_id.c_str(), status, esp_err_to_name(result));
+    return false;
   }
-  JsonDocument state(ha_psram_json_allocator());
   const DeserializationError error =
       deserializeJson(state, response.data, response.size);
   if (error) {
     ESP_LOGW(TAG, "Invalid REST state response for %s (%s)",
-             entity_id.c_str(), error.c_str());
+             request.entity_id.c_str(), error.c_str());
+    return false;
+  }
+  return true;
+}
+
+void ha_entity_state_rest_worker(void *) {
+  while (true) {
+    RestRequest *request = nullptr;
+    if (xQueueReceive(rest_request_queue, &request, portMAX_DELAY) != pdTRUE ||
+        request == nullptr) {
+      continue;
+    }
+    auto *result = new RestResult();
+    result->entity_id = request->entity_id;
+    result->generation = request->generation;
+    if (perform_ha_entity_state_rest(*request, result->state) &&
+        xQueueSend(rest_result_queue, &result, portMAX_DELAY) == pdTRUE) {
+      delete request;
+      continue;
+    }
+    delete result;
+    delete request;
+  }
+}
+
+bool ensure_ha_entity_state_rest_worker() {
+  if (rest_worker_task != nullptr) return true;
+  rest_request_queue = xQueueCreate(1, sizeof(RestRequest *));
+  rest_result_queue = xQueueCreate(2, sizeof(RestResult *));
+  if (rest_request_queue == nullptr || rest_result_queue == nullptr) {
+    ESP_LOGW(TAG, "Unable to create Home Assistant REST worker queues");
+    if (rest_request_queue != nullptr) {
+      vQueueDelete(rest_request_queue);
+      rest_request_queue = nullptr;
+    }
+    if (rest_result_queue != nullptr) {
+      vQueueDelete(rest_result_queue);
+      rest_result_queue = nullptr;
+    }
+    return false;
+  }
+  const BaseType_t created = xTaskCreate(
+      ha_entity_state_rest_worker, "ha_rest", 8192, nullptr, 1,
+      &rest_worker_task);
+  if (created != pdPASS) {
+    ESP_LOGW(TAG, "Unable to create Home Assistant REST worker task");
+    vQueueDelete(rest_request_queue);
+    vQueueDelete(rest_result_queue);
+    rest_request_queue = nullptr;
+    rest_result_queue = nullptr;
+    return false;
+  }
+  return true;
+}
+
+void schedule_ha_entity_states_rest_for_folder(int folder_id) {
+  pending_rest_entities.clear();
+  add_ha_entities_on_folder(pending_rest_entities, folder_id);
+  next_rest_entity = 0;
+  ++rest_request_generation;
+}
+
+void process_one_ha_entity_state_rest() {
+  if (!ensure_ha_entity_state_rest_worker()) return;
+
+  RestResult *result = nullptr;
+  if (xQueueReceive(rest_result_queue, &result, 0) == pdTRUE) {
+    if (result != nullptr && result->generation == rest_request_generation &&
+        g_tiles_renderer != nullptr) {
+      g_tiles_renderer->apply_ha_entity_state(result->state);
+    }
+    delete result;
+  }
+
+  if (home_assistant_url.empty() || home_assistant_token.empty() ||
+      next_rest_entity >= pending_rest_entities.size() ||
+      uxQueueMessagesWaiting(rest_request_queue) != 0 ||
+      uxQueueMessagesWaiting(rest_result_queue) != 0) {
     return;
   }
-  if (g_tiles_renderer != nullptr) {
-    g_tiles_renderer->apply_ha_entity_state(state);
+  std::string base_url = home_assistant_url;
+  while (!base_url.empty() && base_url.back() == '/') base_url.pop_back();
+  auto *request = new RestRequest();
+  request->entity_id = pending_rest_entities[next_rest_entity++];
+  request->url = base_url + "/api/states/" + request->entity_id;
+  request->auth = "Bearer " + home_assistant_token;
+  request->generation = rest_request_generation;
+  if (request->entity_id.empty() ||
+      xQueueSend(rest_request_queue, &request, 0) != pdTRUE) {
+    delete request;
   }
 }
 

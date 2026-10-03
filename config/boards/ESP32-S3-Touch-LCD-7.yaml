@@ -399,6 +399,10 @@ sensor:
     id: battery_percent
     unit_of_measurement: "%"
     update_interval: 5s
+    on_value:
+      then:
+        - lambda: |-
+            web_admin_local::hatilvgl_set_battery_level(x);
     lambda: |-
       float v = id(battery_voltage_raw).state;
       if (v > 4.2) v = 4.2;

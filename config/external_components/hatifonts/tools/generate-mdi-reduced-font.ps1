@@ -64,6 +64,36 @@ foreach ($name in @('radiator', 'radiator-disabled', 'radiator-off')) {
     [void]$selectedNames.Add($name)
 }
 
+# Battery level icons are selected dynamically from the battery percentage,
+# so they cannot be discovered reliably from literal icon references.
+foreach ($name in @(
+        'battery',
+        'battery-10',
+        'battery-20',
+        'battery-30',
+        'battery-40',
+        'battery-50',
+        'battery-60',
+        'battery-70',
+        'battery-80',
+        'battery-90',
+        'battery-alert',
+        'battery-charging',
+        'battery-charging-10',
+        'battery-charging-20',
+        'battery-charging-30',
+        'battery-charging-40',
+        'battery-charging-50',
+        'battery-charging-60',
+        'battery-charging-70',
+        'battery-charging-80',
+        'battery-charging-90',
+        'battery-charging-100',
+        'battery-charging-outline'
+    )) {
+    [void]$selectedNames.Add($name)
+}
+
 $missingNames = @(
     $selectedNames | Where-Object { -not $codepointsByName.ContainsKey($_) }
 )

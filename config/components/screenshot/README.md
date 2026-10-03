@@ -68,5 +68,27 @@ Repeat for each page.
 
 > **Note:** The ESPHome web server v2 (default since 2024.x) uses a WebSocket-based API — direct REST calls to `/select/...` are not supported. Use Home Assistant or the ESPHome dashboard to switch pages.
 
+### Capturing all HATi folders
+
+The repository includes `config/external_components/hatiadmin/tools/capture-folder-screenshots.py`.
+It reads the configured folders from the device, changes the displayed-folder select
+through Home Assistant, waits five seconds for the screen to settle, and saves each
+PNG below `images/<device-name>/`.
+
+```bash
+python config/external_components/hatiadmin/tools/capture-folder-screenshots.py \
+  --device http://192.168.10.26 \
+  --home-assistant http://homeassistant.local:8123 \
+  --device-name living-room \
+  --folder-entity select.living_room_displayed_folder
+```
+
+When `--token` is omitted, the script reads the token from
+`config/secrets.yaml`. Use `--secrets` to select another file or `--token` to
+override it.
+
+Use `--settle-seconds` to change the delay. If the displayed-folder entity can be
+uniquely identified from Home Assistant, `--folder-entity` may be omitted.
+
 ## License
 Apache — see LICENSE file for details.

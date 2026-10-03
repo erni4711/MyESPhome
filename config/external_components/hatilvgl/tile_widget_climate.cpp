@@ -399,21 +399,27 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_label_set_text(mode, "--");
   lv_obj_set_style_text_color(mode, muted, 0);
   lv_obj_set_style_text_font(mode, ui_font_for_size(14), 0);
+  lv_obj_add_flag(mode, LV_OBJ_FLAG_HIDDEN);
   if (!entity.empty()) {
     //mode_button = create_climate_mode_button(parent, mode, entity.c_str());
   }
 
   if (!entity.empty()) {
-    lv_obj_t *minus =
-        create_adjust_button(parent, setpoint, "-", -0.5f, entity.c_str());
-    lv_obj_align(minus, LV_ALIGN_TOP_LEFT, 0, 44);
-    lv_obj_t *plus =
-        create_adjust_button(parent, setpoint, "+", 0.5f, entity.c_str());
-    lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, 0, 44);
-    create_climate_preset_button(parent, entity.c_str(), "16°", 16.0f,
-                                 LV_ALIGN_BOTTOM_LEFT, 0, 0);
-    create_climate_preset_button(parent, entity.c_str(), "21°", 21.0f,
-                                 LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_t *minus = nullptr;
+    lv_obj_t *plus = nullptr;
+    if (large_climate_tile)
+    {
+      minus = create_adjust_button(parent, setpoint, "-", -0.5f, entity.c_str());
+      lv_obj_align(minus, LV_ALIGN_TOP_LEFT, 0, 50);
+     
+      plus =  create_adjust_button(parent, setpoint, "+", 0.5f, entity.c_str());
+      lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, 0, 50);
+     
+      create_climate_preset_button(parent, entity.c_str(), "16°", 16.0f,
+                                   LV_ALIGN_BOTTOM_LEFT, 0, 0);
+      create_climate_preset_button(parent, entity.c_str(), "21°", 21.0f,
+                                   LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    }
     TileData::Geometry tile_geometry;
     tile_geometry.col = tile.geometry.col;
     tile_geometry.row = tile.geometry.row;

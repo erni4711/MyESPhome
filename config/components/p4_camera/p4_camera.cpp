@@ -1,40 +1,25 @@
 #include "p4_camera.h"
 #include "esphome.h"
-#include "esphome/components/web_server_base/web_server_base.h"
+#include <cerrno>
+#include <cstring>
+#include <cstdlib>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <linux/videodev2.h>
+#include <unistd.h>
 
-#ifdef USE_ESP_CAMERA
-#include "esp_camera.h"
+#ifdef USE_ESP32
+#include "esp_heap_caps.h"
+#include "esp_video_init.h"
+#include "esp_video_device.h"
+#include "driver/jpeg_encode.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #endif
-
-#ifdef USE_ESP32P4_ISP_CAMERA
-#include "driver/isp.h"
-#define HAVE_ESP32P4_ISP 1
-#endif
-
-// Some web-server APIs use `String` in signatures; alias to std::string here
-using String = std::string;
 
 namespace esphome {
 namespace p4_camera {
-
-// Early static initializer to emit a trace at program start.
-static int p4_camera_static_init = []() {
-  puts("p4_camera: static initializer called");
-  return 0;
-}();
-
-
-static void map_resolution(CameraResolution res, uint16_t &w, uint16_t &h, int &frame_size_const) {
-  switch (res) {
-    case RESOLUTION_FHD:
-      w = 1920; h = 1080; frame_size_const = 0; break;
-    case RESOLUTION_VGA:
-      w = 640; h = 480; frame_size_const = 1; break;
-    case RESOLUTION_SVGA:
-    default:
-      w = 800; h = 640; frame_size_const = 2; break;
-  }
-}
 
 void P4Camera::dump_config() {
   ESP_LOGCONFIG("p4_camera", "P4Camera: resolution=%d streaming=%d", static_cast<int>(this->resolution_), this->streaming_);
@@ -45,120 +30,303 @@ P4Camera::P4Camera() {
   puts("p4_camera: constructor called");
 }
 
+P4CameraImage::~P4CameraImage() {
+  std::free(data_);
+}
+
+void P4CameraImageReader::set_image(
+    std::shared_ptr<camera::CameraImage> image) {
+  this->image_ = std::static_pointer_cast<P4CameraImage>(image);
+  this->offset_ = 0;
+}
+
+size_t P4CameraImageReader::available() const {
+  if (this->image_ == nullptr || this->offset_ >= this->image_->get_data_length())
+    return 0;
+  return this->image_->get_data_length() - this->offset_;
+}
+
+uint8_t *P4CameraImageReader::peek_data_buffer() {
+  return this->image_ == nullptr ? nullptr
+                                 : this->image_->get_data_buffer() + this->offset_;
+}
+
+void P4CameraImageReader::consume_data(size_t consumed) {
+  this->offset_ = std::min(this->offset_ + consumed,
+                           this->image_ == nullptr ? size_t{0}
+                                                    : this->image_->get_data_length());
+}
+
+void P4CameraImageReader::return_image() {
+  this->image_.reset();
+  this->offset_ = 0;
+}
+
 void P4Camera::setup() {
-  puts("p4_camera: setup called");
-  ESP_LOGI("p4_camera", "P4Camera setup");
-#ifdef DEBUG_P4_CAMERA
-  ESP_LOGI("p4_camera", "P4Camera constructed %p", this);
-  ESP_LOGI("p4_camera", "P4Camera setup start: id=%p", this);
-#endif
-  // Defer full camera initialization to avoid blocking startup or triggering early WDT
-  // Schedule initialization ~5s after setup. This uses Component::set_timeout
-  // so the call is run on the main loop/scheduler.
-#ifdef USE_ESP_CAMERA
-  this->set_timeout("p4_camera_init", 5000, [this]() {
-    ESP_LOGI("p4_camera", "P4Camera delayed init starting");
-    ESP_LOGI("p4_camera", "P4Camera delayed init starting %p", this);
-    camera_config_t config;
-    memset(&config, 0, sizeof(config));
-    // Waveshare P4 mapping
-    config.pin_pwdn = -1;
-    config.pin_reset = 45;
-    config.pin_xclk = 40;
-    config.pin_d0 = 41;
-    config.pin_d1 = 42;
-    config.pin_vsync = 44;
-    config.pin_href = 43;
-    config.pin_pclk = -1;
-
-    uint16_t w,h; int fs;
-    map_resolution(this->resolution_, w, h, fs);
-    config.xclk_freq_hz = 24000000;
-    config.frame_size = static_cast<framesize_t>(fs);
-#if defined(PIXFORMAT_YUV422)
-    config.pixel_format = PIXFORMAT_YUV422;
-#elif defined(PIXFORMAT_RGB565)
-    config.pixel_format = PIXFORMAT_RGB565;
+  ESP_LOGI("p4_camera", "Initializing ESP32-P4 MIPI-CSI camera");
+#ifdef USE_ESP32
+  xTaskCreate(
+      [](void *arg) {
+        auto *camera = static_cast<P4Camera *>(arg);
+        const bool initialized = camera->initialize_video();
+        camera->initialized_.store(initialized, std::memory_order_release);
+        if (!initialized)
+          camera->mark_failed();
+        vTaskDelete(nullptr);
+      },
+      "p4_camera_init", 8192, this, 5, nullptr);
 #else
-    config.pixel_format = static_cast<pixformat_t>(0);
-#endif
-    config.fb_count = 4;
-#if defined(CAMERA_ISP_MODE_AUTO)
-    config.isp_mode = CAMERA_ISP_MODE_AUTO;
-#endif
-
-    ESP_LOGI("p4_camera", "Initializing esp_camera with xclk=%u frame_size=%d pixel_format=%d fb_count=%d",
-             config.xclk_freq_hz, static_cast<int>(config.frame_size), static_cast<int>(config.pixel_format), config.fb_count);
-#if 0
-    esp_err_t err = esp_camera_init(&config);
-    if (err != ESP_OK) {
-      ESP_LOGE("p4_camera", "esp_camera_init failed: %d (%s)", err, esp_err_to_name(err));
-      ESP_LOGI("p4_camera", "Camera initialized successfully %p", this);
-      this->initialized_ = false;
-    } else {
-      ESP_LOGI("p4_camera", "esp_camera_init OK");
-      this->initialized_ = true;
-    }
-
-    
-    // Register web handler for snapshots via web_server_base (AsyncWebHandler)
-    if (web_server_base::global_web_server_base != nullptr) {
-      class Handler : public AsyncWebHandler {
-       public:
-        explicit Handler(P4Camera *parent) : parent_(parent) {}
-        bool canHandle(AsyncWebServerRequest *request) const override {
-          if (request == nullptr) return false;
-          char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
-          return request->url_to(url_buf) == "/camera.jpg";
-        }
-        void handleRequest(AsyncWebServerRequest *request) override {
-          ESP_LOGI("p4_camera", "/camera.jpg request");
-          if (!this->parent_->capture_frame()) { ESP_LOGW("p4_camera", "capture_frame failed"); request->send(500, "text/plain", "Capture failed"); return; }
-          // JPEG encoding not implemented yet — return 501 to indicate that
-          request->send(501, "text/plain", "JPEG not implemented");
-        }
-        void handleUpload(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final) override {}
-        void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) override {}
-        bool isRequestHandlerTrivial() const override { return false; }
-       protected:
-        P4Camera *parent_;
-      };
-
-      web_server_base::global_web_server_base->add_handler(new Handler(this));
-      ESP_LOGI("p4_camera", "Registered /camera.jpg snapshot endpoint (placeholder)");
-    } else {
-      ESP_LOGW("p4_camera", "Web server base not available to register snapshot endpoint");
-    }
-#endif
-  });
+  this->mark_failed();
 #endif
 }
 
-bool P4Camera::capture_frame() {
-#ifdef USE_ESP_CAMERA
-  if (!this->initialized_) { ESP_LOGW("p4_camera", "capture_frame called before camera initialized"); return false; }
-  camera_fb_t *fb = esp_camera_fb_get();
-  if (!fb) { ESP_LOGW("p4_camera", "frame buffer is null"); return false; }
-  ESP_LOGD("p4_camera", "captured fb: ptr=%p width=%d height=%d len=%d format=%d", fb, fb->width, fb->height, fb->len, fb->format);
-  // Ensure our buffer is allocated
-  uint16_t w,h; int fs; map_resolution(this->resolution_, w,h,fs);
-  this->width_ = fb->width;
-  this->height_ = fb->height;
-  size_t need = fb->len;
-  if (!this->frame_buffers_[0] || this->frame_buffer_size_ < need) {
-    ESP_LOGI("p4_camera", "allocating frame buffer: requested=%u previous=%u", (unsigned)need, (unsigned)this->frame_buffer_size_);
-    if (this->frame_buffers_[0]) { free(this->frame_buffers_[0]); this->frame_buffers_[0] = nullptr; }
-    this->frame_buffers_[0] = reinterpret_cast<uint8_t*>(malloc(need));
-    if (!this->frame_buffers_[0]) { ESP_LOGE("p4_camera", "malloc failed for size %u", (unsigned)need); esp_camera_fb_return(fb); return false; }
-    this->frame_buffer_size_ = need;
+void P4Camera::loop() {
+  const uint8_t requesters =
+      this->single_requesters_.exchange(0, std::memory_order_acq_rel) |
+      this->stream_requesters_.load(std::memory_order_acquire);
+  if (requesters == 0 || !this->initialized_) return;
+  if (this->stream_requesters_.load(std::memory_order_relaxed) != 0 &&
+      millis() - this->last_stream_capture_ < 1000)
+    return;
+
+  auto image = this->capture_api_image(requesters);
+  if (image == nullptr) return;
+  this->last_stream_capture_ = millis();
+  for (auto *listener : this->listeners_) {
+    if (listener != nullptr) listener->on_camera_image(image);
   }
-  memcpy(this->frame_buffers_[0], fb->buf, need);
-  ESP_LOGD("p4_camera", "copied %u bytes to frame buffer %p", (unsigned)need, this->frame_buffers_[0]);
-  esp_camera_fb_return(fb);
+}
+
+std::shared_ptr<P4CameraImage> P4Camera::capture_api_image(uint8_t requesters) {
+#ifdef USE_ESP32
+  if (!this->capture_video_frame() || this->jpeg_buffer_ == nullptr || this->jpeg_buffer_size_ == 0)
+    return nullptr;
+  auto *data = static_cast<uint8_t *>(std::malloc(this->jpeg_buffer_size_));
+  if (data == nullptr) {
+    ESP_LOGW("p4_camera", "Unable to allocate Home Assistant image buffer");
+    return nullptr;
+  }
+  std::memcpy(data, this->jpeg_buffer_, this->jpeg_buffer_size_);
+  return std::make_shared<P4CameraImage>(data, this->jpeg_buffer_size_, requesters);
+#else
+  (void) requesters;
+  return nullptr;
+#endif
+}
+
+void P4Camera::request_image(camera::CameraRequester requester) {
+  this->single_requesters_.fetch_or(1U << requester, std::memory_order_relaxed);
+}
+
+void P4Camera::start_stream(camera::CameraRequester requester) {
+  this->stream_requesters_.fetch_or(1U << requester, std::memory_order_relaxed);
+  for (auto *listener : this->listeners_) {
+    if (listener != nullptr) listener->on_stream_start();
+  }
+}
+
+void P4Camera::stop_stream(camera::CameraRequester requester) {
+  this->stream_requesters_.fetch_and(
+      static_cast<uint8_t>(~(1U << requester)), std::memory_order_relaxed);
+  for (auto *listener : this->listeners_) {
+    if (listener != nullptr) listener->on_stream_stop();
+  }
+}
+
+bool P4Camera::initialize_video() {
+#ifdef USE_ESP32
+  static const esp_video_init_csi_config_t csi_config = {
+      .sccb_config =
+          {
+              .init_sccb = true,
+              .i2c_config =
+                  {
+                      .port = 1,
+                      .scl_pin = static_cast<gpio_num_t>(8),
+                      .sda_pin = static_cast<gpio_num_t>(7),
+                  },
+              .freq = 400000,
+          },
+      .reset_pin = GPIO_NUM_NC,
+      .pwdn_pin = GPIO_NUM_NC,
+  };
+  static const esp_video_init_config_t video_config = {
+      .csi = &csi_config,
+  };
+
+  esp_err_t err = esp_video_init(&video_config);
+  if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+    ESP_LOGE("p4_camera", "esp_video_init failed: %s", esp_err_to_name(err));
+    return false;
+  }
+
+  this->video_fd_ = open(ESP_VIDEO_MIPI_CSI_DEVICE_NAME, O_RDWR | O_NONBLOCK);
+  if (this->video_fd_ < 0) {
+    ESP_LOGE("p4_camera", "Unable to open MIPI-CSI video device: %s", strerror(errno));
+    return false;
+  }
+
+  if (!this->configure_video_device()) {
+    this->close_video_device();
+    return false;
+  }
+
+  jpeg_encode_engine_cfg_t jpeg_config{};
+  jpeg_config.intr_priority = 0;
+  jpeg_config.timeout_ms = 100;
+  err = jpeg_new_encoder_engine(&jpeg_config, &this->jpeg_encoder_);
+  if (err != ESP_OK) {
+    ESP_LOGE("p4_camera", "Unable to create JPEG encoder: %s", esp_err_to_name(err));
+    this->close_video_device();
+    return false;
+  }
+
+  this->jpeg_buffer_capacity_ = static_cast<size_t>(this->width_) * this->height_ * 2;
+  this->jpeg_buffer_ = static_cast<uint8_t *>(
+      heap_caps_malloc(this->jpeg_buffer_capacity_, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (this->jpeg_buffer_ == nullptr) {
+    ESP_LOGE("p4_camera", "Unable to allocate JPEG output buffer");
+    this->close_video_device();
+    return false;
+  }
+
+  ESP_LOGI("p4_camera", "MIPI-CSI camera ready: %ux%u RGB565", this->width_, this->height_);
+  return true;
+#else
+  ESP_LOGE("p4_camera", "ESP32-P4 video support requires ESP-IDF");
+  return false;
+#endif
+}
+
+bool P4Camera::configure_video_device() {
+#ifdef USE_ESP32
+  struct v4l2_format format {};
+  format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (ioctl(this->video_fd_, VIDIOC_G_FMT, &format) != 0) {
+    ESP_LOGE("p4_camera", "Unable to query MIPI-CSI format: %s", strerror(errno));
+    return false;
+  }
+
+  format.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
+  if (ioctl(this->video_fd_, VIDIOC_S_FMT, &format) != 0) {
+    ESP_LOGE("p4_camera", "Unable to configure RGB565 output: %s", strerror(errno));
+    return false;
+  }
+
+  this->width_ = format.fmt.pix.width;
+  this->height_ = format.fmt.pix.height;
+  this->video_buffer_size_ = format.fmt.pix.sizeimage;
+  if (this->video_buffer_size_ == 0)
+    this->video_buffer_size_ = static_cast<size_t>(this->width_) * this->height_ * 2;
+
+  struct v4l2_requestbuffers request {};
+  request.count = 2;
+  request.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  request.memory = V4L2_MEMORY_MMAP;
+  if (ioctl(this->video_fd_, VIDIOC_REQBUFS, &request) != 0 || request.count < 2) {
+    ESP_LOGE("p4_camera", "Unable to allocate MIPI-CSI buffers: %s", strerror(errno));
+    return false;
+  }
+
+  this->video_buffer_count_ = static_cast<uint8_t>(request.count);
+  for (uint8_t index = 0; index < this->video_buffer_count_; index++) {
+    struct v4l2_buffer buffer {};
+    buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buffer.memory = V4L2_MEMORY_MMAP;
+    buffer.index = index;
+    if (ioctl(this->video_fd_, VIDIOC_QUERYBUF, &buffer) != 0) {
+      ESP_LOGE("p4_camera", "Unable to query MIPI-CSI buffer %u: %s", index, strerror(errno));
+      return false;
+    }
+    this->video_buffers_[index] = static_cast<uint8_t *>(
+        mmap(nullptr, buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, this->video_fd_, buffer.m.offset));
+    if (this->video_buffers_[index] == MAP_FAILED) {
+      this->video_buffers_[index] = nullptr;
+      ESP_LOGE("p4_camera", "Unable to map MIPI-CSI buffer %u", index);
+      return false;
+    }
+    if (ioctl(this->video_fd_, VIDIOC_QBUF, &buffer) != 0) {
+      ESP_LOGE("p4_camera", "Unable to queue MIPI-CSI buffer %u: %s", index, strerror(errno));
+      return false;
+    }
+  }
+
+  enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (ioctl(this->video_fd_, VIDIOC_STREAMON, &type) != 0) {
+    ESP_LOGE("p4_camera", "Unable to start MIPI-CSI stream: %s", strerror(errno));
+    return false;
+  }
   return true;
 #else
   return false;
 #endif
+}
+
+bool P4Camera::capture_video_frame() {
+#ifdef USE_ESP32
+  struct v4l2_buffer buffer {};
+  buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  buffer.memory = V4L2_MEMORY_MMAP;
+  if (ioctl(this->video_fd_, VIDIOC_DQBUF, &buffer) != 0) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK)
+      ESP_LOGW("p4_camera", "Unable to dequeue MIPI-CSI frame: %s", strerror(errno));
+    return false;
+  }
+
+  bool encoded = this->encode_jpeg(this->video_buffers_[buffer.index], buffer.bytesused);
+  if (ioctl(this->video_fd_, VIDIOC_QBUF, &buffer) != 0)
+    ESP_LOGW("p4_camera", "Unable to requeue MIPI-CSI buffer: %s", strerror(errno));
+  return encoded;
+#else
+  return false;
+#endif
+}
+
+bool P4Camera::encode_jpeg(const uint8_t *source, size_t source_length) {
+#ifdef USE_ESP32
+  jpeg_encode_cfg_t config = {
+      .height = this->height_,
+      .width = this->width_,
+      .src_type = JPEG_ENCODE_IN_FORMAT_RGB565,
+      .sub_sample = JPEG_DOWN_SAMPLING_YUV420,
+      .image_quality = this->jpeg_quality_,
+      .pixel_reverse = false,
+  };
+  uint32_t output_size = 0;
+  esp_err_t err = jpeg_encoder_process(this->jpeg_encoder_, &config, source, source_length,
+                                       this->jpeg_buffer_, this->jpeg_buffer_capacity_, &output_size);
+  if (err != ESP_OK) {
+    ESP_LOGW("p4_camera", "JPEG encoding failed: %s", esp_err_to_name(err));
+    return false;
+  }
+  this->jpeg_buffer_size_ = output_size;
+  return output_size != 0;
+#else
+  return false;
+#endif
+}
+
+void P4Camera::close_video_device() {
+#ifdef USE_ESP32
+  if (this->video_fd_ >= 0) {
+    enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    ioctl(this->video_fd_, VIDIOC_STREAMOFF, &type);
+    close(this->video_fd_);
+    this->video_fd_ = -1;
+  }
+  if (this->jpeg_encoder_ != nullptr) {
+    jpeg_del_encoder_engine(this->jpeg_encoder_);
+    this->jpeg_encoder_ = nullptr;
+  }
+#endif
+}
+
+bool P4Camera::capture_frame() {
+  if (!this->initialized_) {
+    ESP_LOGW("p4_camera", "capture_frame called before camera initialized");
+    return false;
+  }
+  return this->capture_video_frame();
 }
 
 bool P4Camera::capture(CameraImageCallback &&callback) {
