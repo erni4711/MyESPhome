@@ -24,10 +24,10 @@
 #undef ESP_LOGI
 #undef ESP_LOGW
 
-#define ESP_LOGE(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
-#define ESP_LOGD(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
-#define ESP_LOGI(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
-#define ESP_LOGW(t, m, ...) printf("[%s:%u] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGE(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGD(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGI(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGW(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
 
 
 static const char* TAG = "ha_ws_client";  // "hatilvgl";
@@ -202,9 +202,8 @@ void enqueue_json(JsonObject state) {
       serializeJson(state, g_enqueue_item->data, sizeof(g_enqueue_item->data));
   if (g_enqueue_item->length == 0 ||
       g_enqueue_item->length >= sizeof(g_enqueue_item->data)) {
-    ESP_LOGW(TAG, "State JSON for %s exceeds %u bytes; dropping update",
-             entity_id,
-             static_cast<unsigned>(sizeof(g_enqueue_item->data) - 1));
+    ESP_LOGW(TAG, "State JSON for %s exceeds %zu bytes; dropping update",
+             entity_id, sizeof(g_enqueue_item->data) - 1);
     return;
   }
   QueueHandle_t queue = update_queue();
@@ -216,8 +215,8 @@ void enqueue_json(JsonObject state) {
     ESP_LOGW(TAG, "State JSON queue full, dropping update for %s", entity_id);
     return;
   }
-  ESP_LOGD(TAG, "Queued Home Assistant state for %s (%u bytes)", entity_id,
-           static_cast<unsigned>(g_enqueue_item->length));
+  ESP_LOGD(TAG, "Queued Home Assistant state for %s (%zu bytes)", entity_id,
+           g_enqueue_item->length);
 }
 
 void enqueue_protocol_message(JsonObject message) {
@@ -230,8 +229,8 @@ void enqueue_protocol_message(JsonObject message) {
       message, g_enqueue_item->data, sizeof(g_enqueue_item->data));
   if (g_enqueue_item->length == 0 ||
       g_enqueue_item->length >= sizeof(g_enqueue_item->data)) {
-    ESP_LOGW(TAG, "Home Assistant protocol message exceeds %u bytes",
-             static_cast<unsigned>(sizeof(g_enqueue_item->data) - 1));
+    ESP_LOGW(TAG, "Home Assistant protocol message exceeds %zu bytes",
+             sizeof(g_enqueue_item->data) - 1);
     return;
   }
   QueueHandle_t queue = update_queue();
@@ -641,8 +640,8 @@ void ha_ws_client_set_entity_filter(
                                              entity_ids.end());
   entity_filter() = updated_filter;
   xSemaphoreGive(mtx);
-  ESP_LOGI(TAG, "Home Assistant websocket filter now tracks %u entit%s",
-           static_cast<unsigned>(entity_ids.size()),
+  ESP_LOGI(TAG, "Home Assistant websocket filter now tracks %zu entit%s",
+           entity_ids.size(),
            entity_ids.size() == 1 ? "y" : "ies");
   for (const auto& entity_id : entity_ids) {
     ESP_LOGI(TAG, "Home Assistant websocket subscribed entity: %s",
@@ -663,18 +662,19 @@ void ha_ws_client_unsubscribe_events() {
       + std::to_string(g_subscribed_id) 
       + "}";
   ESP_LOGD(TAG,
-           "WebSocket TX: unsubscribe_events (id=%u, event_type=state_changed)",
-           g_last_message_id);
+           "WebSocket TX: unsubscribe_events (id=%lu, event_type=state_changed)",
+           static_cast<unsigned long>(g_last_message_id));
   esp_websocket_client_send_text(g_client, kUnsubscribe.c_str(),
                                  static_cast<int>(kUnsubscribe.size()),
                                  pdMS_TO_TICKS(5000));
-  ESP_LOGI(TAG, "Unsubscribed from Home Assistant state_changed events (id=%u)",
-           g_subscribed_id);
+  ESP_LOGI(TAG, "Unsubscribed from Home Assistant state_changed events (id=%lu)",
+           static_cast<unsigned long>(g_subscribed_id));
   g_subscribed_id = 0;
 }
 void ha_ws_client_subscribe_events() {
-  ESP_LOGD(TAG, "Subscribe requested (authenticated=%d subscribed=%u)",
-           g_authenticated.load() ? 1 : 0, g_subscribed_id);
+  ESP_LOGD(TAG, "Subscribe requested (authenticated=%d subscribed=%lu)",
+           g_authenticated.load() ? 1 : 0,
+           static_cast<unsigned long>(g_subscribed_id));
   if (!g_authenticated.load() || g_client == nullptr) return;
   if (g_subscribed_id != 0) {
     ESP_LOGI(TAG, "Already subscribed to Home Assistant state_changed events");
@@ -686,13 +686,13 @@ void ha_ws_client_subscribe_events() {
       + std::to_string(g_subscribed_id) 
       + ",\"type\":\"subscribe_events\",\"event_type\":\"state_changed\"}";
   ESP_LOGD(TAG,
-           "WebSocket TX: subscribe_events (id=%u, event_type=state_changed)",
-           g_subscribed_id);
+           "WebSocket TX: subscribe_events (id=%lu, event_type=state_changed)",
+           static_cast<unsigned long>(g_subscribed_id));
   esp_websocket_client_send_text(g_client, kSubscribe.c_str(),
                                  static_cast<int>(kSubscribe.size()),
                                  pdMS_TO_TICKS(5000));
-  ESP_LOGI(TAG, "Subscribed to Home Assistant state_changed events (id=%u)",
-           g_subscribed_id);
+  ESP_LOGI(TAG, "Subscribed to Home Assistant state_changed events (id=%lu)",
+           static_cast<unsigned long>(g_subscribed_id));
 }
 
 void ha_ws_client_request_states() {
@@ -714,8 +714,9 @@ void ha_ws_client_request_states() {
     printf("[ha_ws] request states failed: %d\n", sent);
     return;
   }
-  ESP_LOGD(TAG, "WebSocket TX: %s", kGetStates);
-  ESP_LOGI(TAG, "Requested current Home Assistant entity states (id=%u)", g_get_states_id);
+  ESP_LOGD(TAG, "WebSocket TX: %s", kGetStates.c_str());
+  ESP_LOGI(TAG, "Requested current Home Assistant entity states (id=%lu)",
+           static_cast<unsigned long>(g_get_states_id));
 }
 
 void ha_ws_client_discard_pending_states() {
@@ -845,8 +846,8 @@ void ha_ws_client_loop() {
   // ESPHome main loop.
   for (int i = 0; i < 8 && xQueueReceive(queue, g_consume_item, 0) == pdTRUE;
        i++) {
-    ESP_LOGD(TAG, "Consuming Home Assistant state (%u bytes)",
-             static_cast<unsigned>(g_consume_item->length));
+    ESP_LOGD(TAG, "Consuming Home Assistant state (%zu bytes)",
+             g_consume_item->length);
     JsonDocument state_doc(&g_psram_json_allocator);
     const DeserializationError err = deserializeJson(
         state_doc, g_consume_item->data, g_consume_item->length);

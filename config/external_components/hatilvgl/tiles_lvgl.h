@@ -11,15 +11,10 @@ typedef struct _lv_obj_t lv_obj_t;
 
 namespace web_admin_local {
 
-  struct TileGeometry {
-    int     col         = 0;
-    int     row         = 0;
-    int     span_w      = 1;
-    int     span_h      = 1;
-  };
+
 struct TileData {
   int     type        = 0;
-  struct TileGeometry {
+  struct Geometry {
     int     col         = 0;
     int     row         = 0;
     int     span_w      = 1;
@@ -36,16 +31,8 @@ struct TileData {
   int     sensor_display_mode = 0;
   float   sensor_gauge_min   = 0.f;
   float   sensor_gauge_max   = 100.f;
-  std::string switch_entity;
   int     switch_style        = 0;
   std::string scene_alias;
-  std::string weather_entity;
-  std::string energy_entity;
-  std::string media_entity;
-  std::string climate_entity;
-  std::string cover_entity;
-  std::string camera_entity;
-  std::string wled_entity;
   std::string wled_preset_entity;
   std::string wled_restart_entity;
   std::string animation_file;
@@ -112,7 +99,7 @@ void register_ha_entity_widget(const std::string &entity_id, lv_obj_t *value_lab
                                 const std::string &configured_unit = "");
 void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label);
 void register_ha_climate_widget(const std::string &entity_id,
-                                const TileGeometry &tile_geo,
+                                const TileData::Geometry &tile_geo,
                                 lv_obj_t *current_temperature,
                                 lv_obj_t *setpoint,
                                 lv_obj_t *mode,

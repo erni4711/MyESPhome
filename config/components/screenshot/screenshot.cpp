@@ -68,8 +68,10 @@ void *my_lvgl_realloc(void *ptr, size_t size);
 
 // --- Hardware JPEG helper (ESP32-P4) -------------------------------------
 #if HAVE_HW_JPEG_ENCODER
-static bool encode_raw_rgb565_to_jpeg(const uint8_t *src, size_t src_size, uint16_t width, uint16_t height,
-                                      uint8_t **out_buf, size_t *out_size, uint8_t quality = 80, uint16_t timeout_ms = 200) {
+[[maybe_unused]] static bool encode_raw_rgb565_to_jpeg(
+    const uint8_t *src, size_t src_size, uint16_t width, uint16_t height,
+    uint8_t **out_buf, size_t *out_size, uint8_t quality = 80,
+    uint16_t timeout_ms = 200) {
   if (!src || src_size == 0 || !out_buf || !out_size) return false;
 
   jpeg_encode_engine_cfg_t eng_cfg = {
@@ -169,7 +171,9 @@ static bool query_has_key(const std::string &query, const std::string &key) {
   return false;
 }
 
-static bool query_get_u32(const std::string &query, const std::string &key, uint32_t *out) {
+[[maybe_unused]] static bool query_get_u32(const std::string &query,
+                                           const std::string &key,
+                                           uint32_t *out) {
   if (out == nullptr || query.empty() || key.empty()) return false;
 
   std::string needle = key + "=";
@@ -366,9 +370,6 @@ void ScreenshotComponent::setup() {
 void ScreenshotComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "Screenshot endpoint: /screenshot.jpg (via web_server)");
 }
-
-// Forward declaration for synchronous handler helper
-static void process_request(AsyncWebServerRequest *request);
 
 void ScreenshotComponent::Handler::handleRequest(AsyncWebServerRequest *request) {
   ESP_LOGI(TAG, "HTTP /screenshot.png request via web_server");

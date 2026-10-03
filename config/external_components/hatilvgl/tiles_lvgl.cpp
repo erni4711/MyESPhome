@@ -32,7 +32,7 @@
 static void *media_stbi_malloc(size_t size) {
   return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 }
-static void *media_stbi_realloc(void *pointer, size_t size) {
+[[maybe_unused]] static void *media_stbi_realloc(void *pointer, size_t size) {
   return heap_caps_realloc(pointer, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 }
 static void media_stbi_free(void *pointer) { heap_caps_free(pointer); }
@@ -49,7 +49,7 @@ namespace web_admin_local {
 
 
 
-int tile_climate_arc_diameter(const GridGeometry &geo, const TileGeometry &tile);
+int tile_climate_arc_diameter(const GridGeometry &geo, const TileData::Geometry &tile);
 void tile_climate_arc_position_for_temperature(int radius, float temperature, int &x, int &y);
 
 
@@ -268,7 +268,7 @@ void set_home_assistant_credentials(const std::string &url, const std::string &t
 namespace {
 
 struct SensorWidgetBinding {
-  TileGeometry tile_geo;
+  TileData::Geometry tile_geo;
   lv_obj_t *value_label = nullptr;
   lv_obj_t *entity_icon = nullptr;
   lv_obj_t *gauge_arc = nullptr;
@@ -526,7 +526,7 @@ void register_ha_entity_icon(const std::string &entity_id, lv_obj_t *icon_label)
 }
 
 void register_ha_climate_widget(const std::string &entity_id,
-                                const TileGeometry &tile_geo,
+                                const TileData::Geometry &tile_geo,
                                 lv_obj_t *current_temperature,
                                 lv_obj_t *setpoint,
                                 lv_obj_t *mode,
@@ -1765,7 +1765,7 @@ void TilesLvglRenderer::apply_ha_weather_forecast_day_state(
   }
 }
 
-static void update_climate_current_marker(const GridGeometry &geo_, const TileGeometry &tile_geo, lv_obj_t *marker, lv_obj_t *arc,
+static void update_climate_current_marker(const GridGeometry &geo_, const TileData::Geometry &tile_geo, lv_obj_t *marker, lv_obj_t *arc,
                                           float temperature) {
   if (!marker || !arc || !std::isfinite(temperature)) {
     ESP_LOGW(TAG,
@@ -1794,12 +1794,13 @@ static void update_climate_current_marker(const GridGeometry &geo_, const TileGe
            "marker_size=%dx%d arc_size=%dx%d hidden=%d",
            static_cast<void *>(marker), static_cast<void *>(arc),
            static_cast<void *>(parent), temperature,
-           lv_obj_get_width(arc) / 2, lv_obj_get_height(arc) / 2, radius,
-           offset_x, offset_y, lv_obj_get_width(marker),
+           static_cast<int>(lv_obj_get_width(arc) / 2),
+           static_cast<int>(lv_obj_get_height(arc) / 2), radius,
+           offset_x, offset_y, static_cast<int>(lv_obj_get_width(marker)),
            static_cast<int>(lv_obj_get_height(marker)),
            static_cast<int>(lv_obj_get_width(arc)),
            static_cast<int>(lv_obj_get_height(arc)),
-           lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN));
+           static_cast<int>(lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN)));
 }
 
 void TilesLvglRenderer::apply_ha_climate_state(
@@ -1912,8 +1913,9 @@ void TilesLvglRenderer::apply_ha_climate_state(
       } else {
         lv_obj_clear_state(binding.climate_target_arc, LV_STATE_DISABLED);
       }
-      lv_obj_set_style_arc_color(binding.climate_target_arc, arc_color,
-                                 LV_PART_MAIN);
+      // The main part of the arc is intentionally not styled to keep its default appearance.
+      // lv_obj_set_style_arc_color(binding.climate_target_arc, arc_color,
+      //                            LV_PART_MAIN);
       lv_obj_set_style_arc_color(binding.climate_target_arc, arc_color,
                                  LV_PART_INDICATOR);
       lv_obj_set_style_bg_color(binding.climate_target_arc, knob_color,
@@ -2930,7 +2932,7 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
     d.bg_color          = t["bg_color"]         | 0u;
     d.icon_name         = t["icon_name"]        | "";
     d.title             = t["title"]            | "";
-    const char *legacy_entity = "";
+    const char *legacy_entity = t["sensor_entity"] | "";
     switch (d.type) {
       case TILE_SWITCH:  legacy_entity = t["switch_entity"] | ""; break;
       case TILE_WEATHER: legacy_entity = t["weather_entity"] | ""; break;
@@ -2940,7 +2942,7 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
       case TILE_CAMERA:  legacy_entity = t["camera_entity"] | ""; break;
       case TILE_COVER:   legacy_entity = t["cover_entity"] | ""; break;
       case TILE_WLED:    legacy_entity = t["wled_entity"] | ""; break;
-      default:           legacy_entity = t["sensor_entity"] | ""; break;
+      default: break;
     }
     d.entity_id         = t["entity_id"] | legacy_entity;
     d.wled_preset_entity = t["wled_preset_entity"] | "";

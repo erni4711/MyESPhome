@@ -76,24 +76,22 @@ static void format_clock_date(char *buf, size_t size, const tm &tm_info,
                            : (format == 3) ? "%Y/%m/%d" : "%d.%m.%Y";
   char date[32];
   strftime(date, sizeof(date), date_format, &tm_info);
+  if (size == 0) return;
+
+  size_t length = 0;
+  auto append = [&](const char *text) {
+    while (*text != '\0' && length + 1 < size) {
+      buf[length++] = *text++;
+    }
+    buf[length] = '\0';
+  };
   if (show_weekday) {
     char weekday[16];
     strftime(weekday, sizeof(weekday), "%A", &tm_info);
-    snprintf(buf, size, "%s, %s", weekday, date);
-  } else {
-    snprintf(buf, size, "%s", date);
+    append(weekday);
+    append(", ");
   }
-}
-
-static void clock_update_cb(lv_event_t *e) {
-  lv_obj_t *time_lbl = (lv_obj_t *)lv_event_get_user_data(e);
-  if (!time_lbl) return;
-  time_t now = time(nullptr);
-  struct tm tm_info;
-  localtime_r(&now, &tm_info);
-  char buf[16];
-  format_clock_time(buf, sizeof(buf), tm_info, 0);
-  lv_label_set_text(time_lbl, buf);
+  append(date);
 }
 
 void tile_widget_build_clock(lv_obj_t *parent, const TileData &tile) {

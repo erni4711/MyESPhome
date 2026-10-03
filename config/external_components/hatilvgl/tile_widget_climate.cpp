@@ -212,10 +212,11 @@ lv_obj_t *create_climate_arc(lv_obj_t *parent, const char *entity_id,
   lv_arc_set_change_rate(arc, 1000);
   ESP_LOGI(TAG, "Climate arc created: entity=%s diameter=%d range=5.0..35.0",
            entity_id, diameter);
-  lv_obj_set_style_arc_width(arc, 14, LV_PART_MAIN);
+  int width = diameter / 10;
+  lv_obj_set_style_arc_width(arc, width, LV_PART_MAIN);
   lv_obj_set_style_arc_color(arc, lv_color_make(0x4A, 0x4A, 0x4A),
                              LV_PART_MAIN);
-  lv_obj_set_style_arc_width(arc, 14, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_width(arc, width, LV_PART_INDICATOR);
   lv_obj_set_style_arc_color(arc, lv_color_make(0xFF, 0xB8, 0x4D),
                              LV_PART_INDICATOR);
   lv_obj_set_style_bg_color(arc, lv_color_white(), LV_PART_KNOB);
@@ -293,7 +294,7 @@ lv_obj_t *create_climate_mode_button(lv_obj_t *parent, lv_obj_t *mode,
 }
 
 }  // namespace
-int tile_climate_arc_diameter(const GridGeometry &geo, const TileGeometry &tile)
+int tile_climate_arc_diameter(const GridGeometry &geo, const TileData::Geometry &tile)
 {
   return std::min(geo.tile_w(tile.span_w), geo.tile_h(tile.span_h)) - 40;
 }
@@ -329,19 +330,20 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_RIGHT, 0);
   lv_obj_align(title, LV_ALIGN_TOP_RIGHT, 0, 6);
 
-  int w = geo.tile_w(tile.geometry.span_w);
-  int h = geo.tile_h(tile.geometry.span_h);
+  auto tile_geo = tile.geometry;
+  int w = geo.tile_w(tile_geo.span_w);
+  int h = geo.tile_h(tile_geo.span_h);
   ESP_LOGI(TAG, "Building climate tile: entity=%s large=%d width=%d height=%d",
            entity.c_str(), large_climate_tile, w,h);
   if (large_climate_tile && !entity.empty()) {
 
-    const int diameter = std::min(w, h) - 40;
+    const int diameter = tile_climate_arc_diameter(geo, tile_geo);
     ESP_LOGI(TAG, "Creating climate arc: entity=%s diameter=%d",
              entity.c_str(), diameter);
     target_arc = create_climate_arc(parent, entity.c_str(), diameter);
     current_marker = lv_obj_create(parent);
     lv_obj_remove_style_all(current_marker);
-    lv_obj_set_size(current_marker, 30, 30);
+    lv_obj_set_size(current_marker, diameter/10-2, diameter/10-2);
     lv_obj_set_style_radius(current_marker, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(current_marker, lv_color_white(), 0);
     lv_obj_set_style_border_width(current_marker, 6, 0);
@@ -383,14 +385,14 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_label_set_text(temp, "--");
   lv_obj_set_style_text_color(temp, white, 0);
   lv_obj_set_style_text_font(temp, ui_font_for_size(40), 0);
-  lv_obj_align(temp, LV_ALIGN_CENTER, 0, 6);
+  lv_obj_align(temp, LV_ALIGN_CENTER, 0, 0);
 
   // Setpoint (target temperature) below center
   lv_obj_t *setpoint = lv_label_create(parent);
   lv_label_set_text(setpoint, "--");
   lv_obj_set_style_text_color(setpoint, muted, 0);
   lv_obj_set_style_text_font(setpoint, ui_font_for_size(16), 0);
-  lv_obj_align(setpoint, LV_ALIGN_CENTER, 0, 44);
+  lv_obj_align(setpoint, LV_ALIGN_CENTER, 0, 30);
 
   // HVAC mode toggle button at the bottom
   lv_obj_t *mode = lv_label_create(parent);
@@ -398,21 +400,21 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_obj_set_style_text_color(mode, muted, 0);
   lv_obj_set_style_text_font(mode, ui_font_for_size(14), 0);
   if (!entity.empty()) {
-    mode_button = create_climate_mode_button(parent, mode, entity.c_str());
+    //mode_button = create_climate_mode_button(parent, mode, entity.c_str());
   }
 
   if (!entity.empty()) {
     lv_obj_t *minus =
         create_adjust_button(parent, setpoint, "-", -0.5f, entity.c_str());
-    lv_obj_align(minus, LV_ALIGN_TOP_LEFT, 4, 44);
+    lv_obj_align(minus, LV_ALIGN_TOP_LEFT, 0, 44);
     lv_obj_t *plus =
         create_adjust_button(parent, setpoint, "+", 0.5f, entity.c_str());
-    lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, -4, 44);
+    lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, 0, 44);
     create_climate_preset_button(parent, entity.c_str(), "16°", 16.0f,
-                                 LV_ALIGN_BOTTOM_LEFT, 4, -4);
+                                 LV_ALIGN_BOTTOM_LEFT, 0, 0);
     create_climate_preset_button(parent, entity.c_str(), "21°", 21.0f,
-                                 LV_ALIGN_BOTTOM_RIGHT, -4, -4);
-    TileGeometry tile_geometry;
+                                 LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    TileData::Geometry tile_geometry;
     tile_geometry.col = tile.geometry.col;
     tile_geometry.row = tile.geometry.row;
     tile_geometry.span_w = tile.geometry.span_w;
