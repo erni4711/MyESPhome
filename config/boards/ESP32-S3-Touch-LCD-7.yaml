@@ -183,7 +183,7 @@ ota:
 #   esphome logs 7inch.yaml --device COM9
 
 logger:
-  level: DEBUG
+  level: WARN
   hardware_uart: UART0
   baud_rate: 115200
 

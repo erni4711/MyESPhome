@@ -304,7 +304,7 @@ void tile_climate_arc_position_for_temperature(int radius, float temperature, in
   const float ratio = std::max(0.0f, std::min(1.0f,
       (temperature - 5.0f) / 30.0f));
   const float angle = (140.0f + ratio * 260.0f) * 0.01745329252f;
-  radius -= 6;
+  
   x = static_cast<int>(radius * std::cos(angle));
   y = static_cast<int>(radius * std::sin(angle));
 }

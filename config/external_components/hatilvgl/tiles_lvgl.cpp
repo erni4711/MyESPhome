@@ -8,7 +8,6 @@
 #include <src/widgets/dropdown/lv_dropdown.h>
 #include <ArduinoJson.h>
 #include <esp_http_client.h>
-#include <esp_task_wdt.h>
 #include <soc/soc_caps.h>
 #if SOC_JPEG_DECODE_SUPPORTED
 #include <driver/jpeg_decode.h>
@@ -196,9 +195,6 @@ static TaskHandle_t rest_worker_task = nullptr;
 
 esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
   if (event == nullptr || event->user_data == nullptr) return ESP_FAIL;
-  // Reset the worker watchdog while the HTTP client is delivering a
-  // potentially slow response.
-  esp_task_wdt_reset();
   if (event->event_id != HTTP_EVENT_ON_DATA || event->data_len <= 0) return ESP_OK;
   auto *response = static_cast<RestResponse *>(event->user_data);
   if (!response->append(static_cast<const char *>(event->data),
@@ -233,9 +229,7 @@ bool perform_ha_entity_state_rest(const RestRequest &request,
            request.entity_id.c_str());
   esp_http_client_set_header(client, "Authorization", request.auth.c_str());
   esp_http_client_set_header(client, "Accept", "application/json");
-  esp_task_wdt_reset();
   const esp_err_t result = esp_http_client_perform(client);
-  esp_task_wdt_reset();
   const int status = esp_http_client_get_status_code(client);
   esp_http_client_cleanup(client);
   if (result != ESP_OK || status < 200 || status >= 300) {
@@ -1442,28 +1436,7 @@ void TilesLvglRenderer::apply_ha_entity_state(const JsonDocument &state) {
     }
     if (condition[0] == '\0') condition = value.c_str();
 
-    char forecast[512] = {};
-    const JsonArrayConst daily = attributes["daily"].as<JsonArrayConst>();
-    size_t written = 0;
-    int day = 0;
-    for (JsonObjectConst item : daily) {
-      if (day++ >= 8) break;
-      const float precipitation_probability = weather_probability(
-          item["precipitation_probability"], item["pop"]);
-      float precipitation = weather_json_number(item["precipitation"]);
-      if (std::isnan(precipitation)) precipitation = weather_json_number(item["rain"]);
-      if (std::isnan(precipitation)) precipitation = weather_json_number(item["snow"]);
-      if (std::isnan(precipitation)) precipitation = 0.0f;
-      const int count = snprintf(
-          forecast + written, sizeof(forecast) - written,
-          "%ld,%.1f,%.1f,%s,%.1f,%.1f;", item["dt"] | 0L,
-          item["temp"]["min"] | item["temp"]["day"] | 0.0f,
-          item["temp"]["max"] | item["temp"]["day"] | 0.0f,
-          item["weather"][0]["icon"] | "", precipitation, precipitation_probability);
-      if (count <= 0 || static_cast<size_t>(count) >= sizeof(forecast) - written) break;
-      written += static_cast<size_t>(count);
-    }
-    apply_ha_weather_state(id, value, temperature, condition, unit, forecast);
+    apply_ha_weather_state(id, value, temperature, condition, unit);
     return;
   }
 
@@ -1622,7 +1595,7 @@ void TilesLvglRenderer::apply_ha_entity_state(const JsonDocument &state) {
 void TilesLvglRenderer::apply_ha_weather_state(
     const std::string &entity_id, const std::string &state,
     const std::string &temperature, const std::string &condition,
-    const std::string &unit, const std::string &forecast) {
+    const std::string &unit) {
     std::vector<SensorWidgetBinding> bindings;
     {
       MutexGuard lock(widget_registry_mutex());
@@ -1668,44 +1641,6 @@ void TilesLvglRenderer::apply_ha_weather_state(
             temperature.empty() ? lv_color_white()
                                 : weather_temperature_color(value),
             LV_STATE_DEFAULT);
-      }
-      int offset = 0;
-      for (uint8_t i = 0; i < binding.weather_forecast_count; ++i) {
-        long timestamp = 0;
-        float min_temp = 0, max_temp = 0;
-        char weather_icon[16] = {};
-        float precipitation = 0.0f;
-        float probability = 0.0f;
-        const int parsed = sscanf(forecast.c_str() + offset,
-                                  "%ld,%f,%f,%15[^,],%f,%f;",
-                                  &timestamp, &min_temp, &max_temp, weather_icon,
-                                  &precipitation, &probability);
-        if (parsed != 6) {
-          ESP_LOGW(TAG, "%s weather forecast entry %u could not be parsed (parsed=%d)",
-                   entity_id.c_str(), static_cast<unsigned>(i), parsed);
-          break;
-        }
-        while (forecast[offset] && forecast[offset] != ';') ++offset;
-        if (forecast[offset] == ';') ++offset;
-        time_t day_time = timestamp;
-        struct tm day_tm;
-        localtime_r(&day_time, &day_tm);
-        char day_name[4] = {};
-        strftime(day_name, sizeof(day_name), "%a", &day_tm);
-        const std::string forecast_icon =
-            getMdiChar(weather_icon_name(weather_icon));
-        ESP_LOGD(TAG,
-                 "%s forecast[%u]: day=%s min=%.1f max=%.1f precip=%.1f mm probability=%.1f%%",
-                 entity_id.c_str(), static_cast<unsigned>(i), day_name,
-                 min_temp, max_temp, precipitation, probability);
-        update_weather_forecast(binding.weather_forecast[i], day_name,
-                                forecast_icon.empty() ? "?" : forecast_icon.c_str(),
-                                max_temp, min_temp, precipitation, probability,
-                                binding.weather_high_labels[i],
-                                binding.weather_low_labels[i],
-                                binding.weather_precipitation_labels[i],
-                                binding.weather_probability_labels[i],
-                                binding.weather_precipitation_bars[i]);
       }
     }
   }
@@ -1871,7 +1806,7 @@ static void update_climate_current_marker(const GridGeometry &geo_, const TileDa
   const int radius = tile_climate_arc_diameter(geo_, tile_geo) / 2;
   int offset_x = 0;
   int offset_y = 0;
-  tile_climate_arc_position_for_temperature(radius, temperature, offset_x,
+  tile_climate_arc_position_for_temperature(radius-lv_obj_get_height(marker) / 2, temperature, offset_x,
                                             offset_y);
   lv_obj_align_to(marker, arc, LV_ALIGN_CENTER, offset_x, offset_y);
 
@@ -3346,8 +3281,6 @@ void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
 
   for (const auto &tile : tiles) {
     build_tile(page, tile);
-    // Keep the LVGL object-tree replacement atomic with respect to redraws.
-    esp_task_wdt_reset();
   }
 
   ESP_LOGI(TAG, "Built folder %d with %zu tiles", folder_id,

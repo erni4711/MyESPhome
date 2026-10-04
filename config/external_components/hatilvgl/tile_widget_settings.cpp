@@ -142,7 +142,7 @@ void tile_widget_build_settings(lv_obj_t *parent, const TileData &tile) {
 
   lv_obj_t *battery = make_label(parent, "--%", 0,
                                  ui_font_for_size(13), white);
-  lv_obj_align(battery, LV_ALIGN_BOTTOM_RIGHT, -6, -4);
+  lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, 6, 12);
   hatilvgl_register_battery_label(battery);
 
   lv_obj_add_flag(parent, LV_OBJ_FLAG_CLICKABLE);

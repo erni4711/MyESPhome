@@ -227,8 +227,7 @@ class TilesLvglRenderer {
                               const std::string &state,
                               const std::string &temperature,
                               const std::string &condition,
-                              const std::string &unit,
-                              const std::string &forecast);
+                              const std::string &unit);
   void apply_ha_weather_forecast_state(const std::string &entity_id,
                                        const std::string &forecast);
   void apply_ha_weather_forecast_day_state(const JsonDocument &state);

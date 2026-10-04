@@ -549,7 +549,7 @@ ota:
       #- switch.turn_on: restart_esp
       
 logger:
-  level: DEBUG
+  level: WARN
   hardware_uart: UART0
   baud_rate: 115200
 
@@ -961,6 +961,7 @@ lvgl:
 # p4_camera:
 #   id: ov5647_camera
 #   name: OV5647 Camera
+#   camera_model: OV5647
 #   i2c_id: bus_a
 #   external_clock_pin: 36
 #   frequency: 24000000

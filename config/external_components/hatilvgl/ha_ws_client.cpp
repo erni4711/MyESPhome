@@ -19,6 +19,7 @@
 #include <set>
 #include <atomic>
 
+#if 0
 #undef ESP_LOGE
 #undef ESP_LOGD
 #undef ESP_LOGI
@@ -28,7 +29,7 @@
 #define ESP_LOGD(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
 #define ESP_LOGI(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
 #define ESP_LOGW(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
-
+#endif
 
 static const char* TAG = "ha_ws_client";  // "hatilvgl";
 
@@ -252,8 +253,8 @@ void handle_new_state(const JsonObject& new_state, const char* source) {
     return;
   }
 
-  printf("[ha_ws] entity_id=%s interesting=%d source=%s\n",
-             entity_id, interesting ? 1 : 0, source);
+  //printf("[ha_ws] entity_id=%s interesting=%d source=%s\n",
+  //           entity_id, interesting ? 1 : 0, source);
   ESP_LOGD(TAG, "Accepted Home Assistant state: entity_id=%s source=%s",
            entity_id, source);
   enqueue_json(new_state);
@@ -711,7 +712,7 @@ void ha_ws_client_request_states() {
       pdMS_TO_TICKS(5000));
   if (sent < 0) {
     ESP_LOGW(TAG, "Failed to request current Home Assistant entity states");
-    printf("[ha_ws] request states failed: %d\n", sent);
+    //printf("[ha_ws] request states failed: %d\n", sent);
     return;
   }
   ESP_LOGD(TAG, "WebSocket TX: %s", kGetStates.c_str());

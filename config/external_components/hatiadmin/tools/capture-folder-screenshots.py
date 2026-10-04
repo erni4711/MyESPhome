@@ -242,7 +242,9 @@ def parse_args() -> argparse.Namespace:
         help="Displayed-folder entity ID or Home Assistant friendly name",
     )
     parser.add_argument(
-        "--output-root", type=Path, default=Path("images"), help="Screenshot root (default: images)"
+        "--output-root", type=Path, 
+        default=Path(__file__).resolve().parents[2] / "../images", 
+        help="Screenshot root (default: images)"
     )
     parser.add_argument(
         "--settle-seconds", type=float, default=DEFAULT_SETTLE_SECONDS,
