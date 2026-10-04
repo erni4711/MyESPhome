@@ -202,7 +202,7 @@ struct GridGeometry {
 
 struct FolderPage {
   int      folder_id  = 0;
-  lv_obj_t *page      = nullptr;  // lv_obj screen object
+  lv_obj_t *page      = nullptr;  // active folder-content container
 };
 
 // ── TilesLvglRenderer ─────────────────────────────────────────────────────────
@@ -291,6 +291,8 @@ class TilesLvglRenderer {
  private:
   GridGeometry geo_;
   std::vector<FolderPage> pages_;
+  lv_obj_t *folder_container_ = nullptr;
+  int active_folder_id_ = -1;
   bool occupied_[5][7] = {};
   std::atomic<uint16_t> pending_refresh_mask_{0};
 

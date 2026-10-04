@@ -254,7 +254,7 @@ switch:
 ### Display
 display:
   - platform: mipi_rgb
-    model: RPI
+    model: ESP32-S3-TOUCH-LCD-7-800X480
     id: waveshare_display
     update_interval: never
     auto_clear_enabled: false
@@ -279,8 +279,8 @@ display:
     hsync_back_porch: 8
     hsync_front_porch: 8
     hsync_pulse_width: 4
-    vsync_back_porch: 16
-    vsync_front_porch: 16
+    vsync_back_porch: 8
+    vsync_front_porch: 8
     vsync_pulse_width: 4
     data_pins:
       red:
@@ -443,6 +443,7 @@ text_sensor:
 
 
 lvgl:
+  # full_refresh: true
   on_swipe_left:
     - lvgl.page.next:
         animation: NONE

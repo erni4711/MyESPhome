@@ -122,6 +122,16 @@ the generator, but do not rely on that side effect as the only validation.
   or secrets.
 - Keep REST and WebSocket behavior consistent. REST seeds or controls state;
   WebSocket `state_changed` events keep visible tiles current.
+- Folder navigation renders into a dedicated full-screen LVGL content
+  container, reveals the completed replacement, and only then deletes the old
+  container. Do not clean the active ESPHome screen directly during
+  navigation, because the intermediate empty frame is especially visible on
+  the 7-inch panel.
+- Home Assistant service `POST` calls from tile controls are queued to the
+  bounded `ha_service` FreeRTOS worker. UI handlers return after enqueue;
+  they must not mutate LVGL from the worker, and WebSocket state is
+  authoritative for the visible result. Queue rejection and worker HTTP
+  failures must be logged explicitly.
 - Preserve the existing API error behavior. Invalid input must return an
   explicit non-2xx response and useful JSON error rather than silently using a
   default.

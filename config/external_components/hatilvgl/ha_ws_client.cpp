@@ -843,9 +843,9 @@ void ha_ws_client_loop() {
     return;
   }
 
-  // Bound work per loop() call so a burst of updates cannot stall the
-  // ESPHome main loop.
-  for (int i = 0; i < 8 && xQueueReceive(queue, g_consume_item, 0) == pdTRUE;
+  // Process one state per loop pass so each update keeps LVGL's normal
+  // partial-invalidation path. Full-screen redraws can tear on RGB panels.
+  for (int i = 0; i < 1 && xQueueReceive(queue, g_consume_item, 0) == pdTRUE;
        i++) {
     ESP_LOGD(TAG, "Consuming Home Assistant state (%zu bytes)",
              g_consume_item->length);

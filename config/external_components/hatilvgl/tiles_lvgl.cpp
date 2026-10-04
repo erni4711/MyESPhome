@@ -69,6 +69,8 @@ bool hourly_weather_valid[48] = {};
 constexpr size_t kMaxRestResponseBytes = 65536;
 constexpr size_t kMaxMediaArtworkBytes = 512 * 1024;
 constexpr size_t kMaxMediaArtworkPixels = 1920U * 1088U;
+constexpr size_t kMaxServicePathBytes = 192;
+constexpr size_t kMaxServiceBodyBytes = 512;
 
 struct MediaArtwork {
   lv_image_dsc_t descriptor{};
@@ -181,6 +183,14 @@ struct RestRequest {
   uint32_t generation = 0;
 };
 
+struct ServiceRequest {
+  std::string path;
+  std::string body;
+  std::string auth;
+  std::string description;
+  uint32_t timeout_ms = 1500;
+};
+
 struct RestResult {
   std::string entity_id;
   JsonDocument state;
@@ -192,6 +202,101 @@ struct RestResult {
 static QueueHandle_t rest_request_queue = nullptr;
 static QueueHandle_t rest_result_queue = nullptr;
 static TaskHandle_t rest_worker_task = nullptr;
+static QueueHandle_t service_request_queue = nullptr;
+static TaskHandle_t service_worker_task = nullptr;
+
+bool perform_ha_service_post(const ServiceRequest &request) {
+  esp_http_client_config_t config = {};
+  config.url = request.path.c_str();
+  config.method = HTTP_METHOD_POST;
+  config.timeout_ms = request.timeout_ms;
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == nullptr) {
+    ESP_LOGW(TAG, "Unable to initialize Home Assistant service request: %s",
+             request.description.c_str());
+    return false;
+  }
+  esp_http_client_set_header(client, "Authorization", request.auth.c_str());
+  esp_http_client_set_header(client, "Content-Type", "application/json");
+  esp_http_client_set_post_field(client, request.body.c_str(),
+                                 static_cast<int>(request.body.size()));
+  const esp_err_t result = esp_http_client_perform(client);
+  const int status = esp_http_client_get_status_code(client);
+  esp_http_client_cleanup(client);
+  if (result != ESP_OK || status < 200 || status >= 300) {
+    ESP_LOGW(TAG, "Home Assistant service request failed: %s (status=%d, error=%s)",
+             request.description.c_str(), status, esp_err_to_name(result));
+    return false;
+  }
+  ESP_LOGD(TAG, "Home Assistant service request succeeded: %s (status=%d)",
+           request.description.c_str(), status);
+  return true;
+}
+
+void ha_service_worker(void *) {
+  while (true) {
+    ServiceRequest *request = nullptr;
+    if (xQueueReceive(service_request_queue, &request, portMAX_DELAY) != pdTRUE ||
+        request == nullptr) {
+      continue;
+    }
+    perform_ha_service_post(*request);
+    delete request;
+  }
+}
+
+bool ensure_ha_service_worker() {
+  if (service_worker_task != nullptr) return true;
+  service_request_queue = xQueueCreate(8, sizeof(ServiceRequest *));
+  if (service_request_queue == nullptr) {
+    ESP_LOGW(TAG, "Unable to create Home Assistant service request queue");
+    return false;
+  }
+  const BaseType_t created = xTaskCreate(
+      ha_service_worker, "ha_service", 8192, nullptr, 1, &service_worker_task);
+  if (created != pdPASS) {
+    ESP_LOGW(TAG, "Unable to create Home Assistant service worker task");
+    vQueueDelete(service_request_queue);
+    service_request_queue = nullptr;
+    return false;
+  }
+  return true;
+}
+
+bool enqueue_ha_service_post(const char *service_path, const char *body,
+                             uint32_t timeout_ms,
+                             const std::string &description) {
+  if (service_path == nullptr || body == nullptr || description.empty() ||
+      home_assistant_url.empty() || home_assistant_token.empty()) {
+    ESP_LOGW(TAG, "Cannot enqueue Home Assistant service request: API is not configured");
+    return false;
+  }
+  if (std::strlen(service_path) >= kMaxServicePathBytes ||
+      std::strlen(body) >= kMaxServiceBodyBytes) {
+    ESP_LOGW(TAG, "Home Assistant service request is too large: %s",
+             description.c_str());
+    return false;
+  }
+  if (!ensure_ha_service_worker()) return false;
+  auto *request = new ServiceRequest();
+  request->path = home_assistant_url;
+  while (!request->path.empty() && request->path.back() == '/') {
+    request->path.pop_back();
+  }
+  request->path += service_path;
+  request->body = body;
+  request->auth = "Bearer " + home_assistant_token;
+  request->description = description;
+  request->timeout_ms = timeout_ms;
+  if (xQueueSend(service_request_queue, &request, 0) != pdTRUE) {
+    ESP_LOGW(TAG, "Home Assistant service request queue is full: %s",
+             description.c_str());
+    delete request;
+    return false;
+  }
+  ESP_LOGD(TAG, "Home Assistant service request queued: %s", description.c_str());
+  return true;
+}
 
 esp_err_t ha_state_http_event_handler(esp_http_client_event_t *event) {
   if (event == nullptr || event->user_data == nullptr) return ESP_FAIL;
@@ -2221,10 +2326,13 @@ bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
     return false;
   }
 
-  std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/" + domain + (turn_on ? "/turn_on" : "/turn_off");
+  const std::string path = "/api/services/" + domain +
+                           (turn_on ? "/turn_on" : "/turn_off");
+  const std::string body = std::string("{\"entity_id\":\"") + entity_id + "\"}";
+  return enqueue_ha_service_post(path.c_str(), body.c_str(), 1500,
+                                 "toggle " + std::string(entity_id));
 
+#if 0
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2250,6 +2358,7 @@ bool toggle_home_assistant_entity(const char *entity_id, bool turn_on) {
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_select_option(const char *entity_id, const char *option) {
@@ -2263,9 +2372,16 @@ bool set_home_assistant_select_option(const char *entity_id, const char *option)
     ESP_LOGW(TAG, "Cannot select option for non-select entity: %s", entity_id);
     return false;
   }
+  JsonDocument queued_body;
+  queued_body["entity_id"] = entity_id;
+  queued_body["option"] = option;
+  std::string body;
+  serializeJson(queued_body, body);
+  return enqueue_ha_service_post("/api/services/select/select_option", body.c_str(),
+                                 5000, "select " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/select/select_option";
   esp_http_client_config_t config = {};
   config.url = url.c_str(); config.method = HTTP_METHOD_POST; config.timeout_ms = 5000;
   esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -2288,6 +2404,7 @@ bool set_home_assistant_select_option(const char *entity_id, const char *option)
     return false;
   }
   return true;
+#endif
 }
 
 bool press_home_assistant_button(const char *entity_id) {
@@ -2301,9 +2418,12 @@ bool press_home_assistant_button(const char *entity_id) {
     ESP_LOGW(TAG, "Cannot press non-button entity: %s", entity_id);
     return false;
   }
+  const std::string body = std::string("{\"entity_id\":\"") + entity_id + "\"}";
+  return enqueue_ha_service_post("/api/services/button/press", body.c_str(),
+                                 5000, "button " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/button/press";
   esp_http_client_config_t config = {};
   config.url = url.c_str(); config.method = HTTP_METHOD_POST; config.timeout_ms = 5000;
   esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -2322,6 +2442,7 @@ bool press_home_assistant_button(const char *entity_id) {
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_climate_temperature(const char *entity_id,
@@ -2345,9 +2466,16 @@ bool set_home_assistant_climate_temperature(const char *entity_id,
     return false;
   }
 
+  char queued_body[160];
+  snprintf(queued_body, sizeof(queued_body),
+           "{\"entity_id\":\"%s\",\"temperature\":%.1f}",
+           entity_id, static_cast<double>(temperature));
+  return enqueue_ha_service_post("/api/services/climate/set_temperature",
+                                 queued_body, 1500,
+                                 "climate temperature " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/climate/set_temperature";
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2377,6 +2505,7 @@ bool set_home_assistant_climate_temperature(const char *entity_id,
   ESP_LOGI(TAG, "Climate request success: entity=%s target=%.1f status=%d",
            entity_id, temperature, status);
   return true;
+#endif
 }
 
 bool set_home_assistant_climate_mode(const char *entity_id, const char *mode) {
@@ -2396,9 +2525,15 @@ bool set_home_assistant_climate_mode(const char *entity_id, const char *mode) {
     return false;
   }
 
+  char queued_body[192];
+  snprintf(queued_body, sizeof(queued_body),
+           "{\"entity_id\":\"%s\",\"hvac_mode\":\"%s\"}", entity_id, mode);
+  return enqueue_ha_service_post("/api/services/climate/set_hvac_mode",
+                                 queued_body, 1500,
+                                 "climate mode " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/climate/set_hvac_mode";
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2428,6 +2563,7 @@ bool set_home_assistant_climate_mode(const char *entity_id, const char *mode) {
   ESP_LOGI(TAG, "Climate mode request success: entity=%s mode=%s status=%d",
            entity_id, mode, status);
   return true;
+#endif
 }
 
 bool call_home_assistant_media_command(const char *entity_id,
@@ -2451,10 +2587,13 @@ bool call_home_assistant_media_command(const char *entity_id,
     return false;
   }
 
+  const std::string path = std::string("/api/services/media_player/") + command;
+  const std::string body = std::string("{\"entity_id\":\"") + entity_id + "\"}";
+  return enqueue_ha_service_post(path.c_str(), body.c_str(), 5000,
+                                 "media command " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/media_player/";
-  url += command;
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2480,6 +2619,7 @@ bool call_home_assistant_media_command(const char *entity_id,
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_media_volume(const char *entity_id, float volume) {
@@ -2495,9 +2635,16 @@ bool set_home_assistant_media_volume(const char *entity_id, float volume) {
     return false;
   }
   volume = std::max(0.0f, std::min(1.0f, volume));
+  char queued_body[192];
+  snprintf(queued_body, sizeof(queued_body),
+           "{\"entity_id\":\"%s\",\"volume_level\":%.2f}", entity_id,
+           static_cast<double>(volume));
+  return enqueue_ha_service_post("/api/services/media_player/volume_set",
+                                 queued_body, 5000,
+                                 "media volume " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/media_player/volume_set";
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2524,6 +2671,7 @@ bool set_home_assistant_media_volume(const char *entity_id, float volume) {
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_media_mute(const char *entity_id, bool muted) {
@@ -2538,9 +2686,16 @@ bool set_home_assistant_media_mute(const char *entity_id, bool muted) {
     ESP_LOGW(TAG, "Cannot mute non-media-player entity: %s", entity_id);
     return false;
   }
+  char queued_body[192];
+  snprintf(queued_body, sizeof(queued_body),
+           "{\"entity_id\":\"%s\",\"is_volume_muted\":%s}", entity_id,
+           muted ? "true" : "false");
+  return enqueue_ha_service_post("/api/services/media_player/volume_mute",
+                                 queued_body, 5000,
+                                 "media mute " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/media_player/volume_mute";
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2567,6 +2722,7 @@ bool set_home_assistant_media_mute(const char *entity_id, bool muted) {
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_media_position(const char *entity_id, float position) {
@@ -2582,9 +2738,16 @@ bool set_home_assistant_media_position(const char *entity_id, float position) {
     return false;
   }
   position = std::max(0.0f, position);
+  char queued_body[192];
+  snprintf(queued_body, sizeof(queued_body),
+           "{\"entity_id\":\"%s\",\"seek_position\":%.1f}", entity_id,
+           static_cast<double>(position));
+  return enqueue_ha_service_post("/api/services/media_player/media_seek",
+                                 queued_body, 5000,
+                                 "media seek " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/media_player/media_seek";
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2616,6 +2779,7 @@ bool set_home_assistant_media_position(const char *entity_id, float position) {
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_light_brightness(const char *entity_id, int brightness_pct) {
@@ -2631,9 +2795,16 @@ bool set_home_assistant_light_brightness(const char *entity_id, int brightness_p
     return false;
   }
   brightness_pct = std::max(0, std::min(100, brightness_pct));
+  char queued_body[160];
+  snprintf(queued_body, sizeof(queued_body),
+           "{\"entity_id\":\"%s\",\"brightness_pct\":%d}",
+           entity_id, brightness_pct);
+  return enqueue_ha_service_post("/api/services/light/turn_on",
+                                 queued_body, 5000,
+                                 "light brightness " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/light/turn_on";
 
   esp_http_client_config_t config = {};
   config.url = url.c_str();
@@ -2660,6 +2831,7 @@ bool set_home_assistant_light_brightness(const char *entity_id, int brightness_p
     return false;
   }
   return true;
+#endif
 }
 
 static bool call_light_turn_on(const char *entity_id, const char *extra_json) {
@@ -2674,9 +2846,15 @@ static bool call_light_turn_on(const char *entity_id, const char *extra_json) {
     ESP_LOGW(TAG, "Cannot control non-light entity: %s", entity_id);
     return false;
   }
+  char queued_body[220];
+  snprintf(queued_body, sizeof(queued_body), "{\"entity_id\":\"%s\",%s}",
+           entity_id, extra_json);
+  return enqueue_ha_service_post("/api/services/light/turn_on",
+                                 queued_body, 5000,
+                                 "light control " + std::string(entity_id));
+
+#if 0
   std::string url = home_assistant_url;
-  while (!url.empty() && url.back() == '/') url.pop_back();
-  url += "/api/services/light/turn_on";
   esp_http_client_config_t config = {};
   config.url = url.c_str();
   config.method = HTTP_METHOD_POST;
@@ -2698,6 +2876,7 @@ static bool call_light_turn_on(const char *entity_id, const char *extra_json) {
     return false;
   }
   return true;
+#endif
 }
 
 bool set_home_assistant_light_color_temp(const char *entity_id, int kelvin) {
@@ -3261,17 +3440,9 @@ void TilesLvglRenderer::build_tile(lv_obj_t *page, const TileData &tile) {
 
 void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
                                               const std::vector<TileData> &tiles) {
+  const int64_t start_us = esp_timer_get_time();
   ESP_LOGI(TAG, "Folder %d rebuild begin: page=%p tiles=%u", folder_id,
            static_cast<void *>(page), static_cast<unsigned>(tiles.size()));
-  // Forget any Home Assistant websocket widget bindings for the tiles this
-  // page currently holds *before* destroying them, so a state update that
-  // arrives mid-rebuild can never touch a dangling LVGL object pointer.
-  clear_ha_entity_widgets();
-  energy_clear_widgets();
-
-  // Remove all existing children
-  lv_obj_clean(page);
-  ESP_LOGI(TAG, "Folder %d old LVGL children cleaned", folder_id);
 
   // Dark background
   lv_obj_set_style_bg_color(page, lv_color_make(0x0A, 0x0A, 0x0A), 0);
@@ -3286,28 +3457,21 @@ void TilesLvglRenderer::build_folder_on_page(int folder_id, lv_obj_t *page,
   ESP_LOGI(TAG, "Built folder %d with %zu tiles", folder_id,
            std::count_if(tiles.begin(), tiles.end(),
                          [](const TileData &t){ return t.type != TILE_EMPTY; }));
+  ESP_LOGI(TAG, "Folder %d build took %lld ms", folder_id,
+           static_cast<long long>((esp_timer_get_time() - start_us) / 1000));
   schedule_ha_entity_states_rest_for_folder(folder_id);
 }
 
 // ── Page management ───────────────────────────────────────────────────────────
 
 lv_obj_t *TilesLvglRenderer::get_or_create_page(int folder_id) {
-  for (auto &p : pages_) {
-    if (p.folder_id == folder_id) return p.page;
-  }
-  // Do not create a separate LVGL screen here. ESPHome owns the configured
-  // screen/page hierarchy; tile folders are rendered on its active screen.
-  lv_obj_t *screen = lv_scr_act();
-  pages_.push_back({folder_id, screen});
-  ESP_LOGI(TAG, "Using ESPHome LVGL screen for folder %d", folder_id);
-  return screen;
+  if (active_folder_id_ == folder_id && folder_container_ != nullptr)
+    return folder_container_;
+  return nullptr;
 }
 
 lv_obj_t *TilesLvglRenderer::get_page(int folder_id) const {
-  for (const auto &p : pages_) {
-    if (p.folder_id == folder_id) return p.page;
-  }
-  return nullptr;
+  return active_folder_id_ == folder_id ? folder_container_ : nullptr;
 }
 
 // ── Public interface ──────────────────────────────────────────────────────────
@@ -3326,11 +3490,37 @@ void TilesLvglRenderer::setup() {
 
 void TilesLvglRenderer::refresh_folder(int folder_id) {
   if (folder_id < 0 || folder_id > 9) return;
+  const int64_t refresh_start_us = esp_timer_get_time();
   ha_ws_client_unsubscribe_events();
   ESP_LOGI(TAG, "Refreshing folder %d", folder_id);
   const auto tiles = read_tile_grid_for_lvgl(folder_id);
-  lv_obj_t *page = get_or_create_page(folder_id);
-  build_folder_on_page(folder_id, page, tiles);
+  lv_obj_t *screen = lv_scr_act();
+  lv_obj_t *old_page = folder_container_;
+  lv_obj_t *new_page = lv_obj_create(screen);
+  lv_obj_set_pos(new_page, 0, 0);
+  lv_obj_set_size(new_page, lv_obj_get_width(screen), lv_obj_get_height(screen));
+  lv_obj_set_style_bg_color(new_page, lv_color_make(0x0A, 0x0A, 0x0A), 0);
+  lv_obj_set_style_bg_opa(new_page, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(new_page, 0, 0);
+  lv_obj_set_style_outline_width(new_page, 0, 0);
+  lv_obj_set_style_shadow_width(new_page, 0, 0);
+  lv_obj_set_style_radius(new_page, 0, 0);
+  lv_obj_set_style_pad_all(new_page, 0, 0);
+  lv_obj_clear_flag(new_page, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(new_page, LV_OBJ_FLAG_HIDDEN);
+
+  // Forget bindings before building the replacement and before deleting the
+  // old container. New widgets register themselves while they are created.
+  clear_ha_entity_widgets();
+  energy_clear_widgets();
+  build_folder_on_page(folder_id, new_page, tiles);
+  lv_obj_clear_flag(new_page, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(new_page);
+  folder_container_ = new_page;
+  active_folder_id_ = folder_id;
+  if (old_page != nullptr && lv_obj_is_valid(old_page)) lv_obj_del(old_page);
+  ESP_LOGI(TAG, "Folder %d container swapped in %lld ms", folder_id,
+           static_cast<long long>((esp_timer_get_time() - refresh_start_us) / 1000));
   // Keep the websocket subscription filter in sync with whatever is
   // currently configured across all folders (cheap: a handful of small
   // SD-card JSON files).
