@@ -121,7 +121,10 @@ esp32:
       CONFIG_LV_USE_SLIDER: "y"
       CONFIG_LV_FONT_FMT_TXT_LARGE: "y"
       CONFIG_LV_USE_FONT_COMPRESSED: "y"
-#      CONFIG_LCD_RGB_RESTART_IN_VSYNC: "y"
+# The RGB panel is intentionally kept in single-PSRAM-framebuffer mode.
+# Bounce-buffer mode causes visible flicker on this panel.
+# CONFIG_LCD_RGB_RESTART_IN_VSYNC is left disabled because it also increases
+# visible refresh artifacts at this panel's stable 14MHz pixel clock.
 
 psram:
   mode: octal
@@ -168,6 +171,8 @@ ota:
   password: !secret ota_password
   on_begin:
     then:
+      # Flash writes during OTA compete with the RGB/PSRAM DMA. The update gate
+      # stops new LVGL frames, while the direct output action hides scan noise.
       - logger.log: "OTA starting: turning display backlight off"
       - light.turn_off: display_backlight
       - output.turn_off: backlight
@@ -271,6 +276,8 @@ display:
     update_interval: never
     auto_clear_enabled: false
     color_order: RGB
+    # 14MHz is stable during normal network traffic; higher clocks are prone
+    # to drift and bounce-buffer mode causes flicker.
     pclk_frequency: 14MHZ
     dimensions:
       width: 800
@@ -288,6 +295,7 @@ display:
     reset_pin:
       ch422g: ch422g_hub
       number: 3
+    # Keep the vendor 4/8/8 horizontal and vertical timing unchanged.
     hsync_back_porch: 8
     hsync_front_porch: 8
     hsync_pulse_width: 4

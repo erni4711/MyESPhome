@@ -138,8 +138,8 @@ void MipiRgb::common_setup_() {
   }
   esp_lcd_rgb_panel_config_t config{};
   config.flags.fb_in_psram = 1;
-  // Keep the framebuffer in PSRAM, but avoid bounce-buffer copies that can
-  // starve the RGB DMA and cause visible flicker on this panel.
+  // Keep the framebuffer in PSRAM, but avoid bounce-buffer copies. On the
+  // Waveshare 800x480 panel, bounce-buffer mode causes visible flicker.
   config.bounce_buffer_size_px = 0;
   config.num_fbs = 1;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
