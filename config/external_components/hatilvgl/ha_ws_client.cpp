@@ -1,4 +1,7 @@
 #include "tiles_lvgl.h"
+#if defined(USE_ESP32_VARIANT_ESP32S3) || defined(USE_ESP32_VARIANT_ESP32S31)
+#include "esphome/components/mipi_rgb/display_update_gate.h"
+#endif
 #include "ha_ws_client.h"
 #include "energy_data.h"
 
@@ -19,7 +22,7 @@
 #include <set>
 #include <atomic>
 
-#if 0
+#if 1
 #undef ESP_LOGE
 #undef ESP_LOGD
 #undef ESP_LOGI
@@ -106,6 +109,7 @@ std::string g_token;
 bool g_started = false;
 std::atomic<bool> g_authenticated{false};
 std::atomic<bool> g_authenticated_on_loop{false};
+std::atomic<uint32_t> g_command_request_id{0};
 uint32_t g_subscribed_id = 0;
 uint32_t g_get_states_id = 0;
 uint32_t g_last_message_id = 0;
@@ -343,6 +347,7 @@ void handle_text_message(const char* message, size_t message_size) {
 void reset_connection_state() {
   g_authenticated.store(false);
   g_authenticated_on_loop.store(false);
+  g_command_request_id.store(0);
   g_rx_buffer.clear();
   g_stream_probe.clear();
   g_state_object.clear();
@@ -740,13 +745,21 @@ void ha_ws_client_discard_pending_states() {
 uint32_t ha_ws_client_send_request(const std::string &json_fields) {
   if (!g_authenticated.load() || g_client == nullptr || json_fields.empty())
     return 0;
+  uint32_t expected = 0;
+  if (!g_command_request_id.compare_exchange_strong(expected, 1)) {
+    ESP_LOGD(TAG, "Home Assistant request deferred: request id %lu is in flight",
+             static_cast<unsigned long>(expected));
+    return 0;
+  }
   const uint32_t id = next_message_id();
+  g_command_request_id.store(id);
   const std::string message =
       "{\"id\":" + std::to_string(id) + "," + json_fields + "}";
   const int sent = esp_websocket_client_send_text(
       g_client, message.c_str(), static_cast<int>(message.size()),
       pdMS_TO_TICKS(5000));
   if (sent < 0) {
+    g_command_request_id.store(0);
     ESP_LOGW(TAG, "Failed to send Home Assistant request id=%lu",
              static_cast<unsigned long>(id));
     return 0;
@@ -754,6 +767,11 @@ uint32_t ha_ws_client_send_request(const std::string &json_fields) {
   ESP_LOGD(TAG, "Sent Home Assistant request id=%lu",
            static_cast<unsigned long>(id));
   return id;
+}
+
+void ha_ws_client_release_request(uint32_t request_id) {
+  uint32_t expected = request_id;
+  g_command_request_id.compare_exchange_strong(expected, 0);
 }
 
 bool ha_ws_client_is_authenticated() { return g_authenticated.load(); }
@@ -843,9 +861,15 @@ void ha_ws_client_loop() {
     return;
   }
 
+  const bool display_update_blocked = uxQueueMessagesWaiting(queue) > 0;
+#if defined(USE_ESP32_VARIANT_ESP32S3) || defined(USE_ESP32_VARIANT_ESP32S31)
+  esphome::mipi_rgb::set_display_update_blocked(display_update_blocked);
+#endif
+  
   // Process one state per loop pass so each update keeps LVGL's normal
   // partial-invalidation path. Full-screen redraws can tear on RGB panels.
-  for (int i = 0; i < 1 && xQueueReceive(queue, g_consume_item, 0) == pdTRUE;
+  int i;
+  for (i = 0;  xQueueReceive(queue, g_consume_item, 0) == pdTRUE;
        i++) {
     ESP_LOGD(TAG, "Consuming Home Assistant state (%zu bytes)",
              g_consume_item->length);
@@ -864,7 +888,13 @@ void ha_ws_client_loop() {
         g_tiles_renderer->apply_ha_entity_state(state_doc);
       }
   }
+  if (i > 0)
+  {
+    ESP_LOGD(TAG, "Finished processing %d states and energy updates", i);
+  }
   energy_service();
+  //if (display_update_blocked)
+  //  esphome::mipi_rgb::set_display_update_blocked(false);
 }
 
 }  // namespace web_admin_local

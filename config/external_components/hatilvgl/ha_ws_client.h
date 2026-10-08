@@ -50,8 +50,11 @@ void ha_ws_client_request_states();
 
 // Sends one authenticated Home Assistant command. `json_fields` contains the
 // object fields after the generated request id, without surrounding braces.
-// Returns the request id, or zero when the command could not be sent.
+// Only one command request may be in flight at a time. Returns the request id,
+// or zero when the command is deferred or could not be sent.
 uint32_t ha_ws_client_send_request(const std::string &json_fields);
+// Releases the command slot after its result is handled or it times out.
+void ha_ws_client_release_request(uint32_t request_id);
 bool ha_ws_client_is_authenticated();
 
 // Discards state updates queued for widgets from a previous tile tree.

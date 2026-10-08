@@ -122,6 +122,10 @@ the generator, but do not rely on that side effect as the only validation.
   or secrets.
 - Keep REST and WebSocket behavior consistent. REST seeds or controls state;
   WebSocket `state_changed` events keep visible tiles current.
+- HATi uses one authenticated Home Assistant `/api/websocket` connection for
+  entity events and Energy Recorder requests. Energy command requests are
+  serialized through the shared request slot; release the slot after handling
+  the result, timeout, or reconnect rather than opening another connection.
 - Folder navigation renders into a dedicated full-screen LVGL content
   container, reveals the completed replacement, and only then deletes the old
   container. Do not clean the active ESPHome screen directly during

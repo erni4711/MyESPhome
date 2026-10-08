@@ -224,8 +224,10 @@ void HATiLvglComponent::loop() {
   }
   const int requested_folder =
       g_requested_folder.exchange(-1, std::memory_order_acq_rel);
-  if (requested_folder >= 0) g_tiles_renderer->show_folder(requested_folder);
-  g_tiles_renderer->process_pending_refreshes();
+  if (requested_folder >= 0) {
+     g_tiles_renderer->show_folder(requested_folder);
+  } else {
+    g_tiles_renderer->process_pending_refreshes();
+  }
 }
-
 }  // namespace web_admin_local

@@ -121,6 +121,7 @@ esp32:
       CONFIG_LV_USE_SLIDER: "y"
       CONFIG_LV_FONT_FMT_TXT_LARGE: "y"
       CONFIG_LV_USE_FONT_COMPRESSED: "y"
+#      CONFIG_LCD_RGB_RESTART_IN_VSYNC: "y"
 
 psram:
   mode: octal
@@ -167,14 +168,25 @@ ota:
   password: !secret ota_password
   on_begin:
     then:
+      - logger.log: "OTA starting: turning display backlight off"
+      - light.turn_off: display_backlight
+      - output.turn_off: backlight
       - switch.turn_off: switch_antiburn
       - lvgl.pause:
       - logger.log: "LVGL paused for OTA"
+      - lambda: 'esphome::mipi_rgb::set_display_update_blocked(true);'
+      - logger.log: "OTA display updates blocked"
+      - lambda: 'lv_disp_trig_activity(NULL);'
   on_end:
     then:
+      - logger.log: "OTA finished: unblocking display updates"
       - lvgl.resume:
       - logger.log: "LVGL resumed after OTA"
+      - lambda: 'esphome::mipi_rgb::set_display_update_blocked(false);'
+      - logger.log: "OTA finished: turning display backlight on"
       - logger.log: "OTA end, restart"
+      - light.turn_on: display_backlight
+      - output.turn_on: backlight
       #- switch.turn_on: restart_esp
       
 # UART configuration removed to avoid pin conflicts with display.
@@ -183,7 +195,7 @@ ota:
 #   esphome logs 7inch.yaml --device COM9
 
 logger:
-  level: WARN
+  level: DEBUG
   hardware_uart: UART0
   baud_rate: 115200
 
@@ -259,7 +271,7 @@ display:
     update_interval: never
     auto_clear_enabled: false
     color_order: RGB
-    pclk_frequency: 16MHZ
+    pclk_frequency: 14MHZ
     dimensions:
       width: 800
       height: 480
@@ -409,6 +421,8 @@ sensor:
       if (v < 3.0) v = 3.0;
       return (v - 3.0) * 100.0 / (4.2 - 3.0);
 
+wifi:
+  output_power: 8.5dB
 
 text_sensor:
   - platform: version
@@ -443,6 +457,7 @@ text_sensor:
 
 
 lvgl:
+  buffer_size: 100%
   # full_refresh: true
   on_swipe_left:
     - lvgl.page.next:

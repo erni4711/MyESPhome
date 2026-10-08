@@ -3,6 +3,7 @@
 #include "ha_ws_client.h"
 #include "tiles_lvgl.h"
 
+#include <esp_log.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -14,6 +15,20 @@
 #include <cstdio>
 #include <ctime>
 #include <unordered_map>
+
+static const char* TAG = "energy_data";  
+
+#if 1
+#undef ESP_LOGE
+#undef ESP_LOGD
+#undef ESP_LOGI
+#undef ESP_LOGW
+
+#define ESP_LOGE(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGD(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGI(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#define ESP_LOGW(t, m, ...) printf("[%s:%d] " m "\n", t, __LINE__, ##__VA_ARGS__)
+#endif
 
 namespace web_admin_local {
 namespace {
@@ -209,7 +224,10 @@ void update_widgets(const std::string &id) {
 }
 
 void update_all_widgets() {
-  for (const auto &entry : g_widgets) update_widgets(entry.first);
+  for (const auto &entry : g_widgets) {
+    //ESP_LOGD("energy_data", "Updating widgets for ID: %s", entry.first.c_str());
+    update_widgets(entry.first);
+  }
 }
 
 bool is_electricity_category(const std::string &category) {
@@ -593,6 +611,7 @@ void energy_set_visible_statistics(
 }
 
 void energy_on_websocket_reconnected() {
+  if (g_pending.id != 0) ha_ws_client_release_request(g_pending.id);
   g_preferences_ready = false;
   g_metadata_requested = false;
   g_pending = {};
@@ -605,6 +624,7 @@ void energy_service() {
   const uint32_t now = now_ms();
   if (g_pending.id != 0) {
     if (!elapsed(now, g_pending.sent_ms, kRequestTimeoutMs)) return;
+    ha_ws_client_release_request(g_pending.id);
     g_pending = {};
     g_retry_after_ms = now;
     set_error_for_visible("Home Assistant request timed out");
@@ -655,6 +675,7 @@ void energy_handle_ws_message(const JsonDocument &doc) {
   if (id == 0 || id != g_pending.id) return;
   const RequestKind kind = g_pending.kind;
   const std::vector<std::string> requested_ids = g_pending.statistic_ids;
+  ha_ws_client_release_request(g_pending.id);
   g_pending = {};
   const bool success = doc["success"] | false;
   if (!success) {

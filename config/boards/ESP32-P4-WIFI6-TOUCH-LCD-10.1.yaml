@@ -536,13 +536,17 @@ ota:
   password: !secret ota_password
   on_begin:
     then:
+      - logger.log: "OTA starting: turning display backlight off"
       - switch.turn_off: switch_antiburn
       - light.turn_off: display_backlight
+      - output.turn_off: gpio_backlight_pwm
       - lvgl.pause:
       - logger.log: "LVGL paused for OTA"
   on_end:
     then:
+      - logger.log: "OTA finished: turning display backlight on"
       - lvgl.resume:
+      - output.turn_on: gpio_backlight_pwm
       - light.turn_on: display_backlight
       - logger.log: "LVGL resumed after OTA"
       - logger.log: "OTA end, restart"

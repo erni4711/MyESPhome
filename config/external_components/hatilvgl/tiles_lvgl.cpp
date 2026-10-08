@@ -413,7 +413,7 @@ void process_one_ha_entity_state_rest() {
   if (!ensure_ha_entity_state_rest_worker()) return;
 
   RestResult *result = nullptr;
-  if (xQueueReceive(rest_result_queue, &result, 0) == pdTRUE) {
+  while (xQueueReceive(rest_result_queue, &result, 0) == pdTRUE) {
     if (result != nullptr && result->generation == rest_request_generation &&
         g_tiles_renderer != nullptr) {
       g_tiles_renderer->apply_ha_entity_state(result->state);
@@ -421,22 +421,27 @@ void process_one_ha_entity_state_rest() {
     delete result;
   }
 
-  if (home_assistant_url.empty() || home_assistant_token.empty() ||
-      next_rest_entity >= pending_rest_entities.size() ||
-      uxQueueMessagesWaiting(rest_request_queue) != 0 ||
-      uxQueueMessagesWaiting(rest_result_queue) != 0) {
-    return;
-  }
-  std::string base_url = home_assistant_url;
-  while (!base_url.empty() && base_url.back() == '/') base_url.pop_back();
-  auto *request = new RestRequest();
-  request->entity_id = pending_rest_entities[next_rest_entity++];
-  request->url = base_url + "/api/states/" + request->entity_id;
-  request->auth = "Bearer " + home_assistant_token;
-  request->generation = rest_request_generation;
-  if (request->entity_id.empty() ||
-      xQueueSend(rest_request_queue, &request, 0) != pdTRUE) {
-    delete request;
+  for (;;)
+  {
+
+    if (home_assistant_url.empty() || home_assistant_token.empty() ||
+    next_rest_entity >= pending_rest_entities.size() ||
+    uxQueueMessagesWaiting(rest_request_queue) != 0 ||
+    uxQueueMessagesWaiting(rest_result_queue) != 0) {
+      return;
+    }
+    std::string base_url = home_assistant_url;
+    while (!base_url.empty() && base_url.back() == '/') base_url.pop_back();
+    auto *request = new RestRequest();
+    request->entity_id = pending_rest_entities[next_rest_entity++];
+    request->url = base_url + "/api/states/" + request->entity_id;
+    request->auth = "Bearer " + home_assistant_token;
+    request->generation = rest_request_generation;
+    // Skip sending the request if the entity ID is empty.
+    if (request->entity_id.empty() ||
+    xQueueSend(rest_request_queue, &request, 0) != pdTRUE) {
+      delete request;
+    }
   }
 }
 
