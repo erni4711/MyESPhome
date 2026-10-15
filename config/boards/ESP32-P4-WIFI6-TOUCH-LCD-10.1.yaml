@@ -291,10 +291,10 @@ microphone:
     sample_rate: 16000
     bits_per_sample: 16bit
     adc_type: external
-    # on_data:
-    #   - logger.log:
-    #       format: "Microphone data received: %d bytes"
-    #       args: [x.size()]
+    on_data:
+       - logger.log:
+           format: "Microphone data received: %d bytes"
+           args: [x.size()]
 
 speaker:
   - platform: i2s_audio
@@ -499,23 +499,6 @@ sd_mmc_card:
   d2_pin: 41
   d3_pin: 42
 
-# sd_file_server:
-#   sd_mmc_id: sdcard
-#   web_server_base_id: my_web_server_base
-#   url_prefix: sd
-#   enable_download: true
-#   enable_upload: true
-#   enable_deletion: true
-
-
-
-
-# web_admin:
-#   web_server_base_id: my_web_server_base
-#   url_prefix: admin
-#   # enable_authentication: true
-#   # username: !secret web_admin_username
-#   # password: !secret web_admin_password
 
 #-------------------------------------------
 # LCD Back light
@@ -614,31 +597,29 @@ script:
   #           time_format: "%H:%M:%S"
   - id: start_micro_wake_word
     then:
-      - logger.log: "disabled"
-      # - if:
-      #     condition:
-      #       and:
-      #         - voice_assistant.connected:
-      #         - not:
-      #             voice_assistant.is_running:
-      #         - not:
-      #             media_player.is_announcing:
-      #         - not:
-      #             media_player.is_playing:
-      #         - not:
-      #             micro_wake_word.is_running:
-      #     then:
-      #       - logger.log: "Starting wake word detection"
-      #       - micro_wake_word.start
+      - if:
+          condition:
+            and:
+              - voice_assistant.connected:
+              - not:
+                  voice_assistant.is_running:
+              - not:
+                  media_player.is_announcing:
+              - not:
+                  media_player.is_playing:
+              - not:
+                  micro_wake_word.is_running:
+          then:
+            - logger.log: "Starting wake word detection"
+            - micro_wake_word.start
   - id: stop_micro_wake_word
     then:
-      - logger.log: "disabled"
-      # - if:
-      #     condition:
-      #       micro_wake_word.is_running:
-      #     then:
-      #       - logger.log: "Stopping wake word detection"
-      #       - micro_wake_word.stop
+      - if:
+          condition:
+            micro_wake_word.is_running:
+          then:
+            - logger.log: "Stopping wake word detection"
+            - micro_wake_word.stop
 
 <<: !include ../common/7i-fonts.yaml
 
@@ -710,7 +691,6 @@ text_sensor:
             text: !lambda |-
               auto ver_str = (std::string("ESPHome ") + id(esphome_version).state);
               return ver_str; //.c_str();
-  # DISABLE: voice_spoken_sentence - memory optimization
   - platform: template
     id: voice_spoken_sentence
     internal: true
@@ -795,105 +775,6 @@ lvgl:
           hidden: true
           options:
             - ""
-      # - obj:
-      #     styles: header_footer
-      #     bg_opa: COVER
-      #     align: top_left
-      #     width: 40
-      #     layout:
-      #       type: flex
-      #       flex_flow: row
-      #       pad_column: 4
-      #       flex_align_main: start
-      #       flex_align_cross: start
-            
-      #     widgets:
-      #       - button:
-      #           id: reboot_button
-      #           styles: style_circle_button_mini
-      #           text: ${mdi_power}
-      #           on_press:
-      #             then:
-      #               - lambda: |-
-      #                   esp_restart();
-      # - obj:
-      #     styles: header_footer
-      #     align: top_right
-      #     width: 330
-      #     bg_opa: COVER
-      #     layout:
-      #       type: flex
-      #       flex_flow: row
-      #       pad_column: 4
-      #       flex_align_main: end
-      #       flex_align_cross: start
-      #       flex_align_track: end
-      #     widgets:
-      #       - label:
-      #           id: clock_label
-      #           text:
-      #             time_format: "%H:%M:%S"
-      #           text_color: 0xFFFFFF
-      #           text_font: font_mono
-      #       - label:
-      #           id: lbl_battery_status
-      #           text_font: battery_icons_20
-      #           text_align: center
-      #           text: "${mdi_battery_unknown}" # start with mdi-battery-unknown
-      #       - label:
-      #           id: battery_text 
-      #           text: "~50%"
-      #           text_font: font_mono
-      #           align: TOP_RIGHT
-      #           # x: -10 
-      #           # y: 40
-      #       - label:
-      #           text_font: roboto_reg
-      #           text: "${mdi_wifi}"
-      #           id: lbl_hastatus
-      #           hidden: true
-      #           text_align: center
-      #       - button:
-      #           id: about_button
-      #           styles: style_circle_button_mini
-      #           text: ${mdi_info}
-      #           on_press:
-      #             then:
-      #               - lvgl.widget.show: boot_about_label
-      #               - lvgl.widget.show: boot_screen
-      # - buttonmatrix:
-      #     align: bottom_mid
-      #     bg_opa: COVER
-      #     styles: header_footer
-      #     pad_all: 0
-      #     outline_width: 0
-      #     height: ${ui_footer_height}
-      #     width: 100%
-      #     id: top_layer
-      #     items:
-      #       styles: header_footer
-      #     rows:
-      #       - buttons:
-      #         - id: page_prev
-      #           text: "\uF053"
-      #           on_press:
-      #             then:
-      #               - lvgl.page.previous:
-      #         - id: page_home
-      #           text: "\uF015"
-      #           on_press:
-      #             then:
-      #               - lvgl.page.show: voice_page
-      #         - id: page_sleep
-      #           text: "Z"
-      #           on_press:
-      #             then:
-      #               - logger.log: "Sleep not supported on ESP32-P4"
-      #         - id: page_next
-      #           text: "\uF054"
-      #           on_press:
-      #             then:
-      #               - lvgl.page.next:
       - obj:
           id: boot_screen
           x: 0
@@ -962,15 +843,18 @@ lvgl:
 
 
 
-# p4_camera:
-#   id: ov5647_camera
-#   name: OV5647 Camera
-#   camera_model: OV5647
-#   i2c_id: bus_a
-#   external_clock_pin: 36
-#   frequency: 24000000
-#   address_sensor_ov5647: 0x36
-#   resolution: FHD
-#   pixel_format: JPEG
-#   framerate: 30
-#   flip_mirror: false
+# -------------------------------------------
+# Camera OV5647 (MIPI-CSI, SCCB on i2c bus_a)
+# -------------------------------------------
+p4_camera:
+  id: ov5647_camera
+  name: OV5647 Camera
+  camera_model: OV5647
+  i2c_id: bus_a
+  resolution: 1280X960      # 800X640 | 800X800 | 800X1280 | 1280X960 | 1920X1080 (fixed at build time)
+  jpeg_quality: 80          # 1-100, higher is better
+  max_framerate: 10         # max fps sent to Home Assistant while streaming
+  vertical_flip: false
+  horizontal_mirror: false
+  rotation: 90              # 0 | 90 | 180 | 270, counter-clockwise (800x1280 -> 1280x800)
+  standby_timeout: 30s      # stop the sensor stream when idle; 0s = stream continuously
