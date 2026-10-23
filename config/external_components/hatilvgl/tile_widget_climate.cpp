@@ -318,6 +318,8 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_obj_t *target_arc = nullptr;
   lv_obj_t *current_marker = nullptr;
   lv_obj_t *mode_button = nullptr;
+  lv_obj_t *battery_icon = nullptr;
+  lv_obj_t *battery_level = nullptr;
 
   // Title at top-right
   const char *title_text = tile.title.empty() ? (entity.empty() ? "--" : entity.c_str()) : tile.title.c_str();
@@ -380,6 +382,20 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
                         icon_context);
   }
 
+  battery_icon = lv_label_create(parent);
+  lv_label_set_text(battery_icon, getMdiChar("battery-outline").c_str());
+  lv_obj_set_style_text_color(battery_icon, muted, 0);
+  lv_obj_set_style_text_font(battery_icon, FONT_MDI_ICONS, 0);
+  lv_obj_align(battery_icon, LV_ALIGN_TOP_RIGHT, 0, 20);
+  lv_obj_add_flag(battery_icon, LV_OBJ_FLAG_HIDDEN);
+
+  battery_level = lv_label_create(parent);
+  lv_label_set_text(battery_level, "--%");
+  lv_obj_set_style_text_color(battery_level, muted, 0);
+  lv_obj_set_style_text_font(battery_level, ui_font_for_size(12), 0);
+  lv_obj_align(battery_level, LV_ALIGN_TOP_RIGHT, 0, 60);
+  lv_obj_add_flag(battery_level, LV_OBJ_FLAG_HIDDEN);
+
   // Current temperature big in center
   lv_obj_t *temp = lv_label_create(parent);
   lv_label_set_text(temp, "--");
@@ -410,10 +426,10 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
     if (large_climate_tile)
     {
       minus = create_adjust_button(parent, setpoint, "-", -0.5f, entity.c_str());
-      lv_obj_align(minus, LV_ALIGN_TOP_LEFT, 0, 50);
+      lv_obj_align(minus, LV_ALIGN_BOTTOM_LEFT, 0, -35);
      
       plus =  create_adjust_button(parent, setpoint, "+", 0.5f, entity.c_str());
-      lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, 0, 50);
+      lv_obj_align(plus, LV_ALIGN_BOTTOM_RIGHT, 0, -35);
      
       create_climate_preset_button(parent, entity.c_str(), "16°", 16.0f,
                                    LV_ALIGN_BOTTOM_LEFT, 0, 0);
@@ -427,7 +443,8 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
     tile_geometry.span_h = tile.geometry.span_h;
     register_ha_climate_widget(entity, tile_geometry, temp, setpoint, mode,
                                 icon, minus, plus, target_arc, current_marker,
-                                mode_button);
+                                mode_button, battery_icon, battery_level,
+                                tile.climate_battery_entity);
   }
 
 }

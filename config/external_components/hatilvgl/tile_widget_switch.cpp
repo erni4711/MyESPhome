@@ -151,15 +151,16 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
     lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 2);
   }
 
-  lv_obj_t *state_label = lv_label_create(parent);
-  lv_label_set_text(state_label, "OFF");
-  lv_obj_set_style_text_color(state_label, muted, 0);
-  lv_obj_set_style_text_font(state_label, ui_font_for_size(14), 0);
-  lv_obj_set_style_text_align(state_label, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_width(state_label, LV_PCT(100));
-  lv_obj_align(state_label, LV_ALIGN_BOTTOM_MID, 0, -4);
-
+  
   if (tile.switch_style == 1 && std::strncmp(entity.c_str(), "light.", 6) == 0) {
+    lv_obj_t *state_label = lv_label_create(parent);
+    lv_label_set_text(state_label, "OFF");
+    lv_obj_set_style_text_color(state_label, muted, 0);
+    lv_obj_set_style_text_font(state_label, ui_font_for_size(14), 0);
+    lv_obj_set_style_text_align(state_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(state_label, LV_PCT(100));
+    lv_obj_align(state_label, LV_ALIGN_BOTTOM_MID, 0, -4);
+
     lv_obj_t *slider = lv_slider_create(parent);
     lv_obj_set_size(slider, LV_PCT(82), 16);
     lv_slider_set_range(slider, 0, 100);
@@ -197,14 +198,14 @@ void tile_widget_build_switch(lv_obj_t *parent, const TileData &tile) {
   lv_obj_center(caption);
 
   if (!entity.empty()) {
-    auto *context = create_switch_context(state_label, entity, tile.title);
+    auto *context = create_switch_context(caption, entity, tile.title);
     lv_obj_add_event_cb(switch_obj, switch_toggle_cb,
                         LV_EVENT_VALUE_CHANGED, context);
     lv_obj_add_event_cb(switch_obj, switch_popup_cb,
                         LV_EVENT_LONG_PRESSED, context);
     lv_obj_add_event_cb(switch_obj, switch_context_delete_cb,
                         LV_EVENT_DELETE, context);
-    register_ha_switch_widget(entity, switch_obj, state_label);
+    register_ha_switch_widget(entity, switch_obj, caption);
   }
 }
 

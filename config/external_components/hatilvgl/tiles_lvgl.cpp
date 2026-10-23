@@ -26,6 +26,7 @@
 #include <cctype>
 #include <cmath>
 #include <algorithm>
+#include <set>
 #include <unordered_map>
 #include <utility>
 #include <esp_timer.h>
@@ -71,6 +72,26 @@ constexpr size_t kMaxMediaArtworkBytes = 512 * 1024;
 constexpr size_t kMaxMediaArtworkPixels = 1920U * 1088U;
 constexpr size_t kMaxServicePathBytes = 192;
 constexpr size_t kMaxServiceBodyBytes = 512;
+
+template <typename T>
+struct PsramAllocator {
+  using value_type = T;
+
+  T *allocate(std::size_t count) {
+    void *memory = heap_caps_malloc(count * sizeof(T),
+                                    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (memory == nullptr) std::abort();
+    return static_cast<T *>(memory);
+  }
+
+  void deallocate(T *pointer, std::size_t) { heap_caps_free(pointer); }
+
+  template <typename U>
+  bool operator==(const PsramAllocator<U> &) const { return true; }
+
+  template <typename U>
+  bool operator!=(const PsramAllocator<U> &) const { return false; }
+};
 
 struct MediaArtwork {
   lv_image_dsc_t descriptor{};
@@ -486,6 +507,9 @@ struct SensorWidgetBinding {
   lv_obj_t *climate_target_arc = nullptr;
   lv_obj_t *climate_current_marker = nullptr;
   lv_obj_t *climate_mode_button = nullptr;
+  lv_obj_t *climate_battery_icon = nullptr;
+  lv_obj_t *climate_battery_level = nullptr;
+  std::string climate_battery_entity;
   lv_obj_t *media_title = nullptr;
   lv_obj_t *media_subtitle = nullptr;
   lv_obj_t *media_state = nullptr;
@@ -553,6 +577,10 @@ int weather_rain_bar_height(float precipitation) {
 }
 
 std::unordered_map<std::string, std::vector<SensorWidgetBinding>> g_sensor_widget_bindings;
+using PsramEntitySet =
+    std::set<std::string, std::less<std::string>,
+             PsramAllocator<std::string>>;
+PsramEntitySet g_known_ha_entities;
 std::unordered_map<std::string, std::string> g_camera_picture_urls;
 int64_t g_next_camera_frame_us = 0;
 size_t g_camera_entity_index = 0;
@@ -726,7 +754,10 @@ void register_ha_climate_widget(const std::string &entity_id,
                                 lv_obj_t *plus,
                                 lv_obj_t *target_arc,
                                 lv_obj_t *current_marker,
-                                lv_obj_t *mode_button) {
+                                lv_obj_t *mode_button,
+                                lv_obj_t *battery_icon,
+                                lv_obj_t *battery_level,
+                                const std::string &battery_entity) {
   if (entity_id.empty()) return;
   SensorWidgetBinding binding;
   binding.tile_geo = tile_geo;
@@ -739,6 +770,9 @@ void register_ha_climate_widget(const std::string &entity_id,
   binding.climate_target_arc = target_arc;
   binding.climate_current_marker = current_marker;
   binding.climate_mode_button = mode_button;
+  binding.climate_battery_icon = battery_icon;
+  binding.climate_battery_level = battery_level;
+  binding.climate_battery_entity = battery_entity;
   MutexGuard lock(widget_registry_mutex());
   g_sensor_widget_bindings[entity_id].push_back(binding);
   const auto watch = [](lv_obj_t *object) {
@@ -755,6 +789,8 @@ void register_ha_climate_widget(const std::string &entity_id,
   watch(mode);
   watch(icon);
   watch(mode_button);
+  watch(battery_icon);
+  watch(battery_level);
   ESP_LOGI(TAG,
            "Registered climate widget: entity=%s arc=%p marker=%p "
            "temperature=%p setpoint=%p",
@@ -1514,7 +1550,12 @@ void TilesLvglRenderer::apply_ha_entity_state(const JsonDocument &state) {
   ESP_LOGD(TAG, "Applying Home Assistant state for %s", entity_id);
   const std::string id(entity_id);
   const std::string value = state["state"] | "";
+  g_known_ha_entities.insert(id);
   const JsonObjectConst attributes = state["attributes"].as<JsonObjectConst>();
+  if (id.size() > 8 && id.compare(id.size() - 8, 8, "_battery") == 0) {
+    apply_ha_climate_battery_state(id, value);
+    return;
+  }
   const std::string unit = attributes["native_temperature_unit"] |
                            (attributes["unit_of_measurement"] | "");
   const std::string icon = attributes["icon"] | "";
@@ -1678,7 +1719,7 @@ void TilesLvglRenderer::apply_ha_entity_state(const JsonDocument &state) {
     const std::string hvac_action = attributes["hvac_action"] | "";
     const bool available = value != "unavailable" && value != "unknown";
     apply_ha_climate_state(id, current_temperature, setpoint, hvac_mode,
-                           hvac_action, unit, icon, available);
+                           hvac_action, unit, icon, -1.0f, available);
     return;
   }
 
@@ -1897,6 +1938,59 @@ void TilesLvglRenderer::apply_ha_weather_forecast_day_state(
   }
 }
 
+void TilesLvglRenderer::apply_ha_climate_battery_state(
+    const std::string &entity_id, const std::string &state) {
+  std::vector<SensorWidgetBinding> bindings;
+  {
+    MutexGuard lock(widget_registry_mutex());
+    for (auto &entry : g_sensor_widget_bindings) {
+      const std::string expected =
+          entry.first.rfind("climate.", 0) == 0
+              ? "sensor." + entry.first.substr(8) + "_battery"
+              : entry.first + "_battery";
+      for (auto &binding : entry.second) {
+        if (binding.climate_battery_entity.empty() &&
+            expected == entity_id)
+          binding.climate_battery_entity = entity_id;
+        if (binding.climate_battery_entity == entity_id)
+          bindings.push_back(binding);
+      }
+    }
+  }
+  ESP_LOGI(TAG, "Applying climate battery state for entity_id=%s state=%s binding_count=%zu", entity_id.c_str(), state.c_str(), bindings.size());
+  if (bindings.empty()) return;
+
+  char *end = nullptr;
+  const float battery = std::strtof(state.c_str(), &end);
+  const bool valid = end != state.c_str() && std::isfinite(battery) &&
+                     battery >= 0.0f && battery <= 100.0f;
+  const char *icon_name = !valid      ? "battery-outline"
+                          : battery < 10 ? "battery-alert"
+                          : battery < 30 ? "battery-30"
+                          : battery < 60 ? "battery-50"
+                                         : "battery-90";
+  const lv_color_t color =
+      valid ? (battery < 20 ? lv_color_make(0xF4, 0x43, 0x36)
+                             : lv_color_white())
+            : lv_color_make(0x80, 0x80, 0x80);
+  const std::string icon = getMdiChar(icon_name);
+  char text[8] = "--%";
+  if (valid) std::snprintf(text, sizeof(text), "%.0f%%", battery);
+  for (const auto &binding : bindings) {
+    if (binding.climate_battery_icon) {
+      lv_label_set_text(binding.climate_battery_icon,
+                        icon.empty() ? "?" : icon.c_str());
+      lv_obj_set_style_text_color(binding.climate_battery_icon, color, 0);
+      lv_obj_clear_flag(binding.climate_battery_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (binding.climate_battery_level) {
+      lv_label_set_text(binding.climate_battery_level, text);
+      lv_obj_set_style_text_color(binding.climate_battery_level, color, 0);
+      lv_obj_clear_flag(binding.climate_battery_level, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+}
+
 static void update_climate_current_marker(const GridGeometry &geo_, const TileData::Geometry &tile_geo, lv_obj_t *marker, lv_obj_t *arc,
                                           float temperature) {
   if (!marker || !arc || !std::isfinite(temperature)) {
@@ -1939,7 +2033,7 @@ void TilesLvglRenderer::apply_ha_climate_state(
     const std::string &entity_id, const std::string &current_temperature,
     const std::string &setpoint, const std::string &hvac_mode,
     const std::string &hvac_action, const std::string &unit,
-    const std::string &icon, bool available) {
+    const std::string &icon, float battery_level, bool available) {
   std::vector<SensorWidgetBinding> bindings;
   {
     MutexGuard lock(widget_registry_mutex());
@@ -1989,6 +2083,15 @@ void TilesLvglRenderer::apply_ha_climate_state(
       radiator_burst     ? "radiator" :
       radiator_heating   ? "radiator" :
                            nullptr;
+  const bool battery_valid = std::isfinite(battery_level) &&
+                             battery_level >= 0.0f &&
+                             battery_level <= 100.0f;
+  const char *battery_icon_name =
+      !battery_valid      ? "battery-outline"
+      : battery_level < 10 ? "battery-alert"
+      : battery_level < 30 ? "battery-30"
+      : battery_level < 60 ? "battery-50"
+                           : "battery-90";
   ESP_LOGI(TAG, "Climate state: entity=%s available=%d current=%s setpoint=%s "
                  "mode=%s action=%s unit=%s",
            entity_id.c_str(), available, current_temperature.c_str(),
@@ -2093,6 +2196,31 @@ void TilesLvglRenderer::apply_ha_climate_state(
             binding.climate_icon,
             radiator_burst ? lv_color_make(0xF4, 0x43, 0x36) : state_color, 0);
       }
+    }
+    if (binding.climate_battery_level) {
+      char battery_text[8] = "--%";
+      if (battery_valid) {
+        std::snprintf(battery_text, sizeof(battery_text), "%.0f%%",
+                      battery_level);
+      }
+      lv_label_set_text(binding.climate_battery_level, battery_text);
+      lv_obj_set_style_text_color(
+          binding.climate_battery_level,
+          battery_valid ? (battery_level < 20 ? lv_color_make(0xF4, 0x43, 0x36)
+                                              : lv_color_white())
+                        : lv_color_make(0x80, 0x80, 0x80),
+          0);
+    }
+    if (binding.climate_battery_icon) {
+      const std::string battery_char = getMdiChar(battery_icon_name);
+      lv_label_set_text(binding.climate_battery_icon,
+                        battery_char.empty() ? "?" : battery_char.c_str());
+      lv_obj_set_style_text_color(
+          binding.climate_battery_icon,
+          battery_valid ? (battery_level < 20 ? lv_color_make(0xF4, 0x43, 0x36)
+                                              : lv_color_white())
+                        : lv_color_make(0x80, 0x80, 0x80),
+          0);
     }
   }
 }
@@ -2305,6 +2433,8 @@ void add_ha_entities_on_folder(std::vector<std::string> &entities, int folder_id
                  tile.type == TILE_CLIMATE || tile.type == TILE_CAMERA ||
                  tile.type == TILE_COVER || tile.type == TILE_WLED) {
         add_unique(tile.entity_id);
+        if (tile.type == TILE_CLIMATE)
+          add_unique(tile.climate_battery_entity);
         if (tile.type == TILE_WLED) add_unique(tile.wled_preset_entity);
         if (tile.type == TILE_WLED) add_unique(tile.wled_restart_entity);
       }
@@ -3151,6 +3281,11 @@ std::vector<TileData> read_tile_grid_for_lvgl(int folder_id) {
       default: break;
     }
     d.entity_id         = t["entity_id"] | legacy_entity;
+    if (d.type == TILE_CLIMATE && d.entity_id.rfind("climate.", 0) == 0) {
+      const std::string candidate =
+          "sensor." + d.entity_id.substr(8) + "_battery";
+      d.climate_battery_entity = candidate;
+    }
     d.wled_preset_entity = t["wled_preset_entity"] | "";
     d.wled_restart_entity = t["wled_restart_entity"] | "";
     if (d.type == TILE_WLED && !d.entity_id.empty()) {

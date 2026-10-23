@@ -200,7 +200,7 @@ ota:
 #   esphome logs 7inch.yaml --device COM9
 
 logger:
-  level: WARN
+  level: INFO
   hardware_uart: UART0
   baud_rate: 115200
 
@@ -278,7 +278,7 @@ display:
     color_order: RGB
     # 14MHz is stable during normal network traffic; higher clocks are prone
     # to drift and bounce-buffer mode causes flicker.
-    pclk_frequency: 14MHZ
+    pclk_frequency: 14000000   #14MHZ
     dimensions:
       width: 800
       height: 480

@@ -24,6 +24,7 @@ struct TileData {
   std::string icon_name;
   std::string title;
   std::string entity_id;
+  std::string climate_battery_entity;
   std::string sensor_unit;
   int     sensor_decimals    = -1;
   int     sensor_value_font  = 0;
@@ -108,7 +109,10 @@ void register_ha_climate_widget(const std::string &entity_id,
                                 lv_obj_t *plus = nullptr,
                                 lv_obj_t *target_arc = nullptr,
                                 lv_obj_t *current_marker = nullptr,
-                                lv_obj_t *mode_button = nullptr);
+                                lv_obj_t *mode_button = nullptr,
+                                lv_obj_t *battery_icon = nullptr,
+                                lv_obj_t *battery_level = nullptr,
+                                const std::string &battery_entity = "");
 void register_ha_media_widget(const std::string &entity_id,
                               lv_obj_t *title,
                               lv_obj_t *subtitle,
@@ -238,7 +242,10 @@ class TilesLvglRenderer {
                               const std::string &hvac_action,
                               const std::string &unit,
                               const std::string &icon,
+                              float battery_level = -1.0f,
                               bool available = true);
+  void apply_ha_climate_battery_state(const std::string &entity_id,
+                                      const std::string &state);
   void apply_ha_media_state(const std::string &entity_id,
                             const std::string &state,
                             const std::string &title,
