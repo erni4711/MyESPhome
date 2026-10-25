@@ -330,7 +330,7 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_obj_set_style_text_color(title, white, 0);
   lv_obj_set_style_text_font(title, ui_font_for_size(14), 0);
   lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_RIGHT, 0);
-  lv_obj_align(title, LV_ALIGN_TOP_RIGHT, 0, 6);
+  lv_obj_align(title, LV_ALIGN_TOP_RIGHT, 0, 0);
 
   auto tile_geo = tile.geometry;
   int w = geo.tile_w(tile_geo.span_w);
@@ -371,7 +371,7 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
   lv_label_set_text(icon, icon_char.empty() ? "?" : icon_char.c_str());
   lv_obj_set_style_text_color(icon, lv_color_make(0xFF, 0xB8, 0x4D), 0);
   lv_obj_set_style_text_font(icon, FONT_MDI_ICONS, 0);
-  lv_obj_align(icon, LV_ALIGN_TOP_LEFT, 0, 2);
+  lv_obj_align(icon, LV_ALIGN_TOP_LEFT, 0, 0);
   if (!entity.empty()) {
     lv_obj_add_flag(icon, LV_OBJ_FLAG_CLICKABLE);
     auto *icon_context = new ClimateModeContext{};
@@ -382,18 +382,21 @@ void tile_widget_build_climate(lv_obj_t *parent, const TileData &tile, const Gri
                         icon_context);
   }
 
+  size_t mdi_icon_height = lv_font_get_line_height(FONT_MDI_ICONS);
+  size_t text_height = lv_font_get_line_height(ui_font_for_size(12));
+
   battery_icon = lv_label_create(parent);
   lv_label_set_text(battery_icon, getMdiChar("battery-outline").c_str());
   lv_obj_set_style_text_color(battery_icon, muted, 0);
   lv_obj_set_style_text_font(battery_icon, FONT_MDI_ICONS, 0);
-  lv_obj_align(battery_icon, LV_ALIGN_TOP_RIGHT, 0, 20);
+  lv_obj_align(battery_icon, LV_ALIGN_TOP_RIGHT, 0, 16);
   lv_obj_add_flag(battery_icon, LV_OBJ_FLAG_HIDDEN);
 
   battery_level = lv_label_create(parent);
   lv_label_set_text(battery_level, "--%");
   lv_obj_set_style_text_color(battery_level, muted, 0);
   lv_obj_set_style_text_font(battery_level, ui_font_for_size(12), 0);
-  lv_obj_align(battery_level, LV_ALIGN_TOP_RIGHT, 0, 60);
+  lv_obj_align(battery_level, LV_ALIGN_TOP_RIGHT, 0, 16+mdi_icon_height);
   lv_obj_add_flag(battery_level, LV_OBJ_FLAG_HIDDEN);
 
   // Current temperature big in center

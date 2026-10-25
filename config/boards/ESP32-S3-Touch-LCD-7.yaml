@@ -295,6 +295,10 @@ display:
     reset_pin:
       ch422g: ch422g_hub
       number: 3
+    # workaround for CH422G hub reset pin
+    enable_pin:
+      ch422g: ch422g_hub
+      number: 4
     # Keep the vendor 4/8/8 horizontal and vertical timing unchanged.
     hsync_back_porch: 8
     hsync_front_porch: 8
